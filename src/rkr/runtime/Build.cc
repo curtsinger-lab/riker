@@ -274,18 +274,24 @@ void Build::pathRef(const shared_ptr<Command>& c,
                     fs::path path,
                     AccessFlags flags,
                     Ref::ID output) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->pathRef(c, base, path, flags, output);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->pathRef(c, base, path, flags, output);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
 
   // Get the directory where resolution should begin
   auto base_dir = c->getRef(base)->getArtifact();
@@ -299,9 +305,6 @@ void Build::pathRef(const shared_ptr<Command>& c,
     string newpath = c->substitutePath("/" + path.string());
     path = fs::path(newpath.substr(1));
   }
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   // Create an IR step and add it to the output trace
   _output.pathRef(c, base, path, flags, output);
@@ -840,34 +843,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// A command makes a reference with a path
-Ref::ID Build::tracePathRef(const shared_ptr<Command>& c,
-                            Ref::ID base_id,
-                            fs::path path,
-                            AccessFlags flags) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Get the base directory artifact
-  auto base = c->getRef(base_id);
-  ASSERT(base->isResolved()) << "Cannot resolve a path relative to an unresolved base reference.";
-
-  // Resolve the path and create a Ref
-  auto ref = make_shared<Ref>(base->getArtifact()->resolve(c, path, flags));
-
-  // Add the refrence to the command
-  auto output = c->setRef(ref);
-
-  // Create an IR step and add it to the output trace
-  _output.pathRef(c, base_id, path, flags, output);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base_id, path, flags, output} << " -> "
-          << c->getRef(output);
-
-  return output;
-}
 
 // A command kept a handle to a Ref
 void Build::traceUsingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {

@@ -115,16 +115,22 @@ Ref::ID Thread::makePathRef(fs::path p, AccessFlags flags, at_fd at) noexcept {
     // HACK: Remove the O_EXCL flag when creating files in /tmp
     if (p.string().find("/tmp/") == 0) flags.exclusive = false;
 
-    return _build.tracePathRef(getCommand(), _process->getRoot(), p.relative_path(), flags);
+    auto ref = getCommand()->nextRef();
+    _build.pathRef(getCommand(), _process->getRoot(), p.relative_path(), flags, ref);
+    return ref;
   }
 
   // Handle the special CWD file descriptor to resolve relative to cwd
   if (at.isCWD()) {
-    return _build.tracePathRef(getCommand(), _process->getWorkingDir(), p.relative_path(), flags);
+    auto ref = getCommand()->nextRef();
+    _build.pathRef(getCommand(), _process->getWorkingDir(), p.relative_path(), flags, ref);
+    return ref;
   }
 
   // The path is resolved relative to some file descriptor
-  return _build.tracePathRef(getCommand(), _process->getFD(at.getFD()), p.relative_path(), flags);
+  auto ref = getCommand()->nextRef();
+  _build.pathRef(getCommand(), _process->getFD(at.getFD()), p.relative_path(), flags, ref);
+  return ref;
 }
 
 user_regs_struct Thread::getRegisters() noexcept {

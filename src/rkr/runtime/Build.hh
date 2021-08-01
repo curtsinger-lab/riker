@@ -163,12 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A traced command referenced a path
-  Ref::ID tracePathRef(const std::shared_ptr<Command>& c,
-                       Ref::ID base,
-                       fs::path path,
-                       AccessFlags flags) noexcept;
-
   /// A command is retaining a handle to a Ref (e.g. in its file descriptor table)
   void traceUsingRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept;
 

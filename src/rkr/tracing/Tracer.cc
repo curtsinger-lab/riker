@@ -290,8 +290,9 @@ void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
       struct stat statbuf;
       if (::stat(core_path.c_str(), &statbuf) == 0) {
         // Make a reference to the core file that creates it
-        auto core_ref = _build.tracePathRef(t.getCommand(), cwd_ref_id, "core",
-                                            AccessFlags{.w = true, .create = true});
+        auto core_ref = t.getCommand()->nextRef();
+        _build.pathRef(t.getCommand(), cwd_ref_id, "core", AccessFlags{.w = true, .create = true},
+                       core_ref);
         auto core = t.getCommand()->getRef(core_ref)->getArtifact();
 
         // Make sure the reference resolved
