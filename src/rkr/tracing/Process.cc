@@ -172,13 +172,17 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   // Inform the build of the launch
   _build.traceLaunch(_command, child, refs);
 
-  // Now that the child has been launched, record that it is using all of its inherited refs
-  for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    _build.usingRef(child, child_ref_id);
-  }
-
   // The child is now launched in this process
   child->setLaunched(shared_from_this());
+
+  // Now that the child has been launched, record that it is using all of its inherited refs
+  // We only need to do this if the command is marked for run. If it is being emulated, it should
+  // already have these IR steps
+  if (child->mustRun()) {
+    for (const auto& [parent_ref_id, child_ref_id] : refs) {
+      _build.usingRef(child, child_ref_id);
+    }
+  }
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);
