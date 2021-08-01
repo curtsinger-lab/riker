@@ -540,9 +540,9 @@ void Command::setRef(Ref::ID id, shared_ptr<Ref> ref) noexcept {
 
 // Store a reference at the next available index of this command's local reference table
 Ref::ID Command::setRef(shared_ptr<Ref> ref) noexcept {
-  Ref::ID id = _current_run._refs.size();
+  Ref::ID id = nextRef();
   ASSERT(ref) << "Attempted to store null ref at ID " << id << " in " << this;
-  _current_run._refs.push_back(ref);
+  _current_run._refs[id] = ref;
 
   return id;
 }
@@ -550,7 +550,12 @@ Ref::ID Command::setRef(shared_ptr<Ref> ref) noexcept {
 // Get the next available Ref ID
 Ref::ID Command::nextRef() noexcept {
   Ref::ID id = _current_run._refs.size();
-  _current_run._refs.push_back(nullptr);
+
+  // Make sure the newly claimed reference is not in the reserved range
+  if (id < Ref::ReservedRefs) id = Ref::ReservedRefs;
+
+  // Make space for the newly reserved reference ID in the refs array
+  if (id >= _current_run._refs.size()) _current_run._refs.resize(id + 1);
 
   return id;
 }

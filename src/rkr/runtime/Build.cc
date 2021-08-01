@@ -954,18 +954,14 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
 /************************ Trace IR Steps ************************/
 
-// This command launches a child command
-shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
+// Look for a known command that matches one being launched
+shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
                                        vector<string> args,
                                        Ref::ID exe_ref,
                                        Ref::ID cwd_ref,
                                        Ref::ID root_ref,
-                                       const map<int, Ref::ID>& fds,
-                                       shared_ptr<Process> process) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // We're going to hunt for a command that matches this launch. Keep track of the best match.
+                                       const map<int, Ref::ID>& fds) noexcept {
+  // Keep track of the best matching command so far
   shared_ptr<Command> child = nullptr;
 
   // Matches may require path substitutions for temporary files. Remember those.
@@ -993,38 +989,15 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
     child_substitutions = std::move(substitutions.value());
   }
 
-  // Build a mapping from parent refs to child refs to emit to the IR layer
-  list<tuple<Ref::ID, Ref::ID>> refs;
-
   // Did we find a matching command?
   if (child) {
     // Remove the child from the deferred command set
     _deferred_commands.erase(child);
 
-    // Update the initial FDs for the child, which might point to different references now
-    // child->setInitialFDs(fds);
-
     // We found a matching child command. Apply the required substitutions
     child->applySubstitutions(child_substitutions);
 
     LOG(exec) << "Matched launch of " << child << " by " << parent;
-
-    // Add standard references to the child and record them in the refs list
-    child->setRef(Ref::Root, parent->getRef(root_ref));
-    refs.emplace_back(root_ref, Ref::Root);
-
-    child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
-    refs.emplace_back(cwd_ref, Ref::Cwd);
-
-    child->setRef(Ref::Exe, parent->getRef(exe_ref));
-    refs.emplace_back(exe_ref, Ref::Exe);
-
-    // Set references for initial file descriptors
-    for (const auto& [fd, child_ref] : child->getInitialFDs()) {
-      auto parent_ref = fds.at(fd);
-      child->setRef(child_ref, parent->getRef(parent_ref));
-      refs.emplace_back(parent_ref, child_ref);
-    }
 
   } else {
     // Create a child and mark it as running
@@ -1033,22 +1006,49 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
     LOG(exec) << "New command " << child << " did not match any previous command.";
 
-    // Add standard references to the child and record them in the refs list
-    child->setRef(Ref::Root, parent->getRef(root_ref));
-    refs.emplace_back(root_ref, Ref::Root);
-
-    child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
-    refs.emplace_back(cwd_ref, Ref::Cwd);
-
-    child->setRef(Ref::Exe, parent->getRef(exe_ref));
-    refs.emplace_back(exe_ref, Ref::Exe);
-
-    // Add references for initial file descriptors
+    // Set initial file descriptors for the new child
+    // Set the reference for each FD using the parent's references
     for (const auto& [fd, parent_ref] : fds) {
-      auto child_ref = child->setRef(parent->getRef(parent_ref));
+      auto child_ref = child->nextRef();
       child->addInitialFD(fd, child_ref);
-      refs.emplace_back(parent_ref, child_ref);
     }
+  }
+
+  return child;
+}
+
+// This command launches a child command
+shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
+                                       vector<string> args,
+                                       Ref::ID exe_ref,
+                                       Ref::ID cwd_ref,
+                                       Ref::ID root_ref,
+                                       const map<int, Ref::ID>& fds,
+                                       shared_ptr<Process> process) noexcept {
+  // Count a traced step
+  stats::traced_steps++;
+
+  // Get a matching command, or create a new one if there is no matching deferred command
+  shared_ptr<Command> child = findCommand(parent, args, exe_ref, cwd_ref, root_ref, fds);
+
+  // Build a mapping from parent refs to child refs to emit to the IR layer
+  list<tuple<Ref::ID, Ref::ID>> refs;
+
+  // Set standard references in the child
+  child->setRef(Ref::Root, parent->getRef(root_ref));
+  refs.emplace_back(root_ref, Ref::Root);
+
+  child->setRef(Ref::Cwd, parent->getRef(cwd_ref));
+  refs.emplace_back(cwd_ref, Ref::Cwd);
+
+  child->setRef(Ref::Exe, parent->getRef(exe_ref));
+  refs.emplace_back(exe_ref, Ref::Exe);
+
+  // Set references for initial file descriptors
+  for (const auto& [fd, child_ref] : child->getInitialFDs()) {
+    auto parent_ref = fds.at(fd);
+    child->setRef(child_ref, parent->getRef(parent_ref));
+    refs.emplace_back(parent_ref, child_ref);
   }
 
   // Add the child to the parent's list of children
