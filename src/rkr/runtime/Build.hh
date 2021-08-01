@@ -163,17 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A command compares two references and expects a specific result
-  void traceCompareRefs(const std::shared_ptr<Command>& c,
-                        Ref::ID ref1,
-                        Ref::ID ref2,
-                        RefComparison type) noexcept;
-
-  /// A command expects a reference to resolve with a particular result
-  void traceExpectResult(const std::shared_ptr<Command>& c,
-                         Ref::ID ref,
-                         int expected = -1) noexcept;
-
   /// A command accesses metadata for an artifact and expects to find a particular version
   MetadataVersion traceMatchMetadata(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept;
 

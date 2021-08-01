@@ -395,24 +395,29 @@ void Build::compareRefs(const shared_ptr<Command>& c,
                         Ref::ID ref1_id,
                         Ref::ID ref2_id,
                         RefComparison type) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->compareRefs(c, ref1_id, ref2_id, type);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->compareRefs(c, ref1_id, ref2_id, type);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
 
   // Create an IR step and add it to the output trace
   _output.compareRefs(c, ref1_id, ref2_id, type);
+
+  // TODO: No need to perform the comparison during tracing
 
   auto ref1 = c->getRef(ref1_id);
   auto ref2 = c->getRef(ref2_id);
@@ -441,33 +446,43 @@ void Build::expectResult(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          int expected) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->expectResult(c, scenario, ref_id, expected);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->expectResult(c, scenario, ref_id, expected);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
 
   // Create an IR step and add it to the output trace
   _output.expectResult(c, scenario, ref_id, expected);
 
-  // Does the resolved reference match the expected result?
+  // Get the reference outcome. Does it match the expected result?
   auto ref = c->getRef(ref_id);
   if (ref->getResultCode() != expected) {
-    LOGF(rebuild,
-         "{} changed in scenario {}: r{}={} did not resolve as expected (expected {}, observed "
-         "{})",
-         c, scenario, ref_id, ref, expected, ref->getResultCode());
-    c->observeChange(scenario);
+    // Mismatch. If the command is being emulated we report a change. Otherwise just warn that
+    // something is wrong with tracing (the model doesn't match actual syscall behavior)
+    if (c->mustRun()) {
+      WARN << "Reference resolved to " << getErrorName(ref->getResultCode())
+           << ", which does not match syscall result " << getErrorName(expected);
+    } else {
+      LOGF(rebuild,
+           "{} changed in scenario {}: r{}={} did not resolve as expected (expected {}, observed "
+           "{})",
+           c, scenario, ref_id, ref, expected, ref->getResultCode());
+      c->observeChange(scenario);
+    }
   }
 }
 
@@ -850,43 +865,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 }
 
 /************************ Trace IR Steps ************************/
-
-// Command c expects two references to compare with a specific result
-void Build::traceCompareRefs(const shared_ptr<Command>& c,
-                             Ref::ID ref1,
-                             Ref::ID ref2,
-                             RefComparison type) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  // Create an IR step and add it to the output trace
-  _output.compareRefs(c, ref1, ref2, type);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::CompareRefsPrinter{c, ref1, ref2, type};
-}
-
-// Command c expects a reference to resolve with a specific result as observed from the trace
-void Build::traceExpectResult(const shared_ptr<Command>& c, Ref::ID ref_id, int expected) noexcept {
-  // Count a traced step
-  stats::traced_steps++;
-
-  auto ref = c->getRef(ref_id);
-
-  // If no expected result was provided, use the result from the reference itself
-  if (expected == -1) expected = ref->getResultCode();
-
-  // Create an IR step and add it to the output trace
-  _output.expectResult(c, Scenario::Build, ref_id, expected);
-
-  // Check the expected (i.e., observed) result against our filesystem model
-  WARN_IF(ref->getResultCode() != expected)
-      << "Reference resolved to " << getErrorName(ref->getResultCode())
-      << ", which does not match syscall result " << getErrorName(expected);
-
-  // Log the traced step
-  LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, Scenario::Build, ref_id, expected};
-}
 
 // Command c accesses an artifact's metadata
 MetadataVersion Build::traceMatchMetadata(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {

@@ -342,7 +342,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
                                   << filename << " (received " << ref << " from model)";
 
       // The command observed a successful openat, so add this predicate to the command log
-      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.tmpfile()) {
@@ -370,7 +370,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
           << ", but actual result is " << getErrorName(-fd);
 
       // The command observed a failed openat, so add the error predicate to the command log
-      _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
     }
   });
 }
@@ -397,8 +397,8 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
 
       if (rc == 0) {
         // Record the outcomes for the two references
-        _build.traceExpectResult(getCommand(), dir_ref, SUCCESS);
-        _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
+        _build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
+        _build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
 
         // Create a pipe
         auto read_end = getCommand()->nextRef();
@@ -410,8 +410,10 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
 
       } else {
         // The syscall failed. Record the outcome of both references
-        _build.traceExpectResult(getCommand(), dir_ref);
-        _build.traceExpectResult(getCommand(), entry_ref);
+        _build.expectResult(getCommand(), Scenario::Build, dir_ref,
+                            getCommand()->getRef(dir_ref)->getResultCode());
+        _build.expectResult(getCommand(), Scenario::Build, entry_ref,
+                            getCommand()->getRef(entry_ref)->getResultCode());
       }
     });
 
@@ -564,7 +566,7 @@ void Thread::_faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags
     auto ref = makePathRef(pathname, AccessFlags::fromAccess(mode, flags), dirfd);
 
     // Record the outcome of the reference
-    _build.traceExpectResult(getCommand(), ref, -rc);
+    _build.expectResult(getCommand(), Scenario::Build, ref, -rc);
 
     if (rc == 0) {
       if (!getCommand()->getRef(ref)->isResolved()) WARN << "Failed to resolve reference " << ref;
@@ -629,7 +631,7 @@ void Thread::_fstatat(at_fd dirfd,
 
     resume();
 
-    _build.traceExpectResult(getCommand(), ref_id, ref->getResultCode());
+    _build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
     // Finish the syscall to see if the reference succeeds
     /*finishSyscall([=](long rc) {
@@ -637,7 +639,7 @@ void Thread::_fstatat(at_fd dirfd,
 
       if (rc == 0) {
         // The stat succeeded
-        _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+        _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
         ASSERT(getCommand()->getRef(ref_id)->isResolved())
             << "Unable to locate artifact for stat-ed file (" << pathname << ")";
 
@@ -646,7 +648,7 @@ void Thread::_fstatat(at_fd dirfd,
 
       } else if (rc == -EACCES || rc == -ENOENT || rc == -ENOTDIR) {
         // The stat failed with a filesystem-related error
-        _build.traceExpectResult(getCommand(), ref_id, -rc);
+        _build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
       } else {
         // The stat failed with some other error that doesn't matter to us. We see this in rustc.
       }
@@ -707,14 +709,14 @@ void Thread::_fchownat(at_fd dfd,
       auto old_metadata = _build.traceMatchMetadata(getCommand(), ref_id);
 
       // Yes. Record the successful reference
-      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // We've now set the artifact's metadata
       _build.traceUpdateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
 
     } else {
       // No. Record the failure
-      _build.traceExpectResult(getCommand(), ref_id, -rc);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
       WARN_IF(ref->isResolved()) << "Model mismatch: failed to chown through resolved reference";
     }
   });
@@ -760,7 +762,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      _build.traceExpectResult(getCommand(), ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref, SUCCESS);
 
       ASSERT(getCommand()->getRef(ref)->isResolved()) << "Failed to get artifact";
 
@@ -771,7 +773,7 @@ void Thread::_fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags f
 
     } else {
       // No. Record the failure
-      _build.traceExpectResult(getCommand(), ref, -rc);
+      _build.expectResult(getCommand(), Scenario::Build, ref, -rc);
     }
   });
 }
@@ -886,7 +888,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
       ASSERT(rc != 0) << "Call to truncate() succeeded, but the reference did not resolve";
 
       // Record the outcome of the reference
-      _build.traceExpectResult(getCommand(), ref_id, -rc);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
     });
 
   } else {
@@ -904,7 +906,7 @@ void Thread::_truncate(fs::path pathname, long length) noexcept {
       resume();
 
       // We expect the reference to succeed
-      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // If the syscall succeeded, finish the write
       if (rc == 0) {
@@ -1006,10 +1008,10 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the parent directory must succeed
-      _build.traceExpectResult(getCommand(), parent_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, parent_ref, SUCCESS);
 
       // The entry must not exist prior to this call
-      _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
       auto mask = getProcess()->getUmask();
@@ -1021,8 +1023,10 @@ void Thread::_mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      _build.traceExpectResult(getCommand(), parent_ref);
-      _build.traceExpectResult(getCommand(), entry_ref);
+      _build.expectResult(getCommand(), Scenario::Build, parent_ref,
+                          getCommand()->getRef(parent_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref,
+                          getCommand()->getRef(entry_ref)->getResultCode());
     }
   });
 }
@@ -1070,38 +1074,37 @@ void Thread::_renameat2(at_fd old_dfd,
           getCommand()->getRef(new_entry_ref)->getArtifact()) {
         // Yes. The rename() call is finished, but the command depends on these two references
         // reaching the same artifact.
-        _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
-                                RefComparison::SameInstance);
+        _build.compareRefs(getCommand(), old_entry_ref, new_entry_ref, RefComparison::SameInstance);
         return;
 
       } else {
         // No. The rename() call proceeds, but the command depends on these two references
         // reaching different artifacts.
-        _build.traceCompareRefs(getCommand(), old_entry_ref, new_entry_ref,
-                                RefComparison::DifferentInstances);
+        _build.compareRefs(getCommand(), old_entry_ref, new_entry_ref,
+                           RefComparison::DifferentInstances);
       }
 
       // The accesses to the old directory and entry must have succeeded
-      _build.traceExpectResult(getCommand(), old_dir_ref, SUCCESS);
-      _build.traceExpectResult(getCommand(), old_entry_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, old_dir_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, old_entry_ref, SUCCESS);
 
       // Unlink the old entry
       _build.traceRemoveEntry(getCommand(), old_dir_ref, old_entry, old_entry_ref);
 
       // The access to the new directory must also have succeeded
-      _build.traceExpectResult(getCommand(), new_dir_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, new_dir_ref, SUCCESS);
 
       // Is this an exchange or noreplace option?
       if (flags.exchange()) {
         // This is an exchange, so the new_entry_ref must exist
-        _build.traceExpectResult(getCommand(), new_entry_ref, SUCCESS);
+        _build.expectResult(getCommand(), Scenario::Build, new_entry_ref, SUCCESS);
 
         // Unlink the new entry
         _build.traceRemoveEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
 
       } else if (flags.noreplace()) {
         // This is a noreplace rename, so new_entry_ref must not exist
-        _build.traceExpectResult(getCommand(), new_entry_ref, ENOENT);
+        _build.expectResult(getCommand(), Scenario::Build, new_entry_ref, ENOENT);
       }
 
       // Link into the new entry
@@ -1114,11 +1117,15 @@ void Thread::_renameat2(at_fd old_dfd,
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
       // change, that COULD change the syscall outcome.
-      _build.traceExpectResult(getCommand(), old_dir_ref);
-      _build.traceExpectResult(getCommand(), old_entry_ref);
-      _build.traceExpectResult(getCommand(), new_dir_ref);
+      _build.expectResult(getCommand(), Scenario::Build, old_dir_ref,
+                          getCommand()->getRef(old_dir_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, old_entry_ref,
+                          getCommand()->getRef(old_entry_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, new_dir_ref,
+                          getCommand()->getRef(new_dir_ref)->getResultCode());
       if (new_entry_ref) {
-        _build.traceExpectResult(getCommand(), new_entry_ref);
+        _build.expectResult(getCommand(), Scenario::Build, new_entry_ref,
+                            getCommand()->getRef(new_entry_ref)->getResultCode());
       }
     }
   });
@@ -1181,13 +1188,13 @@ void Thread::_linkat(at_fd old_dfd,
     // Did the call succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      _build.traceExpectResult(getCommand(), dir_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // The reference to the link target must succeed
-      _build.traceExpectResult(getCommand(), target_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, target_ref, SUCCESS);
 
       // Record the link operation
       _build.traceAddEntry(getCommand(), dir_ref, entry, target_ref);
@@ -1195,9 +1202,12 @@ void Thread::_linkat(at_fd old_dfd,
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
       // record the result of resolving each of them.
-      _build.traceExpectResult(getCommand(), dir_ref);
-      _build.traceExpectResult(getCommand(), entry_ref);
-      _build.traceExpectResult(getCommand(), target_ref);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref,
+                          getCommand()->getRef(dir_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref,
+                          getCommand()->getRef(entry_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, target_ref,
+                          getCommand()->getRef(target_ref)->getResultCode());
     }
   });
 }
@@ -1224,10 +1234,10 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      _build.traceExpectResult(getCommand(), dir_ref, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // Make a symlink reference to get a new artifact
       auto symlink_ref = getCommand()->nextRef();
@@ -1238,8 +1248,10 @@ void Thread::_symlinkat(fs::path target, at_fd dfd, fs::path newpath) noexcept {
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      _build.traceExpectResult(getCommand(), dir_ref);
-      _build.traceExpectResult(getCommand(), entry_ref);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref,
+                          getCommand()->getRef(dir_ref)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref,
+                          getCommand()->getRef(entry_ref)->getResultCode());
     }
   });
 }
@@ -1270,7 +1282,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      _build.traceExpectResult(getCommand(), ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
@@ -1279,7 +1291,7 @@ void Thread::_readlinkat(at_fd dfd, fs::path pathname) noexcept {
 
     } else {
       // No. Record the failure
-      _build.traceExpectResult(getCommand(), ref_id, -rc);
+      _build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
     }
   });
 }
@@ -1314,16 +1326,18 @@ void Thread::_unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
     // Did the call succeed?
     if (rc == 0) {
       // Both references must have succeeded
-      _build.traceExpectResult(getCommand(), dir_ref_id, SUCCESS);
-      _build.traceExpectResult(getCommand(), entry_ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref_id, SUCCESS);
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref_id, SUCCESS);
 
       // Perform the unlink
       _build.traceRemoveEntry(getCommand(), dir_ref_id, entry, entry_ref_id);
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
-      _build.traceExpectResult(getCommand(), dir_ref_id);
-      _build.traceExpectResult(getCommand(), entry_ref_id);
+      _build.expectResult(getCommand(), Scenario::Build, dir_ref_id,
+                          getCommand()->getRef(dir_ref_id)->getResultCode());
+      _build.expectResult(getCommand(), Scenario::Build, entry_ref_id,
+                          getCommand()->getRef(entry_ref_id)->getResultCode());
     }
   });
 }
@@ -1396,7 +1410,7 @@ void Thread::_chdir(fs::path filename) noexcept {
   finishSyscall([=](long rc) {
     resume();
 
-    _build.traceExpectResult(getCommand(), ref, -rc);
+    _build.expectResult(getCommand(), Scenario::Build, ref, -rc);
 
     // Update the current working directory if the chdir call succeeded
     if (rc == 0) {
@@ -1467,7 +1481,7 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
   // Will the exec call succeed?
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
-    _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
+    _build.expectResult(getCommand(), Scenario::Build, exe_ref_id, SUCCESS);
     const auto& child = _process->exec(exe_ref_id, args);
 
     // Does the child command need to run?
@@ -1486,7 +1500,7 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
         // Now make the reference and expect success
         auto child_exe_ref_id = makePathRef(real_exe_path, ReadAccess);
         const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
-        _build.traceExpectResult(getCommand(), child_exe_ref_id, SUCCESS);
+        _build.expectResult(getCommand(), Scenario::Build, child_exe_ref_id, SUCCESS);
 
         ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
@@ -1511,8 +1525,8 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
     //  ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
     //      << "Outcome of exec call did not match expected behavior.";
 
-    _build.traceExpectResult(getCommand(), exe_ref_id,
-                             getCommand()->getRef(exe_ref_id)->getResultCode());
+    _build.expectResult(getCommand(), Scenario::Build, exe_ref_id,
+                        getCommand()->getRef(exe_ref_id)->getResultCode());
     //});
   }
 }
