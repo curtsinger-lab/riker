@@ -300,6 +300,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Store a reference at the next available index of this command's local reference table
   Ref::ID setRef(std::shared_ptr<Ref> ref) noexcept;
 
+  /// Get the next available Ref ID
+  Ref::ID nextRef() noexcept;
+
   /// Increment the use count for a Ref. Return true if this is the first use of the ref.
   bool usingRef(Ref::ID id) noexcept;
 

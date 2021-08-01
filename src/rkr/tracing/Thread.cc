@@ -394,7 +394,10 @@ void Thread::_mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned de
         _build.traceExpectResult(getCommand(), entry_ref, ENOENT);
 
         // Create a pipe
-        auto [read_end, write_end] = _build.tracePipeRef(getCommand());
+        auto read_end = getCommand()->nextRef();
+        auto write_end = getCommand()->nextRef();
+        _build.pipeRef(getCommand(), read_end, write_end);
+        // auto [read_end, write_end] = _build.tracePipeRef(getCommand());
 
         // Link the pipe into the directory
         _build.traceAddEntry(getCommand(), dir_ref, entry, read_end);
@@ -442,7 +445,10 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
     resume();
 
     // Make a reference to a pipe
-    auto [read_ref, write_ref] = _build.tracePipeRef(getCommand());
+    auto read_ref = getCommand()->nextRef();
+    auto write_ref = getCommand()->nextRef();
+    _build.pipeRef(getCommand(), read_ref, write_ref);
+    // auto [read_ref, write_ref] = _build.tracePipeRef(getCommand());
 
     ASSERT(getCommand()->getRef(read_ref)->isResolved()) << "Failed to resolve pipe reference";
     ASSERT(getCommand()->getRef(write_ref)->isResolved()) << "Failed to resolve pipe reference";

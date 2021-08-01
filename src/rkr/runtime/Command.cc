@@ -547,6 +547,14 @@ Ref::ID Command::setRef(shared_ptr<Ref> ref) noexcept {
   return id;
 }
 
+// Get the next available Ref ID
+Ref::ID Command::nextRef() noexcept {
+  Ref::ID id = _current_run._refs.size();
+  _current_run._refs.push_back(nullptr);
+
+  return id;
+}
+
 // Increment this command's use counter for a Ref.
 // Return true if this is the first use by this command.
 bool Command::usingRef(Ref::ID id) noexcept {

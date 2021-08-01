@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "data/EmulateOnly.hh"
 #include "data/IRBuffer.hh"
 #include "data/InputTrace.hh"
 #include "data/OutputTrace.hh"
@@ -73,7 +74,9 @@ void do_build(vector<string> args,
     if (iteration == 0) {
       input->sendTo(Build(print_to));
     } else {
-      input->sendTo(Build(*output, print_to));
+      Build build(*output, print_to);
+      EmulateOnly filter(build);
+      input->sendTo(filter);
     }
 
     // Plan the next iteration

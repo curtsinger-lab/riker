@@ -163,9 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A traced command referenced a new anonymous pipe
-  std::tuple<Ref::ID, Ref::ID> tracePipeRef(const std::shared_ptr<Command>& c) noexcept;
-
   /// A traced command referenced a new anonymous file
   Ref::ID traceFileRef(const std::shared_ptr<Command>& c, mode_t mode) noexcept;
 
