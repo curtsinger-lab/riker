@@ -60,8 +60,6 @@ void Build::runDeferredSteps() noexcept {
   to_run->sendTo(*this);
 }
 
-/************************ Handle IR steps from a loaded trace ************************/
-
 /// Start a build with the given root command
 void Build::start(const shared_ptr<Command>& c) noexcept {
   _root_command = c;
@@ -664,7 +662,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
   }
 }
 
-/// Handle an AddEntry IR step
+// Command c adds an entry to a directory
 void Build::addEntry(const shared_ptr<Command>& c,
                      Ref::ID dir_id,
                      string name,
@@ -714,7 +712,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
   }
 }
 
-/// Handle a RemoveEntry IR step
+// Command c removes an entry from a directory
 void Build::removeEntry(const shared_ptr<Command>& c,
                         Ref::ID dir_id,
                         string name,
@@ -764,7 +762,7 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   }
 }
 
-// This command launches a child command
+// A parent command launches a child command
 void Build::launch(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
@@ -856,7 +854,7 @@ void Build::launch(const shared_ptr<Command>& parent,
   }
 }
 
-// This command joined with a child command
+// Command c waits for a child command to exit
 void Build::join(const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
@@ -899,6 +897,7 @@ void Build::join(const shared_ptr<Command>& c,
   }
 }
 
+// Command c is exiting
 void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // Is this step from a traced command?
   if (c->mustRun()) {
@@ -934,8 +933,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   // Cache and fingerprint everything in the environment at the end of this command's run
   if (c->mustRun()) env::cacheAll();
 }
-
-/************************ Trace IR Steps ************************/
 
 // Look for a known command that matches one being launched
 shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,

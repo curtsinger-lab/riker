@@ -138,15 +138,8 @@ class Build : public IRSink {
                            std::string name,
                            Ref::ID target) noexcept override;
 
-  /**
-   * An emulated command is launching a child command
-   *
-   * \param c     The parent command
-   * \param child The child command
-   * \param refs  A list of reference mappings. The first entry is a reference ID in the parent
-   *              command, and the second is the ID where this reference is assigned the child.
-   */
-  virtual void launch(const std::shared_ptr<Command>& c,
+  /// A parent command is launching a child command
+  virtual void launch(const std::shared_ptr<Command>& parent,
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override;
 
@@ -158,22 +151,10 @@ class Build : public IRSink {
   /// A command has exited with an exit code
   virtual void exit(const std::shared_ptr<Command>& c, int exit_status) noexcept override;
 
-  /// Finish running an emulated build
+  /// Finish running a build
   virtual void finish() noexcept override;
 
-  /********** Handle IR steps delivered from the tracing layer **********/
-
-  /**
-   * Look for a known command that matches one being launched
-   *
-   * \param parent         The parent command
-   * \param args      The command line arguments passed to the child command
-   * \param exe_ref   The parent command's reference to the launched executable
-   * \param cwd_ref   The parent command's reference to the working directory
-   * \param root_ref  The parent command's reference to the root directory
-   * \param fds       A mapping from child file descriptor numbers to the parent's reference
-   * \returns The matching command if there is one, otherwise a newly-created command
-   */
+  /// Look for a known command that matches one being launched
   std::shared_ptr<Command> findCommand(const std::shared_ptr<Command>& parent,
                                        std::vector<std::string> args,
                                        const std::map<int, Ref::ID>& fds) noexcept;
