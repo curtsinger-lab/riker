@@ -327,20 +327,24 @@ void Build::pathRef(const shared_ptr<Command>& c,
 
 // A command retains a handle to a given Ref
 void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->usingRef(c, ref);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->usingRef(c, ref);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
 
   // Command c is now using ref
   c->usingRef(ref);
@@ -351,18 +355,24 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 
 // A command closes a handle to a given Ref
 void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
-  // If this step comes from a command we need to run, return immediately
-  if (c->mustRun()) return;
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
-  // If this step comes from a command that hasn't been launched, we need to defer this step
-  if (!c->isLaunched()) {
-    _deferred_commands.emplace(c);
-    _deferred_steps->doneWithRef(c, ref_id);
-    return;
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref_id};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps->doneWithRef(c, ref_id);
+      return;
+    }
   }
-
-  // Count an emulated step
-  stats::emulated_steps++;
 
   // Command c is no longer using ref
   c->doneWithRef(ref_id);
@@ -375,9 +385,6 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
       a->beforeClose(*this, c, ref_id);
     }
   }
-
-  // Log the emulated step
-  LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
   // Create an IR step and add it to the output trace
   _output.doneWithRef(c, ref_id);
@@ -844,47 +851,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
 /************************ Trace IR Steps ************************/
 
-// A command kept a handle to a Ref
-void Build::traceUsingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  // The command may be saving its first handle to a reference, or it could be a duplicate of an
-  // existing reference. Only emit the IR step for the first open.
-  if (c->usingRef(ref)) {
-    // This is an actual IR step, so count it
-    stats::traced_steps++;
-
-    // Create an IR step in the output trace
-    _output.usingRef(c, ref);
-
-    // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
-  }
-}
-
-// A command is finished using a Ref
-void Build::traceDoneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
-  // The command might be closing its last handle to the reference, or it could just be one of
-  // several remaining handles. Use the returned refcount to catch the last close operation
-  if (c->doneWithRef(ref_id)) {
-    // This is an actual IR step, so count it
-    stats::traced_steps++;
-
-    // If this is the final use of the ref, inform the referenced artifact of the close
-    auto ref = c->getRef(ref_id);
-    if (ref->getUserCount() == 0) {
-      auto a = ref->getArtifact();
-      if (a) {
-        a->beforeClose(*this, c, ref_id);
-      }
-    }
-
-    // Create an IR step in the output trace
-    _output.doneWithRef(c, ref_id);
-
-    // Log the traced step
-    LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
-  }
-}
-
 // Command c expects two references to compare with a specific result
 void Build::traceCompareRefs(const shared_ptr<Command>& c,
                              Ref::ID ref1,
@@ -1215,7 +1181,7 @@ shared_ptr<Command> Build::traceLaunch(const shared_ptr<Command>& parent,
 
   // Now that the child has been launched, record that it is using all of its inherited refs
   for (const auto& [parent_ref_id, child_ref_id] : refs) {
-    traceUsingRef(child, child_ref_id);
+    usingRef(child, child_ref_id);
   }
 
   // Return the child command to the caller

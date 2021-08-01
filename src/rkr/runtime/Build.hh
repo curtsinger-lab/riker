@@ -163,12 +163,6 @@ class Build : public IRSink {
 
   /********** Handle IR steps delivered from the tracing layer **********/
 
-  /// A command is retaining a handle to a Ref (e.g. in its file descriptor table)
-  void traceUsingRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept;
-
-  /// A command has closed a handle to a Ref
-  void traceDoneWithRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept;
-
   /// A command compares two references and expects a specific result
   void traceCompareRefs(const std::shared_ptr<Command>& c,
                         Ref::ID ref1,

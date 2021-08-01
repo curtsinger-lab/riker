@@ -44,13 +44,13 @@ Process::Process(Build& build,
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
-    _build.traceUsingRef(_command, ref);
+    _build.usingRef(_command, ref);
   }
 
   // The child process also duplicates references to the root and working directories
   // TODO: Do we need to track _exe here as well?
-  _build.traceUsingRef(_command, _root);
-  _build.traceUsingRef(_command, _cwd);
+  _build.usingRef(_command, _root);
+  _build.usingRef(_command, _cwd);
 }
 
 /*******************************************/
@@ -61,8 +61,8 @@ Process::Process(Build& build,
 void Process::setWorkingDir(Ref::ID ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
-  _build.traceDoneWithRef(_command, _cwd);
-  _build.traceUsingRef(_command, ref);
+  _build.doneWithRef(_command, _cwd);
+  _build.usingRef(_command, ref);
 
   // Update the cwd
   _cwd = ref;
@@ -82,12 +82,12 @@ void Process::addFD(int fd, Ref::ID ref, bool cloexec) noexcept {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
     WARN << "  Existing fd references " << getCommand()->getRef(old_ref)->getArtifact();
-    _build.traceDoneWithRef(_command, old_ref);
+    _build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 
   // The command holds an additional handle to the provided Ref
-  _build.traceUsingRef(_command, ref);
+  _build.usingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
   _fds.emplace(fd, FileDescriptor(ref, cloexec));
@@ -100,7 +100,7 @@ void Process::closeFD(int fd) noexcept {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
     auto& [old_ref, old_cloexec] = iter->second;
-    _build.traceDoneWithRef(_command, old_ref);
+    _build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 }
@@ -110,7 +110,7 @@ bool Process::tryCloseFD(int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
     auto& [old_ref, old_cloexec] = iter->second;
-    _build.traceDoneWithRef(_command, old_ref);
+    _build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
     return true;
   }
@@ -153,12 +153,12 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);
-  _build.traceDoneWithRef(_command, _cwd);
-  _build.traceDoneWithRef(_command, _root);
+  _build.doneWithRef(_command, _cwd);
+  _build.doneWithRef(_command, _root);
 
   for (const auto& [fd, desc] : _fds) {
     auto [ref, cloexec] = desc;
-    _build.traceDoneWithRef(_command, ref);
+    _build.doneWithRef(_command, ref);
   }
 
   // This process is now running the child
@@ -194,13 +194,13 @@ void Process::exit(int exit_status) noexcept {
     _exited = true;
 
     // References to the cwd and root directories are closed
-    _build.traceDoneWithRef(_command, _cwd);
-    _build.traceDoneWithRef(_command, _root);
+    _build.doneWithRef(_command, _cwd);
+    _build.doneWithRef(_command, _root);
 
     // Any remaining file descriptors in this process are closed
     for (const auto& [index, desc] : _fds) {
       const auto& [ref, cloexec] = desc;
-      _build.traceDoneWithRef(_command, ref);
+      _build.doneWithRef(_command, ref);
     }
 
     // If this process was the primary for its command, trace the exit
