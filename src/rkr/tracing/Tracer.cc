@@ -101,7 +101,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
           if (_shmem->channels[i].syscall_entry) {
             iter->second.syscallEntryChannel(build, i);
           } else {
-            iter->second.syscallExitChannel(i);
+            iter->second.syscallExitChannel(build, i);
           }
         }
 
@@ -177,12 +177,12 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
-        thread.syscallExitPtrace();
+        thread.syscallExitPtrace(build);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes. The process that called exec must have set a
         // post-syscall handler
-        thread.syscallExitPtrace();
+        thread.syscallExitPtrace(build);
 
       } else if (status == (PTRACE_EVENT_STOP << 8)) {
         // Is this delivering a stopping signal?

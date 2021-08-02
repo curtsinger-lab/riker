@@ -46,10 +46,10 @@ class Thread {
   void syscallEntryChannel(Build& build, ssize_t channel) noexcept;
 
   /// Traced exit from a system call through the provided shared memory channel
-  void syscallExitChannel(ssize_t channel) noexcept;
+  void syscallExitChannel(Build& build, ssize_t channel) noexcept;
 
   /// Traced exit from a system call using ptrace
-  void syscallExitPtrace() noexcept;
+  void syscallExitPtrace(Build& build) noexcept;
 
   /// Check if a ptrace stop can be skipped because a shared memory channel is in use
   bool canSkipTrace(user_regs_struct& regs) const noexcept;
@@ -59,7 +59,7 @@ class Thread {
 
   /// Resume a thread that has stopped before a syscall, and run the provided handler when the
   /// syscall finishes
-  void finishSyscall(std::function<void(long)> handler) noexcept;
+  void finishSyscall(std::function<void(Build&, long)> handler) noexcept;
 
   /// Force the tracee to exit with a given exit code. This currently only works on entry to an
   /// execve call (which is where we need it to implement skipping)
@@ -254,28 +254,6 @@ class Thread {
   void _unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flags) noexcept;
 
   // Socket Operations
-  void _accept(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
-    FAIL << "accept(2) not yet implemented.";
-  }
-  void _bind(Build& build, int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept;
-  void _connect(Build& build, int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
-    FAIL << "connect(2) not yet implemented.";
-  }
-  void _getpeername(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
-    FAIL << "getpeername(2) not yet implemented.";
-  }
-  void _getsockname(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
-    FAIL << "getsockname(2) not yet implemented.";
-  }
-  void _getsockopt(Build& build,
-                   int sockfd,
-                   int level,
-                   int optname,
-                   void* optval,
-                   socklen_t* optlen) noexcept {
-    FAIL << "getsockopt(2) not yet implemented.";
-  }
-  void _listen(Build& build, int sockfd, int backlog) { FAIL << "listen(2) not yet implemented."; }
   void _recvfrom(Build& build,
                  int sockfd,
                  void* buf,
@@ -300,15 +278,6 @@ class Thread {
                socklen_t addrlen) {
     FAIL << "sendto(2) not yet implemented.";
   }
-  void _setsockopt(Build& build,
-                   int sockfd,
-                   int level,
-                   int optname,
-                   const void* optval,
-                   socklen_t optlen) noexcept {
-    FAIL << "setsockopt(2) not yet implemented.";
-  }
-  void _shutdown(Build& build, int sockfd, int how) { FAIL << "shutdown(2) not yet implemented."; }
   void _socket(Build& build, int domain, int type, int protocol) noexcept;
   void _socketpair(Build& build, int domain, int type, int protocol, int sv[2]) noexcept;
 
@@ -318,11 +287,6 @@ class Thread {
   void _chroot(Build& build, fs::path filename) noexcept;
   void _pivot_root(Build& build, fs::path new_root, fs::path put_old) noexcept;
   void _fchdir(Build& build, int fd) noexcept;
-  void _fork(Build& build) noexcept;
-  void _vfork(Build& build) noexcept { _fork(build); }
-  void _clone(Build& build, void* fn, void* stack, int flags) noexcept;
-  void _exit(Build& build, int status) noexcept;
-  void _exit_group(Build& build, int status) noexcept;
   void _execve(Build& build, fs::path filename, std::vector<std::string> args) noexcept {
     _execveat(build, at_fd::cwd(), filename, args);
   }
@@ -356,7 +320,7 @@ class Thread {
 
   /// The stack of post-syscall handlers to invoke. System calls can nest when a signal is delivered
   /// during a blocked system call (e.g. SIGCHLD is sent to bash while it is reading)
-  std::stack<std::function<void(long)>> _post_syscall_handlers;
+  std::stack<std::function<void(Build&, long)>> _post_syscall_handlers;
 
   /// Which channel is this thread using for the current trace event? Set to -1 if not using one.
   ssize_t _channel = -1;

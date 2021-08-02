@@ -61,7 +61,7 @@ void Thread::syscallEntryChannel(Build& build, ssize_t channel) noexcept {
 }
 
 // Traced exit from a system call through the provided shared memory channel
-void Thread::syscallExitChannel(ssize_t channel) noexcept {
+void Thread::syscallExitChannel(Build& build, ssize_t channel) noexcept {
   ASSERT(_channel == -1) << this << " is already using a shared memory channel";
   _channel = channel;
 
@@ -73,7 +73,7 @@ void Thread::syscallExitChannel(ssize_t channel) noexcept {
              << " exit via shared memory channel";
 
   // Run the post-syscall handler
-  _post_syscall_handlers.top()(Tracer::getSyscallResult(_channel));
+  _post_syscall_handlers.top()(build, Tracer::getSyscallResult(_channel));
 
   // Remove the used post-syscall handler
   _post_syscall_handlers.pop();
@@ -81,7 +81,7 @@ void Thread::syscallExitChannel(ssize_t channel) noexcept {
   _channel = -1;
 }
 
-void Thread::syscallExitPtrace() noexcept {
+void Thread::syscallExitPtrace(Build& build) noexcept {
   ASSERT(!_post_syscall_handlers.empty()) << "Thread does not have a post-syscall handler";
 
   // Clear errno so we can check for errors
@@ -92,7 +92,7 @@ void Thread::syscallExitPtrace() noexcept {
   FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
 
   // Run the handler and remove it from the stack
-  _post_syscall_handlers.top()(result);
+  _post_syscall_handlers.top()(build, result);
   _post_syscall_handlers.pop();
 }
 
@@ -159,7 +159,7 @@ void Thread::resume() noexcept {
   }
 }
 
-void Thread::finishSyscall(function<void(long)> handler) noexcept {
+void Thread::finishSyscall(function<void(Build&, long)> handler) noexcept {
   _post_syscall_handlers.push(handler);
 
   // Is this thread blocked on the shared memory channel?
@@ -336,7 +336,7 @@ void Thread::_openat(Build& build,
   }
 
   // Allow the syscall to finish
-  finishSyscall([=, &build](long fd) {
+  finishSyscall([=](Build& build, long fd) {
     // Let the process continue
     resume();
 
@@ -399,7 +399,7 @@ void Thread::_mknodat(Build& build,
     auto dir_ref = makePathRef(build, dir, WriteAccess, dfd);
     auto entry_ref = makePathRef(build, filename, NoAccess, dfd);
 
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       // Resume the blocked thread
       resume();
 
@@ -446,7 +446,7 @@ void Thread::_close(Build& build, int fd) noexcept {
 void Thread::_pipe2(Build& build, int* fds, o_flags flags) noexcept {
   LOGF(trace, "{}: pipe2({}, {})", this, (void*)fds, flags);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     // There is nothing to do if the syscall fails, but why would that ever happen?
     if (rc) {
       resume();
@@ -482,7 +482,7 @@ void Thread::_dup(Build& build, int fd) noexcept {
   // Is the provided file descriptor valid?
   if (_process->hasFD(fd)) {
     // Finish the syscall to get the new file descriptor, then resume the process
-    finishSyscall([=, &build](int newfd) {
+    finishSyscall([=](Build& build, int newfd) {
       resume();
 
       // If the syscall failed, do nothing
@@ -493,7 +493,7 @@ void Thread::_dup(Build& build, int fd) noexcept {
       _process->addFD(build, newfd, _process->getFD(fd), false);
     });
   } else {
-    finishSyscall([=](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
       ASSERT(rc == -EBADF) << "dup of invalid file descriptor did not fail with EBADF";
     });
@@ -512,7 +512,7 @@ void Thread::_dup3(Build& build, int oldfd, int newfd, o_flags flags) noexcept {
   // dup3 returns the new file descriptor, or error
   // Finish the syscall so we know what file descriptor to add to our table
   if (_process->hasFD(oldfd)) {
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
 
       // If the syscall failed, we have nothing more to do
@@ -527,7 +527,7 @@ void Thread::_dup3(Build& build, int oldfd, int newfd, o_flags flags) noexcept {
       _process->addFD(build, rc, _process->getFD(oldfd), flags.cloexec());
     });
   } else {
-    finishSyscall([=](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
       ASSERT(rc == -EBADF) << "dup3 of invalid file descriptor did not fail with EBADF";
     });
@@ -570,7 +570,7 @@ void Thread::_faccessat(Build& build,
        flags);
 
   // Finish the syscall so we can see its result
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     // Resume the process' execution
     resume();
 
@@ -611,7 +611,7 @@ void Thread::_fstatat(Build& build,
       }
     }
 
-    /*finishSyscall([=, &build](long rc) {
+    /*finishSyscall([=](Build& build, long rc) {
       resume();
 
       if (rc == 0) {
@@ -652,7 +652,7 @@ void Thread::_fstatat(Build& build,
     build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
     // Finish the syscall to see if the reference succeeds
-    /*finishSyscall([=, &build](long rc) {
+    /*finishSyscall([=](Build& build, long rc) {
       resume();
 
       if (rc == 0) {
@@ -691,7 +691,7 @@ void Thread::_fchown(Build& build, int fd, uid_t user, gid_t group) noexcept {
   build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
   // Finish the sycall and resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // If the syscall failed, there's nothing to do
@@ -723,7 +723,7 @@ void Thread::_fchownat(Build& build,
   auto ref = getCommand()->getRef(ref_id);
 
   // Finish the syscall and then resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the call succeed?
@@ -753,7 +753,7 @@ void Thread::_fchmod(Build& build, int fd, mode_flags mode) noexcept {
   auto ref_id = _process->getFD(fd);
 
   // Finish the sycall and resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // If the syscall failed, there's nothing to do
@@ -787,7 +787,7 @@ void Thread::_fchmodat(Build& build,
   auto ref_id = makePathRef(build, filename, AccessFlags::fromAtFlags(flags), dfd);
 
   // Finish the syscall and then resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the call succeed?
@@ -827,7 +827,7 @@ void Thread::_read(Build& build, int fd) noexcept {
   ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
 
   // Finish the syscall and resume
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     if (rc >= 0) {
@@ -848,7 +848,7 @@ void Thread::_write(Build& build, int fd) noexcept {
   ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
 
   // Finish the syscall and resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // If the write syscall failed, there's no need to log a write
@@ -887,7 +887,7 @@ void Thread::_mmap(Build& build,
   if (writable) ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
 
   // Run the syscall to find out if the mmap succeeded
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     LOGF(trace, "{}: finished mmap({})", this, fd);
@@ -922,7 +922,7 @@ void Thread::_truncate(Build& build, fs::path pathname, long length) noexcept {
 
   // Did the reference resolve to an artifact?
   if (!ref->isResolved()) {
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
       ASSERT(rc != 0) << "Call to truncate() succeeded, but the reference did not resolve";
 
@@ -941,7 +941,7 @@ void Thread::_truncate(Build& build, fs::path pathname, long length) noexcept {
       ref->getArtifact()->beforeTruncate(build, getCommand(), ref_id);
     }
 
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
 
       // We expect the reference to succeed
@@ -974,7 +974,7 @@ void Thread::_ftruncate(Build& build, int fd, long length) noexcept {
   }
 
   // Finish the syscall and resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     if (rc == 0) {
@@ -1005,7 +1005,7 @@ void Thread::_tee(Build& build, int fd_in, int fd_out) noexcept {
     out_ref->getArtifact()->beforeWrite(build, getCommand(), out_ref_id);
 
     // Finish the syscall and resume
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
 
       // If the call succeeds, record the read and write
@@ -1016,7 +1016,7 @@ void Thread::_tee(Build& build, int fd_in, int fd_out) noexcept {
     });
   } else {
     // No matching FD. Just make sure the syscall fails.
-    finishSyscall([=](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
 
       ASSERT(rc < 0) << "Tee of unknown fd " << fd_in << " succeeded in " << this;
@@ -1041,7 +1041,7 @@ void Thread::_mkdirat(Build& build, at_fd dfd, fs::path pathname, mode_flags mod
   // Make a reference to the new directory entry that will be created
   auto entry_ref = makePathRef(build, pathname, NoAccess, dfd);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the syscall succeed?
@@ -1104,7 +1104,7 @@ void Thread::_renameat2(Build& build,
   // Make a reference to the new entry
   auto new_entry_ref = makePathRef(build, new_path, NoFollowAccess, new_dfd);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the syscall succeed?
@@ -1181,7 +1181,7 @@ void Thread::_getdents(Build& build, int fd) noexcept {
   ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
 
   // Finish the syscall and resume
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     if (rc == 0) {
@@ -1223,7 +1223,7 @@ void Thread::_linkat(Build& build,
 
   auto target_ref = makePathRef(build, oldpath, target_flags, old_dfd);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the call succeed?
@@ -1269,7 +1269,7 @@ void Thread::_symlinkat(Build& build, fs::path target, at_fd dfd, fs::path newpa
   // Get a reference to the link we are creating
   auto entry_ref = makePathRef(build, newpath, NoAccess, dfd);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the syscall succeed?
@@ -1317,7 +1317,7 @@ void Thread::_readlinkat(Build& build, at_fd dfd, fs::path pathname) noexcept {
   }
 
   // Finish the syscall and then resume the process
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the call succeed?
@@ -1361,7 +1361,7 @@ void Thread::_unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flag
     entry_ref->getArtifact()->afterRead(build, getCommand(), entry_ref_id);
   }
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     // Did the call succeed?
@@ -1388,7 +1388,7 @@ void Thread::_unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flag
 void Thread::_socket(Build& build, int domain, int type, int protocol) noexcept {
   WARN << "socket(2) not yet implemented. Emulating as an anonymous file.";
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     if (rc >= 0) {
@@ -1400,17 +1400,9 @@ void Thread::_socket(Build& build, int domain, int type, int protocol) noexcept 
   });
 }
 
-void Thread::_bind(Build& build,
-                   int sockfd,
-                   const struct sockaddr* addr,
-                   socklen_t addrlen) noexcept {
-  WARN << "bind(2) not yet implemented. Ignoring for now.";
-  resume();
-}
-
 void Thread::_socketpair(Build& build, int domain, int type, int protocol, int sv[2]) noexcept {
   if (domain == AF_UNIX) {
-    finishSyscall([=, &build](long rc) {
+    finishSyscall([=](Build& build, long rc) {
       resume();
 
       if (rc == 0) {
@@ -1451,7 +1443,7 @@ void Thread::_chdir(Build& build, fs::path filename) noexcept {
 
   auto ref = makePathRef(build, filename, ExecAccess);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     build.expectResult(getCommand(), Scenario::Build, ref, -rc);
@@ -1476,7 +1468,7 @@ void Thread::_pivot_root(Build& build, fs::path new_root, fs::path put_old) noex
 void Thread::_fchdir(Build& build, int fd) noexcept {
   LOGF(trace, "{}: fchdir({})", this, fd);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     resume();
 
     if (rc == 0) {
@@ -1484,35 +1476,6 @@ void Thread::_fchdir(Build& build, int fd) noexcept {
       _process->setWorkingDir(build, _process->getFD(fd));
     }
   });
-}
-
-void Thread::_fork(Build& build) noexcept {
-  LOGF(trace, "{}: fork()", this);
-
-  finishSyscall([=](long rc) {
-    resume();
-
-    LOGF(trace, "{}: finished fork(), returned {}", this, rc);
-  });
-}
-
-void Thread::_clone(Build& build, void* fn, void* stack, int flags) noexcept {
-  LOGF(trace, "{}: clone({}, {}, 0x{:x})", this, fn, stack, (unsigned int)flags);
-
-  finishSyscall([=](long rc) {
-    LOGF(trace, "{}: finished clone(), returned {}", this, rc);
-    resume();
-  });
-}
-
-void Thread::_exit(Build& build, int status) noexcept {
-  LOGF(trace, "{}: exit({})", this, status);
-  resume();
-}
-
-void Thread::_exit_group(Build& build, int status) noexcept {
-  LOGF(trace, "{}: exit_group({})", this, status);
-  resume();
 }
 
 void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string> args) noexcept {
@@ -1531,7 +1494,7 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
     // Does the child command need to run?
     if (child->mustRun()) {
       // Yes. Run the actual exec syscall
-      finishSyscall([=, &build](long rc) {
+      finishSyscall([=](Build& build, long rc) {
         resume();
 
         // Not sure why, but exec returns -38 on success. Make sure that's what we get.
@@ -1563,7 +1526,7 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
 
   } else {
     // The reference does not resolve successfully, so exec will fail
-    // finishSyscall([=, &build](long rc) {
+    // finishSyscall([=](Build& build, long rc) {
     resume();
 
     //  ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
@@ -1578,7 +1541,7 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
 void Thread::_wait4(Build& build, pid_t pid, int* wstatus, int options) noexcept {
   LOGF(trace, "{}: wait4({}, {}, {})", this, pid, (void*)wstatus, options);
 
-  finishSyscall([=, &build](long rc) {
+  finishSyscall([=](Build& build, long rc) {
     int status = 0;
     if (wstatus != nullptr) status = readData<int>((uintptr_t)wstatus);
 
