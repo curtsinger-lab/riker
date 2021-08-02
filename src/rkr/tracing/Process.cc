@@ -36,7 +36,7 @@ Process::Process(Build& build,
                  Ref::ID root,
                  map<int, FileDescriptor> fds,
                  optional<mode_t> umask) noexcept :
-    _build(build), _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
+    _command(command), _pid(pid), _cwd(cwd), _root(root), _fds(fds) {
   // Set the process' default umask if one was not provided
   if (!umask.has_value()) {
     _umask = ::umask(0);
@@ -48,13 +48,13 @@ Process::Process(Build& build,
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
-    _build.usingRef(_command, ref);
+    build.usingRef(_command, ref);
   }
 
   // The child process also duplicates references to the root and working directories
   // TODO: Do we need to track _exe here as well?
-  _build.usingRef(_command, _root);
-  _build.usingRef(_command, _cwd);
+  build.usingRef(_command, _root);
+  build.usingRef(_command, _cwd);
 }
 
 /*******************************************/
@@ -62,11 +62,11 @@ Process::Process(Build& build,
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(Ref::ID ref) noexcept {
+void Process::setWorkingDir(Build& build, Ref::ID ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
-  _build.doneWithRef(_command, _cwd);
-  _build.usingRef(_command, ref);
+  build.doneWithRef(_command, _cwd);
+  build.usingRef(_command, ref);
 
   // Update the cwd
   _cwd = ref;
@@ -81,40 +81,40 @@ Ref::ID Process::getFD(int fd) noexcept {
 }
 
 // Add a file descriptor entry
-void Process::addFD(int fd, Ref::ID ref, bool cloexec) noexcept {
+void Process::addFD(Build& build, int fd, Ref::ID ref, bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
     WARN << "  Existing fd references " << getCommand()->getRef(old_ref)->getArtifact();
-    _build.doneWithRef(_command, old_ref);
+    build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 
   // The command holds an additional handle to the provided Ref
-  _build.usingRef(_command, ref);
+  build.usingRef(_command, ref);
 
   // Add the entry to the process' file descriptor table
   _fds.emplace(fd, FileDescriptor(ref, cloexec));
 }
 
 // Close a file descriptor
-void Process::closeFD(int fd) noexcept {
+void Process::closeFD(Build& build, int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter == _fds.end()) {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
     auto& [old_ref, old_cloexec] = iter->second;
-    _build.doneWithRef(_command, old_ref);
+    build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
   }
 }
 
 // Remove a file descriptor entry if it exists
-bool Process::tryCloseFD(int fd) noexcept {
+bool Process::tryCloseFD(Build& build, int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
     auto& [old_ref, old_cloexec] = iter->second;
-    _build.doneWithRef(_command, old_ref);
+    build.doneWithRef(_command, old_ref);
     _fds.erase(iter);
     return true;
   }
@@ -132,13 +132,15 @@ void Process::setCloexec(int fd, bool cloexec) noexcept {
 }
 
 // The process is creating a new child
-shared_ptr<Process> Process::fork(pid_t child_pid) noexcept {
+shared_ptr<Process> Process::fork(Build& build, pid_t child_pid) noexcept {
   // Return the child process object
-  return make_shared<Process>(_build, _command, child_pid, _cwd, _root, _fds, _umask);
+  return make_shared<Process>(build, _command, child_pid, _cwd, _root, _fds, _umask);
 }
 
 // The process is executing a new file
-const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) noexcept {
+const shared_ptr<Command>& Process::exec(Build& build,
+                                         Ref::ID exe_ref,
+                                         vector<string> args) noexcept {
   // Build a map of the initial file descriptors for the child command.
   // key = file descriptor number
   // value = reference ID in the parent process
@@ -153,7 +155,7 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   }
 
   // Find (or create) a command for the child
-  auto child = _build.findCommand(_command, args, inherited_fds);
+  auto child = build.findCommand(_command, args, inherited_fds);
 
   // Build a mapping from parent refs to child refs to emit to the IR layer
   list<tuple<Ref::ID, Ref::ID>> refs;
@@ -170,7 +172,7 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   }
 
   // Inform the build of the launch
-  _build.launch(_command, child, refs);
+  build.launch(_command, child, refs);
 
   // The child is now launched in this process
   child->setLaunched(shared_from_this());
@@ -180,18 +182,18 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
   // already have these IR steps
   if (child->mustRun()) {
     for (const auto& [parent_ref_id, child_ref_id] : refs) {
-      _build.usingRef(child, child_ref_id);
+      build.usingRef(child, child_ref_id);
     }
   }
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);
-  _build.doneWithRef(_command, _cwd);
-  _build.doneWithRef(_command, _root);
+  build.doneWithRef(_command, _cwd);
+  build.doneWithRef(_command, _root);
 
   for (const auto& [fd, desc] : _fds) {
     auto [ref, cloexec] = desc;
-    _build.doneWithRef(_command, ref);
+    build.doneWithRef(_command, ref);
   }
 
   // This process is now running the child
@@ -219,7 +221,7 @@ const shared_ptr<Command>& Process::exec(Ref::ID exe_ref, vector<string> args) n
 }
 
 // The process is exiting
-void Process::exit(int exit_status) noexcept {
+void Process::exit(Build& build, int exit_status) noexcept {
   // We only need to handle the exit if the process hasn't already been marked as exited. That will
   // happen for skipped commands that are forced to exit.
   if (!_exited) {
@@ -227,17 +229,17 @@ void Process::exit(int exit_status) noexcept {
     _exited = true;
 
     // References to the cwd and root directories are closed
-    _build.doneWithRef(_command, _cwd);
-    _build.doneWithRef(_command, _root);
+    build.doneWithRef(_command, _cwd);
+    build.doneWithRef(_command, _root);
 
     // Any remaining file descriptors in this process are closed
     for (const auto& [index, desc] : _fds) {
       const auto& [ref, cloexec] = desc;
-      _build.doneWithRef(_command, ref);
+      build.doneWithRef(_command, ref);
     }
 
     // If this process was the primary for its command, trace the exit
-    if (_primary) _build.exit(_command, exit_status);
+    if (_primary) build.exit(_command, exit_status);
   }
 }
 

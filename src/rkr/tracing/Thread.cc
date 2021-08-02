@@ -351,7 +351,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
         _build.fileRef(getCommand(), mode.getMode() & ~mask, anon_ref_id);
 
         // Record the reference in the process' file descriptor table
-        _process->addFD(fd, anon_ref_id, flags.cloexec());
+        _process->addFD(_build, fd, anon_ref_id, flags.cloexec());
 
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
@@ -360,7 +360,7 @@ void Thread::_openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mod
         }
 
         // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(fd, ref_id, flags.cloexec());
+        _process->addFD(_build, fd, ref_id, flags.cloexec());
       }
 
     } else {
@@ -430,7 +430,7 @@ void Thread::_close(int fd) noexcept {
   resume();
 
   // Try to close the FD
-  _process->tryCloseFD(fd);
+  _process->tryCloseFD(_build, fd);
 }
 
 /************************ Pipes ************************/
@@ -461,8 +461,8 @@ void Thread::_pipe2(int* fds, o_flags flags) noexcept {
     ASSERT(getCommand()->getRef(write_ref)->isResolved()) << "Failed to resolve pipe reference";
 
     // Fill in the file descriptor entries
-    _process->addFD(read_pipefd, read_ref, flags.cloexec());
-    _process->addFD(write_pipefd, write_ref, flags.cloexec());
+    _process->addFD(_build, read_pipefd, read_ref, flags.cloexec());
+    _process->addFD(_build, write_pipefd, write_ref, flags.cloexec());
   });
 }
 
@@ -482,7 +482,7 @@ void Thread::_dup(int fd) noexcept {
 
       // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
       // false.
-      _process->addFD(newfd, _process->getFD(fd), false);
+      _process->addFD(_build, newfd, _process->getFD(fd), false);
     });
   } else {
     finishSyscall([=](long rc) {
@@ -513,10 +513,10 @@ void Thread::_dup3(int oldfd, int newfd, o_flags flags) noexcept {
       if (rc < 0) return;
 
       // If there is an existing descriptor entry number newfd, it is silently closed
-      _process->tryCloseFD(newfd);
+      _process->tryCloseFD(_build, newfd);
 
       // Duplicate the file descriptor
-      _process->addFD(rc, _process->getFD(oldfd), flags.cloexec());
+      _process->addFD(_build, rc, _process->getFD(oldfd), flags.cloexec());
     });
   } else {
     finishSyscall([=](long rc) {
@@ -1369,7 +1369,7 @@ void Thread::_socket(int domain, int type, int protocol) noexcept {
       auto ref = getCommand()->nextRef();
       _build.fileRef(getCommand(), 0600, ref);
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
-      _process->addFD(rc, ref, cloexec);
+      _process->addFD(_build, rc, ref, cloexec);
     }
   });
 }
@@ -1399,8 +1399,8 @@ void Thread::_socketpair(int domain, int type, int protocol, int sv[2]) noexcept
         _build.fileRef(getCommand(), 0600, ref);
 
         // Add the file descriptors
-        _process->addFD(sock1_fd, ref, cloexec);
-        _process->addFD(sock2_fd, ref, cloexec);
+        _process->addFD(_build, sock1_fd, ref, cloexec);
+        _process->addFD(_build, sock2_fd, ref, cloexec);
       }
     });
   } else {
@@ -1429,7 +1429,7 @@ void Thread::_chdir(fs::path filename) noexcept {
 
     // Update the current working directory if the chdir call succeeded
     if (rc == 0) {
-      _process->setWorkingDir(ref);
+      _process->setWorkingDir(_build, ref);
     }
   });
 }
@@ -1452,7 +1452,7 @@ void Thread::_fchdir(int fd) noexcept {
 
     if (rc == 0) {
       // Update the working directory
-      _process->setWorkingDir(_process->getFD(fd));
+      _process->setWorkingDir(_build, _process->getFD(fd));
     }
   });
 }
@@ -1497,7 +1497,7 @@ void Thread::_execveat(at_fd dfd, fs::path filename, vector<string> args) noexce
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
     _build.expectResult(getCommand(), Scenario::Build, exe_ref_id, SUCCESS);
-    const auto& child = _process->exec(exe_ref_id, args);
+    const auto& child = _process->exec(_build, exe_ref_id, args);
 
     // Does the child command need to run?
     if (child->mustRun()) {

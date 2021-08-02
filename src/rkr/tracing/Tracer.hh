@@ -52,7 +52,7 @@ class Tracer {
   void handleFork(Build& build, Thread& t) noexcept;
 
   /// Called when a traced process exits
-  void handleExit(Thread& t, int exit_status) noexcept;
+  void handleExit(Build& build, Thread& t, int exit_status) noexcept;
 
   /// Called when a traced process is killed by a signal
   void handleKilled(Build& build, Thread& t, int exit_status, int term_sig) noexcept;

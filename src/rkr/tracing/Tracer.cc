@@ -208,7 +208,7 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
 
     } else if (WIFEXITED(wait_status)) {
       // Stopped on exit
-      handleExit(thread, WEXITSTATUS(wait_status));
+      handleExit(build, thread, WEXITSTATUS(wait_status));
 
     } else if (WIFSIGNALED(wait_status)) {
       // Killed by a signal
@@ -243,21 +243,21 @@ void Tracer::handleFork(Build& build, Thread& t) noexcept {
   if (new_pid == -1) return;
 
   // Create a new process running the same command
-  auto new_proc = t.getProcess()->fork(new_pid);
+  auto new_proc = t.getProcess()->fork(build, new_pid);
 
   // Record a new thread running in this process. It is the main thread, so pid and tid will be
   // equal
   _threads.emplace(new_pid, Thread(build, *this, new_proc, new_pid));
 }
 
-void Tracer::handleExit(Thread& t, int exit_status) noexcept {
+void Tracer::handleExit(Build& build, Thread& t, int exit_status) noexcept {
   LOGF(trace, "{}: exited", t);
 
   // Is the thread that's exiting the main thread in its process?
   auto proc = t.getProcess();
   if (t.getID() == proc->getID()) {
     LOGF(trace, "{}: exited", proc);
-    proc->exit(exit_status);
+    proc->exit(build, exit_status);
     _exited.emplace(proc->getID(), proc);
   }
 
@@ -311,7 +311,7 @@ void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig
   }
 
   // Finish handling the exit
-  handleExit(t, exit_status);
+  handleExit(build, t, exit_status);
 }
 
 shared_ptr<Process> Tracer::getExited(pid_t pid) noexcept {
