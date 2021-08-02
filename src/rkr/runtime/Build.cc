@@ -47,7 +47,7 @@ namespace fs = std::filesystem;
 
 // Create a build runner
 Build::Build(IRSink& output, std::ostream& print_to) noexcept :
-    _output(output), _tracer(*this), _print_to(print_to) {
+    _output(output), _print_to(print_to) {
   _deferred_steps = make_unique<IRBuffer>();
 }
 
@@ -73,7 +73,7 @@ void Build::start(const shared_ptr<Command>& c) noexcept {
 
 void Build::finish() noexcept {
   // Wait for all remaining processes to exit
-  _tracer.wait();
+  _tracer.wait(*this);
 
   // Compare the final state of all artifacts to the actual filesystem
   env::getRootDir()->checkFinalState("/");
@@ -828,7 +828,7 @@ void Build::launch(const shared_ptr<Command>& parent,
     // Yes. We need to launch the child if it is supposed to run
     if (child->mustRun()) {
       // Start the child command in the tracer and record it as launched
-      child->setLaunched(_tracer.start(child));
+      child->setLaunched(_tracer.start(*this, child));
 
     } else {
       // The child command is launched, and has no associated process
@@ -873,7 +873,7 @@ void Build::join(const shared_ptr<Command>& c,
   if (c->canEmulate() && child->mustRun()) {
     // If the child command is running in the tracer, wait for it
     const auto& process = child->getProcess();
-    if (process) _tracer.wait(process);
+    if (process) _tracer.wait(*this, process);
   }
 
   // Create an IR step and add it to the output trace

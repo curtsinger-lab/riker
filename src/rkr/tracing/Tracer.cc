@@ -63,9 +63,9 @@ int seccomp(unsigned int operation, unsigned int flags, void* args) {
   return syscall(__NR_seccomp, operation, flags, args);
 }
 
-shared_ptr<Process> Tracer::start(const shared_ptr<Command>& cmd) noexcept {
+shared_ptr<Process> Tracer::start(Build& build, const shared_ptr<Command>& cmd) noexcept {
   // Launch the command with tracing
-  return launchTraced(cmd);
+  return launchTraced(build, cmd);
 }
 
 optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
@@ -140,7 +140,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
   }
 }
 
-void Tracer::wait(shared_ptr<Process> p) noexcept {
+void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
   if (p) {
     LOG(exec) << "Waiting for " << p;
   } else {
@@ -169,11 +169,11 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_FORK << 8) | (PTRACE_EVENT_VFORK << 8))) {
-        handleFork(thread);
+        handleFork(build, thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
         auto regs = thread.getRegisters();
-        handleClone(thread, regs.SYSCALL_ARG1);
+        handleClone(build, thread, regs.SYSCALL_ARG1);
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
@@ -212,12 +212,12 @@ void Tracer::wait(shared_ptr<Process> p) noexcept {
 
     } else if (WIFSIGNALED(wait_status)) {
       // Killed by a signal
-      handleKilled(thread, WEXITSTATUS(wait_status), WTERMSIG(wait_status));
+      handleKilled(build, thread, WEXITSTATUS(wait_status), WTERMSIG(wait_status));
     }
   }
 }
 
-void Tracer::handleClone(Thread& t, int flags) noexcept {
+void Tracer::handleClone(Build& build, Thread& t, int flags) noexcept {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -228,10 +228,10 @@ void Tracer::handleClone(Thread& t, int flags) noexcept {
   // TODO: Handle flags
 
   // Threads in the same process just appear as pid references to the same process
-  _threads.emplace(new_tid, Thread(_build, *this, t.getProcess(), new_tid));
+  _threads.emplace(new_tid, Thread(build, *this, t.getProcess(), new_tid));
 }
 
-void Tracer::handleFork(Thread& t) noexcept {
+void Tracer::handleFork(Build& build, Thread& t) noexcept {
   // NOTE: This is not truly a syscall trap. Instead, it's a ptrace event. This handler runs after
   // the syscall has done most of the work
 
@@ -247,7 +247,7 @@ void Tracer::handleFork(Thread& t) noexcept {
 
   // Record a new thread running in this process. It is the main thread, so pid and tid will be
   // equal
-  _threads.emplace(new_pid, Thread(_build, *this, new_proc, new_pid));
+  _threads.emplace(new_pid, Thread(build, *this, new_proc, new_pid));
 }
 
 void Tracer::handleExit(Thread& t, int exit_status) noexcept {
@@ -264,7 +264,7 @@ void Tracer::handleExit(Thread& t, int exit_status) noexcept {
   _threads.erase(t.getID());
 }
 
-void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
+void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig) noexcept {
   // Keep a set of signals that cause a program to dump core
   static set<int> core_signals = {SIGABRT, SIGBUS,  SIGCONT, SIGFPE,  SIGILL,  SIGIOT,
                                   SIGQUIT, SIGSEGV, SIGSYS,  SIGTRAP, SIGXCPU, SIGXFSZ};
@@ -291,8 +291,8 @@ void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
       if (::stat(core_path.c_str(), &statbuf) == 0) {
         // Make a reference to the core file that creates it
         auto core_ref = t.getCommand()->nextRef();
-        _build.pathRef(t.getCommand(), cwd_ref_id, "core", AccessFlags{.w = true, .create = true},
-                       core_ref);
+        build.pathRef(t.getCommand(), cwd_ref_id, "core", AccessFlags{.w = true, .create = true},
+                      core_ref);
         auto core = t.getCommand()->getRef(core_ref)->getArtifact();
 
         // Make sure the reference resolved
@@ -301,7 +301,7 @@ void Tracer::handleKilled(Thread& t, int exit_status, int term_sig) noexcept {
           auto cv = make_shared<FileVersion>(statbuf);
 
           // Trace a write to the core file from the command that's exiting
-          _build.updateContent(t.getCommand(), core_ref, cv);
+          build.updateContent(t.getCommand(), core_ref, cv);
 
         } else {
           WARN << "Model did not allow for creation of a core file at " << core_path;
@@ -397,7 +397,7 @@ void Tracer::handleSyscall(Thread& t) noexcept {
 // Launch a program fully set up with ptrace and seccomp to be traced by the current process.
 // launch_traced will return the PID of the newly created process, which should be running (or at
 // least ready to be waited on) upon return.
-shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcept {
+shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>& cmd) noexcept {
   LOG(exec) << "Preparing to trace " << cmd;
 
   // First mark all FDs as close-on-exec
@@ -646,8 +646,8 @@ shared_ptr<Process> Tracer::launchTraced(const shared_ptr<Command>& cmd) noexcep
     fds[fd] = Process::FileDescriptor{ref, false};
   }
 
-  auto proc = make_shared<Process>(_build, cmd, child_pid, Ref::Cwd, Ref::Root, fds);
-  _threads.emplace(child_pid, Thread(_build, *this, proc, child_pid));
+  auto proc = make_shared<Process>(build, cmd, child_pid, Ref::Cwd, Ref::Root, fds);
+  _threads.emplace(child_pid, Thread(build, *this, proc, child_pid));
 
   // The process is the primary process for its command
   proc->setPrimary();
