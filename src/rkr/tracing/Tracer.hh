@@ -37,13 +37,13 @@ class Tracer {
 
  private:
   /// Get the next available traced event
-  std::optional<std::tuple<pid_t, int>> getEvent() noexcept;
+  std::optional<std::tuple<pid_t, int>> getEvent(Build& build) noexcept;
 
   /// Launch a command with tracing enabled
   std::shared_ptr<Process> launchTraced(Build& build, const std::shared_ptr<Command>& cmd) noexcept;
 
   /// Called when we catch a system call in the traced process
-  void handleSyscall(Thread& t) noexcept;
+  void handleSyscall(Build& build, Thread& t) noexcept;
 
   /// Called after a traced process issues a clone system call
   void handleClone(Build& build, Thread& t, int flags) noexcept;

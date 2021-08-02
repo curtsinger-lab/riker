@@ -92,50 +92,55 @@ class SyscallArgWrapper {
 };
 
 // Invoke a no-argument syscall handler
-void invoke_handler(void (Thread::*handler)(),
+void invoke_handler(void (Thread::*handler)(Build& build),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))();
+  (thread.*(handler))(build);
 }
 
 // Invoke a single-argument syscall handler
 template <class T1>
-void invoke_handler(void (Thread::*handler)(T1 a1),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel));
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel));
 }
 
 // Invoke a two-argument syscall handler
 template <class T1, class T2>
-void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1, T2 a2),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel));
 }
 
 // Invoke a three-argument syscall handler
 template <class T1, class T2, class T3>
-void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1, T2 a2, T3 a3),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel));
 }
 
 // Invoke a four-argument syscall handler
 template <class T1, class T2, class T3, class T4>
-void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1, T2 a2, T3 a3, T4 a4),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel));
@@ -143,11 +148,12 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4),
 
 // Invoke a five-argument syscall handler
 template <class T1, class T2, class T3, class T4, class T5>
-void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel),
@@ -156,11 +162,12 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
 
 // Invoke a six-argument syscall handler
 template <class T1, class T2, class T3, class T4, class T5, class T6>
-void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
+void invoke_handler(void (Thread::*handler)(Build& build, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
+                    Build& build,
                     Thread& thread,
                     const user_regs_struct& regs,
                     ssize_t channel) {
-  (thread.*(handler))(SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
+  (thread.*(handler))(build, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
                       SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel),
@@ -169,11 +176,11 @@ void invoke_handler(void (Thread::*handler)(T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T
 }
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                            \
-  _syscalls[__NR_##name] =                                                                     \
-      SyscallEntry(#name, [](Thread& __thr, const user_regs_struct& __regs, ssize_t channel) { \
-        stats::syscalls++;                                                                     \
-        invoke_handler(&Thread::_##name, __thr, __regs, channel);                              \
+#define TRACE(name)                                                                         \
+  _syscalls[__NR_##name] = SyscallEntry(                                                    \
+      #name, [](Build& b, Thread& __thr, const user_regs_struct& __regs, ssize_t channel) { \
+        stats::syscalls++;                                                                  \
+        invoke_handler(&Thread::_##name, b, __thr, __regs, channel);                        \
       });
 
 /// The maximum number of system calls

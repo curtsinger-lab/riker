@@ -30,8 +30,8 @@ class Tracer;
 
 class Thread {
  public:
-  Thread(Build& build, Tracer& tracer, std::shared_ptr<Process> process, pid_t tid) noexcept :
-      _build(build), _tracer(tracer), _process(process), _tid(tid) {}
+  Thread(Tracer& tracer, std::shared_ptr<Process> process, pid_t tid) noexcept :
+      _tracer(tracer), _process(process), _tid(tid) {}
 
   /// Get the process this thread runs in
   std::shared_ptr<Process> getProcess() const noexcept { return _process; }
@@ -43,7 +43,7 @@ class Thread {
   pid_t getID() const noexcept { return _tid; }
 
   /// Traced entry to a system call through the provided shared memory channel
-  void syscallEntryChannel(ssize_t channel) noexcept;
+  void syscallEntryChannel(Build& build, ssize_t channel) noexcept;
 
   /// Traced exit from a system call through the provided shared memory channel
   void syscallExitChannel(ssize_t channel) noexcept;
@@ -102,144 +102,182 @@ class Thread {
    * \param at    A file descriptor this access is made relative to
    * \returns an Access instance that has been added to the current command
    */
-  Ref::ID makePathRef(fs::path p, AccessFlags flags, at_fd at = at_fd::cwd()) noexcept;
+  Ref::ID makePathRef(Build& build,
+                      fs::path p,
+                      AccessFlags flags,
+                      at_fd at = at_fd::cwd()) noexcept;
 
   /*** Handling for specific system calls ***/
 
   // File Opening, Creation, and Closing
-  void _open(fs::path f, o_flags flags, mode_flags mode) noexcept {
-    _openat(at_fd::cwd(), f, flags, mode);
+  void _open(Build& build, fs::path f, o_flags flags, mode_flags mode) noexcept {
+    _openat(build, at_fd::cwd(), f, flags, mode);
   }
-  void _openat(at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept;
-  void _creat(fs::path p, mode_flags mode) noexcept {
-    _open(p, o_flags(O_CREAT | O_WRONLY | O_TRUNC), mode);
+  void _openat(Build& build, at_fd dfd, fs::path filename, o_flags flags, mode_flags mode) noexcept;
+  void _creat(Build& build, fs::path p, mode_flags mode) noexcept {
+    _open(build, p, o_flags(O_CREAT | O_WRONLY | O_TRUNC), mode);
   }
-  void _mknod(fs::path f, mode_flags mode, unsigned dev) noexcept {
-    _mknodat(at_fd::cwd(), f, mode, dev);
+  void _mknod(Build& build, fs::path f, mode_flags mode, unsigned dev) noexcept {
+    _mknodat(build, at_fd::cwd(), f, mode, dev);
   }
-  void _mknodat(at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept;
-  void _close(int fd) noexcept;
+  void _mknodat(Build& build, at_fd dfd, fs::path filename, mode_flags mode, unsigned dev) noexcept;
+  void _close(Build& build, int fd) noexcept;
 
   // Pipes
-  void _pipe(int* fds) noexcept { _pipe2(fds, o_flags()); }
-  void _pipe2(int* fds, o_flags flags) noexcept;
+  void _pipe(Build& build, int* fds) noexcept { _pipe2(build, fds, o_flags()); }
+  void _pipe2(Build& build, int* fds, o_flags flags) noexcept;
 
   // File Descriptor Manipulation
-  void _dup(int fd) noexcept;
-  void _dup2(int oldfd, int newfd) noexcept { _dup3(oldfd, newfd, o_flags()); }
-  void _dup3(int oldfd, int newfd, o_flags flags) noexcept;
-  void _fcntl(int fd, int cmd, unsigned long arg) noexcept;
+  void _dup(Build& build, int fd) noexcept;
+  void _dup2(Build& build, int oldfd, int newfd) noexcept { _dup3(build, oldfd, newfd, o_flags()); }
+  void _dup3(Build& build, int oldfd, int newfd, o_flags flags) noexcept;
+  void _fcntl(Build& build, int fd, int cmd, unsigned long arg) noexcept;
 
   // Metadata Operations
-  void _access(fs::path pathname, int mode) noexcept {
-    _faccessat(at_fd::cwd(), pathname, mode, 0);
+  void _access(Build& build, fs::path pathname, int mode) noexcept {
+    _faccessat(build, at_fd::cwd(), pathname, mode, 0);
   }
-  void _faccessat(at_fd dirfd, fs::path pathname, int mode, at_flags flags) noexcept;
-  void _stat(fs::path pathname, struct stat* statbuf) noexcept {
-    _fstatat(at_fd::cwd(), pathname, statbuf, at_flags());
+  void _faccessat(Build& build, at_fd dirfd, fs::path pathname, int mode, at_flags flags) noexcept;
+  void _stat(Build& build, fs::path pathname, struct stat* statbuf) noexcept {
+    _fstatat(build, at_fd::cwd(), pathname, statbuf, at_flags());
   }
-  void _lstat(fs::path pathname, struct stat* statbuf) noexcept {
-    _fstatat(at_fd::cwd(), pathname, statbuf, at_flags(AT_SYMLINK_NOFOLLOW));
+  void _lstat(Build& build, fs::path pathname, struct stat* statbuf) noexcept {
+    _fstatat(build, at_fd::cwd(), pathname, statbuf, at_flags(AT_SYMLINK_NOFOLLOW));
   }
-  void _fstat(int fd, struct stat* statbuf) noexcept {
-    _fstatat(at_fd(fd), "", statbuf, at_flags(AT_EMPTY_PATH));
+  void _fstat(Build& build, int fd, struct stat* statbuf) noexcept {
+    _fstatat(build, at_fd(fd), "", statbuf, at_flags(AT_EMPTY_PATH));
   }
-  void _fstatat(at_fd dirfd, fs::path pathname, struct stat* statbuf, at_flags flags) noexcept;
-  void _newfstatat(at_fd dirfd, fs::path pathname, struct stat* statbuf, at_flags flags) noexcept {
-    _fstatat(dirfd, pathname, statbuf, flags);
+  void _fstatat(Build& build,
+                at_fd dirfd,
+                fs::path pathname,
+                struct stat* statbuf,
+                at_flags flags) noexcept;
+  void _newfstatat(Build& build,
+                   at_fd dirfd,
+                   fs::path pathname,
+                   struct stat* statbuf,
+                   at_flags flags) noexcept {
+    _fstatat(build, dirfd, pathname, statbuf, flags);
   }
-  void _statx(at_fd dfd, fs::path pathname, at_flags flags) noexcept {
-    _fstatat(dfd, pathname, nullptr, flags);
+  void _statx(Build& build, at_fd dfd, fs::path pathname, at_flags flags) noexcept {
+    _fstatat(build, dfd, pathname, nullptr, flags);
   }
-  void _chown(fs::path f, uid_t usr, gid_t grp) noexcept {
-    _fchownat(at_fd::cwd(), f, usr, grp, at_flags(0));
+  void _chown(Build& build, fs::path f, uid_t usr, gid_t grp) noexcept {
+    _fchownat(build, at_fd::cwd(), f, usr, grp, at_flags(0));
   }
-  void _lchown(fs::path f, uid_t usr, gid_t grp) noexcept {
-    _fchownat(at_fd::cwd(), f, usr, grp, at_flags(AT_SYMLINK_NOFOLLOW));
+  void _lchown(Build& build, fs::path f, uid_t usr, gid_t grp) noexcept {
+    _fchownat(build, at_fd::cwd(), f, usr, grp, at_flags(AT_SYMLINK_NOFOLLOW));
   }
-  void _fchown(int fd, uid_t user, gid_t group) noexcept;
-  void _fchownat(at_fd dfd, fs::path filename, uid_t user, gid_t group, at_flags flag) noexcept;
-  void _chmod(fs::path filename, mode_flags mode) noexcept {
-    _fchmodat(at_fd::cwd(), filename, mode, 0);
+  void _fchown(Build& build, int fd, uid_t user, gid_t group) noexcept;
+  void _fchownat(Build& build,
+                 at_fd dfd,
+                 fs::path filename,
+                 uid_t user,
+                 gid_t group,
+                 at_flags flag) noexcept;
+  void _chmod(Build& build, fs::path filename, mode_flags mode) noexcept {
+    _fchmodat(build, at_fd::cwd(), filename, mode, 0);
   }
-  void _fchmod(int fd, mode_flags mode) noexcept;
-  void _fchmodat(at_fd dfd, fs::path filename, mode_flags mode, at_flags flags) noexcept;
+  void _fchmod(Build& build, int fd, mode_flags mode) noexcept;
+  void _fchmodat(Build& build,
+                 at_fd dfd,
+                 fs::path filename,
+                 mode_flags mode,
+                 at_flags flags) noexcept;
 
   // File Content Operations
-  void _read(int fd) noexcept;
-  void _readv(int fd) noexcept { _read(fd); }
-  void _preadv(int fd) noexcept { _read(fd); }
-  void _preadv2(int fd) noexcept { _read(fd); }
-  void _pread64(int fd) noexcept { _read(fd); }
-  void _write(int fd) noexcept;
-  void _writev(int fd) noexcept { _write(fd); }
-  void _pwritev(int fd) noexcept { _write(fd); }
-  void _pwritev2(int fd) noexcept { _write(fd); }
-  void _pwrite64(int fd) noexcept { _write(fd); }
-  void _mmap(void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept;
-  void _truncate(fs::path path, long length) noexcept;
-  void _ftruncate(int fd, long length) noexcept;
-  void _tee(int fd_in, int fd_out) noexcept;
-  void _splice(int in, loff_t off_in, int out, loff_t off_out) noexcept { _tee(in, out); }
-  void _copy_file_range(int fd_in, int _, int fd_out) noexcept { _tee(fd_in, fd_out); }
-  void _sendfile(int out_fd, int in_fd) noexcept { _tee(in_fd, out_fd); }
-  void _vmsplice(int fd) noexcept { _write(fd); }
+  void _read(Build& build, int fd) noexcept;
+  void _readv(Build& build, int fd) noexcept { _read(build, fd); }
+  void _preadv(Build& build, int fd) noexcept { _read(build, fd); }
+  void _preadv2(Build& build, int fd) noexcept { _read(build, fd); }
+  void _pread64(Build& build, int fd) noexcept { _read(build, fd); }
+  void _write(Build& build, int fd) noexcept;
+  void _writev(Build& build, int fd) noexcept { _write(build, fd); }
+  void _pwritev(Build& build, int fd) noexcept { _write(build, fd); }
+  void _pwritev2(Build& build, int fd) noexcept { _write(build, fd); }
+  void _pwrite64(Build& build, int fd) noexcept { _write(build, fd); }
+  void _mmap(Build& build, void* addr, size_t len, int prot, int flags, int fd, off_t off) noexcept;
+  void _truncate(Build& build, fs::path path, long length) noexcept;
+  void _ftruncate(Build& build, int fd, long length) noexcept;
+  void _tee(Build& build, int fd_in, int fd_out) noexcept;
+  void _splice(Build& build, int in, loff_t off_in, int out, loff_t off_out) noexcept {
+    _tee(build, in, out);
+  }
+  void _copy_file_range(Build& build, int fd_in, int _, int fd_out) noexcept {
+    _tee(build, fd_in, fd_out);
+  }
+  void _sendfile(Build& build, int out_fd, int in_fd) noexcept { _tee(build, in_fd, out_fd); }
+  void _vmsplice(Build& build, int fd) noexcept { _write(build, fd); }
 
   // Directory Operations
-  void _mkdir(fs::path p, mode_flags mode) noexcept { _mkdirat(at_fd::cwd(), p, mode); }
-  void _mkdirat(at_fd dfd, fs::path pathname, mode_flags mode) noexcept;
-  void _rmdir(fs::path pathname) noexcept {
-    _unlinkat(at_fd::cwd(), pathname, at_flags(AT_REMOVEDIR));
+  void _mkdir(Build& build, fs::path p, mode_flags mode) noexcept {
+    _mkdirat(build, at_fd::cwd(), p, mode);
   }
-  void _rename(fs::path n1, fs::path n2) noexcept { _renameat(at_fd::cwd(), n1, at_fd::cwd(), n2); }
-  void _renameat(at_fd d1, fs::path n1, at_fd d2, fs::path n2) noexcept {
-    _renameat2(d1, n1, d2, n2, rename_flags());
+  void _mkdirat(Build& build, at_fd dfd, fs::path pathname, mode_flags mode) noexcept;
+  void _rmdir(Build& build, fs::path pathname) noexcept {
+    _unlinkat(build, at_fd::cwd(), pathname, at_flags(AT_REMOVEDIR));
   }
-  void _renameat2(at_fd old_dfd,
+  void _rename(Build& build, fs::path n1, fs::path n2) noexcept {
+    _renameat(build, at_fd::cwd(), n1, at_fd::cwd(), n2);
+  }
+  void _renameat(Build& build, at_fd d1, fs::path n1, at_fd d2, fs::path n2) noexcept {
+    _renameat2(build, d1, n1, d2, n2, rename_flags());
+  }
+  void _renameat2(Build& build,
+                  at_fd old_dfd,
                   fs::path oldpath,
                   at_fd new_dfd,
                   fs::path newpath,
                   rename_flags flags) noexcept;
-  void _getdents(int fd) noexcept;
-  void _getdents64(int fd) noexcept { _getdents(fd); }
+  void _getdents(Build& build, int fd) noexcept;
+  void _getdents64(Build& build, int fd) noexcept { _getdents(build, fd); }
 
   // Link and Symlink Operations
-  void _link(fs::path oldname, fs::path newname) {
-    _linkat(at_fd::cwd(), oldname, at_fd::cwd(), newname, at_flags());
+  void _link(Build& build, fs::path oldname, fs::path newname) {
+    _linkat(build, at_fd::cwd(), oldname, at_fd::cwd(), newname, at_flags());
   }
-  void _linkat(at_fd old_dfd,
+  void _linkat(Build& build,
+               at_fd old_dfd,
                fs::path oldpath,
                at_fd new_dfd,
                fs::path newpath,
                at_flags flags) noexcept;
-  void _symlink(fs::path oldname, fs::path newname) noexcept {
-    _symlinkat(oldname, at_fd::cwd(), newname);
+  void _symlink(Build& build, fs::path oldname, fs::path newname) noexcept {
+    _symlinkat(build, oldname, at_fd::cwd(), newname);
   }
-  void _symlinkat(fs::path oldname, at_fd newdfd, fs::path newname) noexcept;
-  void _readlink(fs::path path) noexcept { _readlinkat(at_fd::cwd(), path); }
-  void _readlinkat(at_fd dfd, fs::path pathname) noexcept;
-  void _unlink(fs::path pathname) noexcept { _unlinkat(at_fd::cwd(), pathname, 0); }
-  void _unlinkat(at_fd dfd, fs::path pathname, at_flags flags) noexcept;
+  void _symlinkat(Build& build, fs::path oldname, at_fd newdfd, fs::path newname) noexcept;
+  void _readlink(Build& build, fs::path path) noexcept { _readlinkat(build, at_fd::cwd(), path); }
+  void _readlinkat(Build& build, at_fd dfd, fs::path pathname) noexcept;
+  void _unlink(Build& build, fs::path pathname) noexcept {
+    _unlinkat(build, at_fd::cwd(), pathname, 0);
+  }
+  void _unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flags) noexcept;
 
   // Socket Operations
-  void _accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
+  void _accept(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
     FAIL << "accept(2) not yet implemented.";
   }
-  void _bind(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept;
-  void _connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
+  void _bind(Build& build, int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept;
+  void _connect(Build& build, int sockfd, const struct sockaddr* addr, socklen_t addrlen) noexcept {
     FAIL << "connect(2) not yet implemented.";
   }
-  void _getpeername(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
+  void _getpeername(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
     FAIL << "getpeername(2) not yet implemented.";
   }
-  void _getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
+  void _getsockname(Build& build, int sockfd, struct sockaddr* addr, socklen_t* addrlen) noexcept {
     FAIL << "getsockname(2) not yet implemented.";
   }
-  void _getsockopt(int sockfd, int level, int optname, void* optval, socklen_t* optlen) noexcept {
+  void _getsockopt(Build& build,
+                   int sockfd,
+                   int level,
+                   int optname,
+                   void* optval,
+                   socklen_t* optlen) noexcept {
     FAIL << "getsockopt(2) not yet implemented.";
   }
-  void _listen(int sockfd, int backlog) { FAIL << "listen(2) not yet implemented."; }
-  void _recvfrom(int sockfd,
+  void _listen(Build& build, int sockfd, int backlog) { FAIL << "listen(2) not yet implemented."; }
+  void _recvfrom(Build& build,
+                 int sockfd,
                  void* buf,
                  size_t len,
                  int flags,
@@ -247,13 +285,14 @@ class Thread {
                  socklen_t* addrlen) noexcept {
     FAIL << "recvfrom(2) not yet implemented.";
   }
-  void _recvmsg(int sockfd, struct msghdr* msg, int flags) noexcept {
+  void _recvmsg(Build& build, int sockfd, struct msghdr* msg, int flags) noexcept {
     FAIL << "recvmsg(2) not yet implemented.";
   }
-  void _sendmsg(int sockfd, const struct msghdr* msg, int flags) {
+  void _sendmsg(Build& build, int sockfd, const struct msghdr* msg, int flags) {
     FAIL << "sendmsg(2) not yet implemented.";
   }
-  void _sendto(int sockfd,
+  void _sendto(Build& build,
+               int sockfd,
                const void* buf,
                size_t len,
                int flags,
@@ -261,34 +300,38 @@ class Thread {
                socklen_t addrlen) {
     FAIL << "sendto(2) not yet implemented.";
   }
-  void _setsockopt(int sockfd,
+  void _setsockopt(Build& build,
+                   int sockfd,
                    int level,
                    int optname,
                    const void* optval,
                    socklen_t optlen) noexcept {
     FAIL << "setsockopt(2) not yet implemented.";
   }
-  void _shutdown(int sockfd, int how) { FAIL << "shutdown(2) not yet implemented."; }
-  void _socket(int domain, int type, int protocol) noexcept;
-  void _socketpair(int domain, int type, int protocol, int sv[2]) noexcept;
+  void _shutdown(Build& build, int sockfd, int how) { FAIL << "shutdown(2) not yet implemented."; }
+  void _socket(Build& build, int domain, int type, int protocol) noexcept;
+  void _socketpair(Build& build, int domain, int type, int protocol, int sv[2]) noexcept;
 
   // Process State Operations
-  void _umask(mode_t mask) noexcept;
-  void _chdir(fs::path filename) noexcept;
-  void _chroot(fs::path filename) noexcept;
-  void _pivot_root(fs::path new_root, fs::path put_old) noexcept;
-  void _fchdir(int fd) noexcept;
-  void _fork() noexcept;
-  void _vfork() noexcept { _fork(); }
-  void _clone(void* fn, void* stack, int flags) noexcept;
-  void _exit(int status) noexcept;
-  void _exit_group(int status) noexcept;
-  void _execve(fs::path filename, std::vector<std::string> args) noexcept {
-    _execveat(at_fd::cwd(), filename, args);
+  void _umask(Build& build, mode_t mask) noexcept;
+  void _chdir(Build& build, fs::path filename) noexcept;
+  void _chroot(Build& build, fs::path filename) noexcept;
+  void _pivot_root(Build& build, fs::path new_root, fs::path put_old) noexcept;
+  void _fchdir(Build& build, int fd) noexcept;
+  void _fork(Build& build) noexcept;
+  void _vfork(Build& build) noexcept { _fork(build); }
+  void _clone(Build& build, void* fn, void* stack, int flags) noexcept;
+  void _exit(Build& build, int status) noexcept;
+  void _exit_group(Build& build, int status) noexcept;
+  void _execve(Build& build, fs::path filename, std::vector<std::string> args) noexcept {
+    _execveat(build, at_fd::cwd(), filename, args);
   }
-  void _execveat(at_fd dfd, fs::path filename, std::vector<std::string> args) noexcept;
-  void _wait4(pid_t pid, int* wstatus, int options) noexcept;
-  void _waitid(idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
+  void _execveat(Build& build,
+                 at_fd dfd,
+                 fs::path filename,
+                 std::vector<std::string> args) noexcept;
+  void _wait4(Build& build, pid_t pid, int* wstatus, int options) noexcept;
+  void _waitid(Build& build, idtype_t idtype, id_t id, siginfo_t* infop, int options) noexcept;
 
   /// Print a thread to an output stream
   friend std::ostream& operator<<(std::ostream& o, const Thread& t) noexcept {
@@ -302,9 +345,6 @@ class Thread {
   }
 
  private:
-  /// This thread is running as a part of a build execution
-  Build& _build;
-
   /// The tracer that is executing this thread
   Tracer& _tracer;
 

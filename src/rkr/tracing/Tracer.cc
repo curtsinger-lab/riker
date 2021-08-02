@@ -68,7 +68,7 @@ shared_ptr<Process> Tracer::start(Build& build, const shared_ptr<Command>& cmd) 
   return launchTraced(build, cmd);
 }
 
-optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
+optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
   // Check if any queued events are ready to be processed
   for (auto iter = _event_queue.cbegin(); iter != _event_queue.cend(); iter++) {
     auto [child, wait_status] = *iter;
@@ -99,7 +99,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent() noexcept {
         auto iter = _threads.find(_shmem->channels[i].tid);
         if (iter != _threads.end()) {
           if (_shmem->channels[i].syscall_entry) {
-            iter->second.syscallEntryChannel(i);
+            iter->second.syscallEntryChannel(build, i);
           } else {
             iter->second.syscallExitChannel(i);
           }
@@ -152,7 +152,7 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
     // If we're waiting for a specific process, and that process has exited, return now
     if (p && p->hasExited()) return;
 
-    auto e = getEvent();
+    auto e = getEvent(build);
     if (!e.has_value()) return;
 
     auto [child, wait_status] = e.value();
@@ -164,7 +164,7 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
 
       if (status == (SIGTRAP | (PTRACE_EVENT_SECCOMP << 8))) {
         // Stopped on entry to a syscall
-        handleSyscall(thread);
+        handleSyscall(build, thread);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_FORK << 8)) ||
                  status == (SIGTRAP | (PTRACE_EVENT_VFORK << 8)) ||
@@ -228,7 +228,7 @@ void Tracer::handleClone(Build& build, Thread& t, int flags) noexcept {
   // TODO: Handle flags
 
   // Threads in the same process just appear as pid references to the same process
-  _threads.emplace(new_tid, Thread(build, *this, t.getProcess(), new_tid));
+  _threads.emplace(new_tid, Thread(*this, t.getProcess(), new_tid));
 }
 
 void Tracer::handleFork(Build& build, Thread& t) noexcept {
@@ -247,7 +247,7 @@ void Tracer::handleFork(Build& build, Thread& t) noexcept {
 
   // Record a new thread running in this process. It is the main thread, so pid and tid will be
   // equal
-  _threads.emplace(new_pid, Thread(build, *this, new_proc, new_pid));
+  _threads.emplace(new_pid, Thread(*this, new_proc, new_pid));
 }
 
 void Tracer::handleExit(Build& build, Thread& t, int exit_status) noexcept {
@@ -367,7 +367,7 @@ string findLibraryOffset(pid_t pid, uintptr_t ptr) {
   return "unknown";
 }
 
-void Tracer::handleSyscall(Thread& t) noexcept {
+void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
   auto regs = t.getRegisters();
 
   const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
@@ -387,7 +387,7 @@ void Tracer::handleSyscall(Thread& t) noexcept {
     }
 
     // Run the system call handler
-    entry.runHandler(t, regs);
+    entry.runHandler(build, t, regs);
 
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
@@ -647,7 +647,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
   }
 
   auto proc = make_shared<Process>(build, cmd, child_pid, Ref::Cwd, Ref::Root, fds);
-  _threads.emplace(child_pid, Thread(build, *this, proc, child_pid));
+  _threads.emplace(child_pid, Thread(*this, proc, child_pid));
 
   // The process is the primary process for its command
   proc->setPrimary();
