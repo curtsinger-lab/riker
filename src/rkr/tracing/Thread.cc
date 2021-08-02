@@ -46,7 +46,7 @@ void Thread::syscallEntryChannel(Build& build, ssize_t channel) noexcept {
   ASSERT(_channel == -1) << this << " is already using a shared memory channel";
   _channel = channel;
 
-  auto& entry = SyscallTable::get(Tracer::getSyscallNumber(_channel));
+  auto& entry = SyscallTable<Build>::get(Tracer::getSyscallNumber(_channel));
 
   if (options::syscall_stats) {
     Tracer::syscall_counts[string(entry.getName()) + " (fast)"]++;
@@ -69,7 +69,7 @@ void Thread::syscallExitChannel(Build& build, ssize_t channel) noexcept {
       << "Stopped on syscall exit with no available post-syscall handlers";
 
   LOG(trace) << this << " handling "
-             << SyscallTable::get(Tracer::getSyscallNumber(_channel)).getName()
+             << SyscallTable<Build>::get(Tracer::getSyscallNumber(_channel)).getName()
              << " exit via shared memory channel";
 
   // Run the post-syscall handler

@@ -3,7 +3,7 @@
 extern void print_world();
 
 int main() {
-  printf("Hello ");
+  printf("Hello ")
   print_world();
   return 0;
 }

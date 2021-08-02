@@ -370,7 +370,7 @@ string findLibraryOffset(pid_t pid, uintptr_t ptr) {
 void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
   auto regs = t.getRegisters();
 
-  const auto& entry = SyscallTable::get(regs.SYSCALL_NUMBER);
+  const auto& entry = SyscallTable<Build>::get(regs.SYSCALL_NUMBER);
 
   // WARN << entry.getName() << " call at " << (void*)regs.INSTRUCTION_POINTER << " in " <<
   // t.getCommand();
@@ -505,7 +505,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
     bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)));
 
     // Loop over syscalls
-    for (uint32_t i = 0; i < SyscallTable::size(); i++) {
+    for (uint32_t i = 0; i < SyscallTable<Build>::size(); i++) {
       // Is this the mmap syscall entry?
       if (i == __NR_mmap) {
         bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 4));
@@ -519,7 +519,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
         bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
 
       } else {
-        if (SyscallTable::get(i).isTraced()) {
+        if (SyscallTable<Build>::get(i).isTraced()) {
           // Check if the syscall matches the current entry. If it matches, trace the syscall.
           bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
           bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
