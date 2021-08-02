@@ -19,6 +19,7 @@
 #include "runtime/Ref.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Process.hh"
+#include "tracing/inject.h"
 #include "util/log.hh"
 
 namespace fs = std::filesystem;
@@ -306,6 +307,133 @@ class Thread {
   friend std::ostream& operator<<(std::ostream& o, const Thread* t) noexcept {
     if (t == nullptr) return o << "<null Thread>";
     return o << *t;
+  }
+
+  /********** Utility Templates for Running Syscall Handlers **********/
+
+  /**
+   * A simple wrapper class around system call arguments that can convert them to known types by
+   * reading from a stopped thread.
+   */
+  class SyscallArgWrapper {
+   public:
+    SyscallArgWrapper(Thread& t, unsigned long val) : _thread(t), _val(val) {}
+
+    // Use static cast for most types
+    template <typename T>
+    operator T() {
+      return static_cast<T>(_val);
+    }
+
+    // Get an at_fd from the register value
+    operator at_fd() { return at_fd(_val); }
+
+    // Get o_flags from the register value
+    operator o_flags() { return o_flags(_val); }
+
+    // Get at_flags from the register value
+    operator at_flags() { return at_flags(_val); }
+
+    // Get mode_flags from the register value
+    operator mode_flags() { return mode_flags(_val); }
+
+    // Get rename_flags from the register value
+    operator rename_flags() { return rename_flags(_val); }
+
+    // Read a string from the thread's memory
+    operator std::string() { return _thread.readString(_val); }
+
+    // Get an fs::path from the thread's memory
+    operator fs::path() { return _thread.readPath(_val); }
+
+    // Read a vector of strings from the thread's memory
+    operator std::vector<std::string>() { return _thread.readArgvArray(_val); }
+
+    // Cast directly to pointer types
+    template <typename T>
+    operator T*() {
+      return (T*)_val;
+    }
+
+   private:
+    Thread& _thread;
+    unsigned long _val;
+  };
+
+  /// Template function to read a system call register argument from a tracee
+  template <class T>
+  T readArg(unsigned long reg);
+
+  /// Use static_cast to read an int argument
+  template <>
+  int readArg<int>(unsigned long reg) {
+    return static_cast<int>(reg);
+  }
+
+  /// Use reinterpret cast to read an int* argument
+  template <>
+  int* readArg<int*>(unsigned long reg) {
+    return reinterpret_cast<int*>(reg);
+  }
+
+  template <class Output>
+  void invokeHandler(void (Thread::*handler)(Output&), Output& out, const user_regs_struct& regs) {
+    (this->*(handler))(out);
+  }
+
+  template <class Output, class T1>
+  void invokeHandler(void (Thread::*handler)(Output&, T1),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1));
+  }
+
+  template <class Output, class T1, class T2>
+  void invokeHandler(void (Thread::*handler)(Output&, T1, T2),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG2));
+  }
+
+  template <class Output, class T1, class T2, class T3>
+  void invokeHandler(void (Thread::*handler)(Output&, T1, T2, T3),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG2),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG3));
+  }
+
+  template <class Output, class T1, class T2, class T3, class T4>
+  void invokeHandler(void (Thread::*handler)(Output&, T1, T2, T3, T4),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG2),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG3),
+                       SyscallArgWrapper(*this, regs.SYSCALL_ARG4));
+  }
+
+  template <class Output, class T1, class T2, class T3, class T4, class T5>
+  void invokeHandler(void (Thread::*handler)(Output&, T1, T2, T3, T4, T5),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(
+        out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1),
+        SyscallArgWrapper(*this, regs.SYSCALL_ARG2), SyscallArgWrapper(*this, regs.SYSCALL_ARG3),
+        SyscallArgWrapper(*this, regs.SYSCALL_ARG4), SyscallArgWrapper(*this, regs.SYSCALL_ARG5));
+  }
+
+  template <class Output, class T1, class T2, class T3, class T4, class T5, class T6>
+  void invokeHandler(void (Thread::*handler)(Output&, T1, T2, T3, T4, T5, T6),
+                     Output& out,
+                     const user_regs_struct& regs) {
+    (this->*(handler))(
+        out, SyscallArgWrapper(*this, regs.SYSCALL_ARG1),
+        SyscallArgWrapper(*this, regs.SYSCALL_ARG2), SyscallArgWrapper(*this, regs.SYSCALL_ARG3),
+        SyscallArgWrapper(*this, regs.SYSCALL_ARG4), SyscallArgWrapper(*this, regs.SYSCALL_ARG5),
+        SyscallArgWrapper(*this, regs.SYSCALL_ARG6));
   }
 
  private:

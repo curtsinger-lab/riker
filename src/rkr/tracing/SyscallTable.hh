@@ -20,11 +20,10 @@ class Build;
 class Thread;
 
 /// The type of a system call handler
-typedef void (*handler_t)(Build& b, Thread& __thr, const user_regs_struct& __regs, ssize_t channel);
+typedef void (*handler_t)(Build& b, Thread& t, const user_regs_struct& regs);
 
 /// The default handler
-constexpr handler_t default_handler =
-    [](Build& b, Thread& t, const user_regs_struct& regs, ssize_t channel) {};
+constexpr handler_t default_handler = [](Build& b, Thread& t, const user_regs_struct& regs) {};
 
 /**
  * A system call entry records the name of a system call, whether or not it should be traced, and
@@ -50,174 +49,13 @@ class SyscallEntry {
   bool isTraced() const { return _traced; }
 
   /// Run the handler for this system call
-  void runHandler(Build& b, Thread& t, const user_regs_struct& regs, ssize_t channel = -1) const {
-    _handler(b, t, regs, channel);
-  }
+  void runHandler(Build& b, Thread& t, const user_regs_struct& regs) const { _handler(b, t, regs); }
 
  private:
   const char* _name;
   bool _traced;
   handler_t _handler;
 };
-
-/**
- * A simple wrapper class around system call arguments that can convert them to known types by
- * reading from a stopped thread.
- */
-class SyscallArgWrapper {
- public:
-  SyscallArgWrapper(Thread& t, unsigned long val, ssize_t channel) :
-      _thread(t), _val(val), _channel(channel) {}
-
-  // Use static cast for most types
-  template <typename T>
-  operator T() {
-    return static_cast<T>(_val);
-  }
-
-  // Get an at_fd from the register value
-  operator at_fd() { return at_fd(_val); }
-
-  // Get o_flags from the register value
-  operator o_flags() { return o_flags(_val); }
-
-  // Get at_flags from the register value
-  operator at_flags() { return at_flags(_val); }
-
-  // Get mode_flags from the register value
-  operator mode_flags() { return mode_flags(_val); }
-
-  // Get rename_flags from the register value
-  operator rename_flags() { return rename_flags(_val); }
-
-  // Read a string from the thread's memory
-  operator std::string() {
-    if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      return std::string((const char*)Tracer::channelGetBuffer(_channel));
-    } else {
-      return _thread.readString(_val);
-    }
-  }
-
-  // Get an fs::path from the thread's memory
-  operator fs::path() {
-    if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      return fs::path((const char*)Tracer::channelGetBuffer(_channel));
-    } else {
-      return _thread.readPath(_val);
-    }
-  }
-
-  // Read a vector of strings from the thread's memory
-  operator std::vector<std::string>() {
-    if (_val == TRACING_CHANNEL_BUFFER_PTR) {
-      uintptr_t* src = (uintptr_t*)Tracer::channelGetBuffer(_channel);
-      std::vector<std::string> result;
-      while (src[result.size()] != 0) {
-        result.push_back(_thread.readString(src[result.size()]));
-      }
-      return result;
-    } else {
-      return _thread.readArgvArray(_val);
-    }
-  }
-
-  // Cast directly to pointer types
-  template <typename T>
-  operator T*() {
-    return (T*)_val;
-  }
-
- private:
-  Thread& _thread;
-  unsigned long _val;
-  ssize_t _channel;
-};
-
-// Invoke a no-argument syscall handler
-template <class Output>
-void invoke_handler(void (Thread::*handler)(Output& out),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out);
-}
-
-// Invoke a single-argument syscall handler
-template <class Output, class T1>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel));
-}
-
-// Invoke a two-argument syscall handler
-template <class Output, class T1, class T2>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1, T2 a2),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel));
-}
-
-// Invoke a three-argument syscall handler
-template <class Output, class T1, class T2, class T3>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1, T2 a2, T3 a3),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel));
-}
-
-// Invoke a four-argument syscall handler
-template <class Output, class T1, class T2, class T3, class T4>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1, T2 a2, T3 a3, T4 a4),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel));
-}
-
-// Invoke a five-argument syscall handler
-template <class Output, class T1, class T2, class T3, class T4, class T5>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG5, channel));
-}
-
-// Invoke a six-argument syscall handler
-template <class Output, class T1, class T2, class T3, class T4, class T5, class T6>
-void invoke_handler(void (Thread::*handler)(Output& out, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5, T6 a6),
-                    Output& out,
-                    Thread& thread,
-                    const user_regs_struct& regs,
-                    ssize_t channel) {
-  (thread.*(handler))(out, SyscallArgWrapper(thread, regs.SYSCALL_ARG1, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG2, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG3, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG4, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG5, channel),
-                      SyscallArgWrapper(thread, regs.SYSCALL_ARG6, channel));
-}
 
 /// The maximum number of system calls
 #define SYSCALL_COUNT 512
@@ -230,11 +68,11 @@ class SyscallTable {
  private:
   constexpr SyscallTable() {
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                            \
-  _syscalls[__NR_##name] = SyscallEntry(                                                       \
-      #name, [](Output& out, Thread& __thr, const user_regs_struct& __regs, ssize_t channel) { \
-        stats::syscalls++;                                                                     \
-        invoke_handler(&Thread::_##name, out, __thr, __regs, channel);                         \
+#define TRACE(name)                                                                  \
+  _syscalls[__NR_##name] =                                                           \
+      SyscallEntry(#name, [](Output& out, Thread& t, const user_regs_struct& regs) { \
+        stats::syscalls++;                                                           \
+        t.invokeHandler(&Thread::_##name, out, regs);                                \
       });
 
     /* 000 */ TRACE(read);

@@ -55,7 +55,7 @@ void Thread::syscallEntryChannel(Build& build, ssize_t channel) noexcept {
 
   LOG(trace) << this << " handling " << entry.getName() << " entry via shared memory channel";
 
-  entry.runHandler(build, *this, Tracer::getRegisters(_channel), _channel);
+  entry.runHandler(build, *this, Tracer::getRegisters(_channel));
 
   _channel = -1;
 }
@@ -201,6 +201,11 @@ unsigned long Thread::getEventMessage() noexcept {
 }
 
 string Thread::readString(uintptr_t tracee_pointer) noexcept {
+  // If the pointer is a pointer into the shared memory tracing channel buffer, use that
+  if (tracee_pointer == TRACING_CHANNEL_BUFFER_PTR) {
+    return std::string((const char*)Tracer::channelGetBuffer(_channel));
+  }
+
   // Strings are just char arrays terminated by '\0'
   auto data = readTerminatedArray<char, '\0'>(tracee_pointer);
 
@@ -288,6 +293,16 @@ vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
 }
 
 vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
+  // Is this a pointer into the shared memory tracing channel's buffer?
+  if (tracee_pointer == TRACING_CHANNEL_BUFFER_PTR) {
+    uintptr_t* src = (uintptr_t*)Tracer::channelGetBuffer(_channel);
+    std::vector<std::string> result;
+    while (src[result.size()] != 0) {
+      result.push_back(readString(src[result.size()]));
+    }
+    return result;
+  }
+
   auto arg_pointers = readTerminatedArray<uintptr_t, 0>(tracee_pointer);
 
   vector<string> args;
