@@ -70,26 +70,20 @@ void do_build(vector<string> args,
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Run the trace and send the new trace to output
-    if (iteration == 0) {
-      input->sendTo(Build(print_to ? *print_to : std::cout));
-    } else {
-      Build build(*output, print_to ? *print_to : std::cout);
-      EmulateOnly filter(build);
-      input->sendTo(filter);
-    }
+    Build build(*output, print_to ? *print_to : std::cout);
+    EmulateOnly filter(build);
+    input->sendTo(filter);
 
     // Plan the next iteration
     root_cmd->planBuild();
 
     LOGF(phase, "Finished build phase {}", iteration);
 
-    if (iteration > 0) {
-      // The output becomes the new input
-      input = std::move(output);
+    // The output becomes the new input
+    input = std::move(output);
 
-      // Prepare a new output buffer with read/write combining
-      output = make_unique<ReadWriteCombiner<IRBuffer>>();
-    }
+    // Prepare a new output buffer with read/write combining
+    output = make_unique<ReadWriteCombiner<IRBuffer>>();
 
     // Write stats out to CSV & reset counters
     gather_stats(stats_log_path, stats, iteration);
