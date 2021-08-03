@@ -8,6 +8,7 @@
 
 #include "artifacts/Artifact.hh"
 #include "data/InputTrace.hh"
+#include "data/NewOutputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "runtime/Build.hh"
@@ -33,19 +34,5 @@ void do_bench(std::vector<std::string> args) noexcept {
   auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
-  trace->sendTo(IRBuffer());
-
-  /*int fd = open(constants::DatabaseFilename.c_str(), O_RDONLY);
-  struct stat info;
-  fstat(fd, &info);
-  uint8_t* p = (uint8_t*)mmap(nullptr, info.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-  FAIL_IF(p == MAP_FAILED) << "Failed to mmap file: " << ERR;
-
-  uint8_t val = 0;
-  size_t bytes = 0;
-  for (size_t i = 0; i < info.st_size; i++) {
-    val ^= p[i];
-    bytes++;
-  }*/
+  trace->sendTo(NewOutputTrace("newdb"));
 }
