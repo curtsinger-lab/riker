@@ -227,12 +227,12 @@ class NewOutputTrace : public IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override {
+                            int8_t expected) noexcept override {
     struct Record {
       RecordType tag;
       Command* cmd;
       Ref::ID ref;
-      int expected;
+      int8_t expected;
     };
     Record* r = (Record*)&_data[_pos];
     *r = {RecordType::ExpectResult, command.get(), ref, expected};

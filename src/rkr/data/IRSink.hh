@@ -79,7 +79,7 @@ class IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept {}
+                            int8_t expected) noexcept {}
 
   /// Handle a MatchMetadata IR step
   virtual void matchMetadata(const std::shared_ptr<Command>& command,

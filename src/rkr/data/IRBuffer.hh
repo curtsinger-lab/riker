@@ -138,7 +138,7 @@ class IRBuffer : public IRSource, public IRSink, public IRLoader {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override {
+                            int8_t expected) noexcept override {
     ASSERT(_mode == Mode::Filling) << "Cannot add steps to a buffer that is draining";
     _archive(ExpectResultRecord::create(getCommandID(command), scenario, ref, expected));
     _steps++;

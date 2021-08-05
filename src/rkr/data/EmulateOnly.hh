@@ -84,7 +84,7 @@ class EmulateOnly : public IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept {
+                            int8_t expected) noexcept {
     if (command->canEmulate()) _next.expectResult(command, scenario, ref, expected);
   }
 

@@ -101,7 +101,7 @@ class Build : public IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override;
+                            int8_t expected) noexcept override;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
   virtual void matchMetadata(const std::shared_ptr<Command>& c,

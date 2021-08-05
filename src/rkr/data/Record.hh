@@ -344,18 +344,18 @@ struct ExpectResultRecord : public Record {
   Command::ID _cmd;
   Scenario _scenario;
   Ref::ID _ref;
-  int _expected;
+  int8_t _expected;
 
   /// Default constructor for serialization
   ExpectResultRecord() noexcept = default;
 
-  ExpectResultRecord(Command::ID cmd, Scenario scenario, Ref::ID ref, int expected) noexcept :
+  ExpectResultRecord(Command::ID cmd, Scenario scenario, Ref::ID ref, int8_t expected) noexcept :
       _cmd(cmd), _scenario(scenario), _ref(ref), _expected(expected) {}
 
   static std::unique_ptr<Record> create(Command::ID cmd,
                                         Scenario scenario,
                                         Ref::ID ref,
-                                        int expected) {
+                                        int8_t expected) {
     return std::make_unique<ExpectResultRecord>(cmd, scenario, ref, expected);
   }
 

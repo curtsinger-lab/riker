@@ -94,7 +94,7 @@ class TracePrinter : public IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override {
+                            int8_t expected) noexcept override {
     _out << ExpectResultPrinter{c, scenario, ref, expected} << std::endl;
   }
 
@@ -299,7 +299,7 @@ class TracePrinter : public IRSink {
     std::shared_ptr<Command> c;
     Scenario scenario;
     Ref::ID ref;
-    int expected;
+    int8_t expected;
 
     friend std::ostream& operator<<(std::ostream& o, const ExpectResultPrinter& p) noexcept {
       o << p.c << ": ";

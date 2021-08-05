@@ -97,7 +97,7 @@ class OutputTrace : public IRSink {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override;
+                            int8_t expected) noexcept override;
 
   /// Add a MatchMetadata IR step to the output trace
   virtual void matchMetadata(const std::shared_ptr<Command>& command,

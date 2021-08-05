@@ -26,7 +26,7 @@ class PostBuildChecker : public Next {
   virtual void expectResult(const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
-                            int expected) noexcept override {
+                            int8_t expected) noexcept override {
     if (scenario & Scenario::Build) {
       auto post_build = command->getRef(ref)->getResultCode();
       if (post_build == expected) {

@@ -148,7 +148,7 @@ void OutputTrace::compareRefs(const shared_ptr<Command>& cmd,
 void OutputTrace::expectResult(const shared_ptr<Command>& cmd,
                                Scenario scenario,
                                Ref::ID ref,
-                               int expected) noexcept {
+                               int8_t expected) noexcept {
   _archive(ExpectResultRecord::create(getCommandID(cmd), scenario, ref, expected));
 }
 

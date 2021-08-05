@@ -443,7 +443,7 @@ void Build::compareRefs(const shared_ptr<Command>& c,
 void Build::expectResult(const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
-                         int expected) noexcept {
+                         int8_t expected) noexcept {
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
