@@ -65,6 +65,8 @@ class SynchronizedFile {
   vector<string> packages;
 };
 
+mutex stdoutMutex;
+
 // Given the path to a file, return the pacakge managing that file
 string getPackage(string path) {
   // Shell command that searches for the package
@@ -168,7 +170,7 @@ void* myThread(void* threadarg) {
   // Remove all files in current directory
   if (path.rfind(get_current_dir_name()) == 0) pthread_exit(NULL);
   // Remove Riker related files
-  if (path.find("riker") != string::npos) pthread_exit(NULL);
+  // if (path.find("riker") != string::npos) pthread_exit(NULL);
   // Remove Rikerfile
   if (path == "Rikerfile") pthread_exit(NULL);
   // Remove /proc directory
@@ -257,9 +259,21 @@ void* myThread(void* threadarg) {
       }
     }
     if (result.find("no path found") != string::npos) {
-      cout << "No path found for " << path << endl;
-      cout << a->getName() << endl;
+      string dir = path.substr(0, path.rfind('/'));
+      // cout << dir << endl;
+      string command = "git -C " + dir + " rev-parse 2>/dev/null";
+      int i = system(command.c_str());
+
+      lock_guard<mutex> lock(stdoutMutex);
+      cout << "No pacakge found for " << path << endl;
+      // cout << a->getName() << endl;
+      if (i == 0) {
+        command = "cd " + dir + "; git config --get remote.origin.url";
+        cout << "This file could come from a github repository: " << endl;
+        system(command.c_str());
+      }
       // file->write("No path found for " + path);
+      cout << endl;
       pthread_exit(NULL);
     }
   }
