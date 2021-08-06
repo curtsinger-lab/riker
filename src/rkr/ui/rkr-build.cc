@@ -11,6 +11,7 @@
 #include "data/OutputTrace.hh"
 #include "data/PostBuildChecker.hh"
 #include "data/ReadWriteCombiner.hh"
+#include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
 #include "tracing/Tracer.hh"

@@ -16,10 +16,10 @@ class Ref;
 namespace fs = std::filesystem;
 
 /// Unique IDs for the entities reachable via special references
-enum class SpecialRef { stdin, stdout, stderr, root, cwd, launch_exe };
+enum class SpecialRef : uint8_t { stdin, stdout, stderr, root, cwd, launch_exe };
 
 /// Different ways to compare references with a CompareRefs predicate
-enum class RefComparison { SameInstance, DifferentInstances };
+enum class RefComparison : uint8_t { SameInstance, DifferentInstances };
 
 class IRSink {
  public:
