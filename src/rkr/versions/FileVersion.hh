@@ -67,6 +67,18 @@ class FileVersion final : public ContentVersion {
   /// Tell the garbage collector to preserve this version.
   virtual void gcLink() noexcept override;
 
+  /// Check if this file version is empty
+  bool isEmpty() const noexcept { return _empty; }
+
+  /// Check if this file version is cached
+  bool isCached() const noexcept { return _cached; }
+
+  /// Get this version's modification time
+  const std::optional<struct timespec>& getModificationTime() const noexcept { return _mtime; }
+
+  /// Get this version's hash
+  const std::optional<Hash>& getHash() const noexcept { return _hash; }
+
  private:
   /// Compare to another fingerprint instance
   bool fingerprints_match(std::shared_ptr<FileVersion> other) const noexcept;

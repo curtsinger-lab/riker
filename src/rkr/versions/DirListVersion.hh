@@ -49,6 +49,9 @@ class DirListVersion : public ContentVersion {
   /// Remove an entry from this listed directory version
   void removeEntry(fs::path name) noexcept { _entries.erase(name); }
 
+  /// Get the entries in this version
+  const std::set<fs::path>& getEntries() const noexcept { return _entries; }
+
  private:
   /// The names of entries in the directory
   std::set<fs::path> _entries;

@@ -19,7 +19,12 @@
 #include "runtime/Command.hh"
 #include "util/log.hh"
 #include "versions/ContentVersion.hh"
+#include "versions/DirListVersion.hh"
+#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/PipeVersion.hh"
+#include "versions/SpecialVersion.hh"
+#include "versions/SymlinkVersion.hh"
 
 namespace fs = std::filesystem;
 
@@ -55,9 +60,17 @@ enum class RecordType : uint8_t {
   Join = 19,
   Exit = 20,
   Command = 21,
-  ContentVersion = 22,
-  String = 23,
-  NewStrtab = 24,
+  String = 22,
+  NewStrtab = 23,
+
+  // Content version subtypes
+  FileVersion = 32,
+  SymlinkVersion = 33,
+  DirListVersion = 34,
+  PipeWriteVersion = 35,
+  PipeCloseVersion = 36,
+  PipeReadVersion = 37,
+  SpecialVersion = 38
 };
 
 TraceWriter::TraceWriter(optional<string> path) : _id(IRBuffer::getNextID()), _path(path) {
@@ -125,7 +138,7 @@ struct WriteRecord<Last> {
 
 // Write a sequence of values to the trace
 template <typename... T>
-void TraceWriter::write(T... args) noexcept {
+void TraceWriter::emit(T... args) noexcept {
   using R = WriteRecord<T...>;
   R* r = reinterpret_cast<R*>(&_data[_pos]);
   *r = {args...};
@@ -173,14 +186,14 @@ void TraceWriter::emitCommand(const std::shared_ptr<Command>& c) noexcept {
   uint16_t initial_fds_length = c->getInitialFDs().size();
 
   // Write out the fixed-length portion of the command record
-  write(RecordType::Command, c->hasExecuted(), argv_length, initial_fds_length);
+  emit(RecordType::Command, c->hasExecuted(), argv_length, initial_fds_length);
 
   // Write out the argv string IDs
   emitBytes(args.data(), args.size() * sizeof(StringID));
 
   // Write out the initial FDs
   for (auto [fd, ref] : c->getInitialFDs()) {
-    write(fd, ref);
+    emit(fd, ref);
   }
 }
 
@@ -206,7 +219,65 @@ ContentVersion::ID TraceWriter::getContentVersionID(const shared_ptr<ContentVers
 }
 
 void TraceWriter::emitContentVersion(const shared_ptr<ContentVersion>& v) noexcept {
-  // TODO
+  if (auto fv = v->as<FileVersion>(); fv) {
+    // Does the version have an mtime and/or hash?
+    bool has_mtime = fv->getModificationTime().has_value();
+    auto mtime = fv->getModificationTime().value_or(timespec{0, 0});
+    bool has_hash = fv->getHash().has_value();
+    auto hash = fv->getHash().value_or(FileVersion::Hash());
+
+    // Emit the file version
+    emit(RecordType::FileVersion, fv->isEmpty(), fv->isCached(), has_mtime, mtime, has_hash, hash);
+
+  } else if (auto sv = v->as<SymlinkVersion>(); sv) {
+    // Emit the destination of the symlink
+    PathID dest = getPathID(sv->getDestination());
+
+    // Now emit the symlink version
+    emit(RecordType::SymlinkVersion, dest);
+
+  } else if (auto dv = v->as<DirListVersion>(); dv) {
+    // Get the number of directory entries, which should fit in a uint16_t
+    uint16_t entry_count = dv->getEntries().size();
+
+    ASSERT(entry_count == dv->getEntries().size())
+        << "A directory has too many entries to fit in a uint16_t...";
+
+    // Now build a vector of IDs for each of the paths
+    vector<PathID> entries;
+    entries.reserve(entry_count);
+
+    // Reserve enough paths so they all fit in the current path/string table
+    reservePaths(entry_count);
+    for (const auto& entry : dv->getEntries()) {
+      entries.push_back(getPathID(entry));
+    }
+
+    // Write out the fixed-length portion of the directory list version
+    emit(RecordType::DirListVersion, entry_count);
+
+    // And write out the entry string ID list
+    emitBytes(entries.data(), entries.size() * sizeof(PathID));
+
+  } else if (auto pv = v->as<PipeWriteVersion>(); pv) {
+    // Write out a pipe write version, which has no associated fields
+    emit(RecordType::PipeWriteVersion);
+
+  } else if (auto pv = v->as<PipeCloseVersion>(); pv) {
+    // Write out a pipe close version, which has no associated fields
+    emit(RecordType::PipeCloseVersion);
+
+  } else if (auto pv = v->as<PipeReadVersion>(); pv) {
+    // Write out a pipe read version, which has no associated fields
+    emit(RecordType::PipeReadVersion);
+
+  } else if (auto sv = v->as<SpecialVersion>(); sv) {
+    // Write out a special version, which has no associated fields
+    emit(RecordType::SpecialVersion);
+
+  } else {
+    FAIL << "Unrecognized version type " << v;
+  }
 }
 
 void TraceWriter::reserveStrings(size_t n) noexcept {
@@ -216,7 +287,7 @@ void TraceWriter::reserveStrings(size_t n) noexcept {
   // Check if the string table will fill before n strings are emitted
   if (std::numeric_limits<StringID>::max() - _strtab.size() < n) {
     // Make room by starting a fresh string table
-    write(RecordType::NewStrtab);
+    emit(RecordType::NewStrtab);
     _strtab.clear();
   }
 }
@@ -235,7 +306,7 @@ TraceWriter::StringID TraceWriter::getStringID(const std::string& str) noexcept 
     // Is the string table full?
     if (id >= std::numeric_limits<StringID>::max()) {
       // Indicate that we are starting a fresh string table
-      write(RecordType::NewStrtab);
+      emit(RecordType::NewStrtab);
 
       // Clear the string table and assign an ID of zero
       _strtab.clear();
@@ -245,7 +316,7 @@ TraceWriter::StringID TraceWriter::getStringID(const std::string& str) noexcept 
     _strtab.emplace_hint(iter, str, id);
 
     // Write out the string record
-    write(RecordType::String);
+    emit(RecordType::String);
     char* p = (char*)&_data[_pos];
     strcpy(p, str.c_str());
     _pos += str.size() + 1;
@@ -254,49 +325,53 @@ TraceWriter::StringID TraceWriter::getStringID(const std::string& str) noexcept 
   }
 }
 
+void TraceWriter::reservePaths(size_t n) noexcept {
+  reserveStrings(n);
+}
+
 TraceWriter::PathID TraceWriter::getPathID(const fs::path& path) noexcept {
   return getStringID(path.string());
 }
 
 /// Called when starting a trace. The root command is passed in.
 void TraceWriter::start(const shared_ptr<Command>& c) noexcept {
-  write(RecordType::Start, getCommandID(c));
+  emit(RecordType::Start, getCommandID(c));
 }
 
 /// Called when the trace is finished
 void TraceWriter::finish() noexcept {
-  write(RecordType::Finish);
+  emit(RecordType::Finish);
 }
 
 /// Handle a SpecialRef IR step
 void TraceWriter::specialRef(const shared_ptr<Command>& c,
                              SpecialRef entity,
                              Ref::ID output) noexcept {
-  write(RecordType::SpecialRef, getCommandID(c), entity, output);
+  emit(RecordType::SpecialRef, getCommandID(c), entity, output);
 }
 
 /// Handle a PipeRef IR step
 void TraceWriter::pipeRef(const shared_ptr<Command>& c,
                           Ref::ID read_end,
                           Ref::ID write_end) noexcept {
-  write(RecordType::PipeRef, getCommandID(c), read_end, write_end);
+  emit(RecordType::PipeRef, getCommandID(c), read_end, write_end);
 }
 
 /// Handle a FileRef IR step
 void TraceWriter::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  write(RecordType::FileRef, getCommandID(c), mode, output);
+  emit(RecordType::FileRef, getCommandID(c), mode, output);
 }
 
 /// Handle a SymlinkRef IR step
 void TraceWriter::symlinkRef(const shared_ptr<Command>& c,
                              fs::path target,
                              Ref::ID output) noexcept {
-  write(RecordType::SymlinkRef, getCommandID(c), target, output);
+  emit(RecordType::SymlinkRef, getCommandID(c), target, output);
 }
 
 /// Handle a DirRef IR step
 void TraceWriter::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
-  write(RecordType::DirRef, getCommandID(c), mode, output);
+  emit(RecordType::DirRef, getCommandID(c), mode, output);
 }
 
 /// Handle a PathRef IR step
@@ -305,17 +380,17 @@ void TraceWriter::pathRef(const shared_ptr<Command>& c,
                           fs::path path,
                           AccessFlags flags,
                           Ref::ID output) noexcept {
-  write(RecordType::PathRef, getCommandID(c), base, getPathID(path), flags, output);
+  emit(RecordType::PathRef, getCommandID(c), base, getPathID(path), flags, output);
 }
 
 /// Handle a UsingRef IR step
 void TraceWriter::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  write(RecordType::UsingRef, getCommandID(c), ref);
+  emit(RecordType::UsingRef, getCommandID(c), ref);
 }
 
 /// Handle a DoneWithRef IR step
 void TraceWriter::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
-  write(RecordType::DoneWithRef, getCommandID(c), ref);
+  emit(RecordType::DoneWithRef, getCommandID(c), ref);
 }
 
 /// Handle a CompareRefs IR step
@@ -323,7 +398,7 @@ void TraceWriter::compareRefs(const shared_ptr<Command>& c,
                               Ref::ID ref1,
                               Ref::ID ref2,
                               RefComparison type) noexcept {
-  write(RecordType::CompareRefs, getCommandID(c), ref1, ref2, type);
+  emit(RecordType::CompareRefs, getCommandID(c), ref1, ref2, type);
 }
 
 /// Handle an ExpectResult IR step
@@ -331,7 +406,7 @@ void TraceWriter::expectResult(const shared_ptr<Command>& c,
                                Scenario scenario,
                                Ref::ID ref,
                                int8_t expected) noexcept {
-  write(RecordType::ExpectResult, getCommandID(c), scenario, ref, expected);
+  emit(RecordType::ExpectResult, getCommandID(c), scenario, ref, expected);
 }
 
 /// Handle a MatchMetadata IR step
@@ -339,7 +414,7 @@ void TraceWriter::matchMetadata(const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 Ref::ID ref,
                                 MetadataVersion version) noexcept {
-  write(RecordType::MatchMetadata, getCommandID(c), scenario, ref, version);
+  emit(RecordType::MatchMetadata, getCommandID(c), scenario, ref, version);
 }
 
 /// Handel a MatchContent IR step
@@ -347,21 +422,21 @@ void TraceWriter::matchContent(const shared_ptr<Command>& c,
                                Scenario scenario,
                                Ref::ID ref,
                                shared_ptr<ContentVersion> version) noexcept {
-  write(RecordType::MatchContent, getCommandID(c), scenario, ref, getContentVersionID(version));
+  emit(RecordType::MatchContent, getCommandID(c), scenario, ref, getContentVersionID(version));
 }
 
 /// Handle an UpdateMetadata IR step
 void TraceWriter::updateMetadata(const shared_ptr<Command>& c,
                                  Ref::ID ref,
                                  MetadataVersion version) noexcept {
-  write(RecordType::UpdateMetadata, getCommandID(c), ref, version);
+  emit(RecordType::UpdateMetadata, getCommandID(c), ref, version);
 }
 
 /// Handle an UpdateContent IR step
 void TraceWriter::updateContent(const shared_ptr<Command>& c,
                                 Ref::ID ref,
                                 shared_ptr<ContentVersion> version) noexcept {
-  write(RecordType::UpdateContent, getCommandID(c), ref, getContentVersionID(version));
+  emit(RecordType::UpdateContent, getCommandID(c), ref, getContentVersionID(version));
 }
 
 /// Handle an AddEntry IR step
@@ -369,7 +444,7 @@ void TraceWriter::addEntry(const shared_ptr<Command>& c,
                            Ref::ID dir,
                            string name,
                            Ref::ID target) noexcept {
-  write(RecordType::AddEntry, getCommandID(c), dir, getStringID(name), target);
+  emit(RecordType::AddEntry, getCommandID(c), dir, getStringID(name), target);
 }
 
 /// Handle a RemoveEntry IR step
@@ -377,7 +452,7 @@ void TraceWriter::removeEntry(const shared_ptr<Command>& c,
                               Ref::ID dir,
                               string name,
                               Ref::ID target) noexcept {
-  write(RecordType::RemoveEntry, getCommandID(c), dir, getStringID(name), target);
+  emit(RecordType::RemoveEntry, getCommandID(c), dir, getStringID(name), target);
 }
 
 /// Handle a Launch IR step
@@ -388,11 +463,11 @@ void TraceWriter::launch(const shared_ptr<Command>& parent,
   uint16_t refs_length = refs.size();
 
   // Emit the fixed-length portion of the record
-  write(RecordType::Launch, getCommandID(parent), getCommandID(child), refs_length);
+  emit(RecordType::Launch, getCommandID(parent), getCommandID(child), refs_length);
 
   // Now emit the ref mappings
   for (auto [a, b] : refs) {
-    write(a, b);
+    emit(a, b);
   }
 }
 
@@ -400,10 +475,10 @@ void TraceWriter::launch(const shared_ptr<Command>& parent,
 void TraceWriter::join(const shared_ptr<Command>& parent,
                        const shared_ptr<Command>& child,
                        int exit_status) noexcept {
-  write(RecordType::Join, getCommandID(parent), getCommandID(child), exit_status);
+  emit(RecordType::Join, getCommandID(parent), getCommandID(child), exit_status);
 }
 
 /// Handle an Exit IR step
 void TraceWriter::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
-  write(RecordType::Exit, getCommandID(c), exit_status);
+  emit(RecordType::Exit, getCommandID(c), exit_status);
 }

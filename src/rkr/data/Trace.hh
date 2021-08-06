@@ -143,7 +143,7 @@ class TraceWriter : public IRSink {
 
   /// Write a sequence of values to the trace
   template <typename... T>
-  void write(T... args) noexcept;
+  void emit(T... args) noexcept;
 
   /// Emit a sequence of bytes to the trace
   void emitBytes(void* src, size_t len) noexcept;
@@ -166,6 +166,10 @@ class TraceWriter : public IRSink {
 
   /// Get the ID of a string, possibly writing it to the output if it is new
   StringID getStringID(const std::string& str) noexcept;
+
+  /// Make sure there is space for at least n paths in the current path table. If there isn't
+  /// room in the current path table this will start a new one.
+  void reservePaths(size_t n) noexcept;
 
   /// Get the ID of a path, possibly writing it to the output if it is new
   PathID getPathID(const fs::path& path) noexcept;
