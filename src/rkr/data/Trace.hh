@@ -23,9 +23,9 @@ class TraceReader : public IRSource {
 
 class TraceWriter : public IRSink {
  public:
-  /// Create a new TraceWriter with a destination filename. If no filename is provided the trace
-  /// will be written to a temporary file.
-  TraceWriter(std::optional<std::string> filename = std::nullopt);
+  /// Create a new TraceWriter with an optional output path. If no path is provided the trace is
+  /// stored only in a temporary file.
+  TraceWriter(std::optional<std::string> path = std::nullopt);
 
   /// Destroy a TraceWriter and clean up any remaining state
   virtual ~TraceWriter() noexcept override;
@@ -145,11 +145,24 @@ class TraceWriter : public IRSink {
   template <typename... T>
   void write(T... args) noexcept;
 
+  /// Emit a sequence of bytes to the trace
+  void emitBytes(void* src, size_t len) noexcept;
+
   /// Get the ID of a command, possibly writing it to the output if it is new
   Command::ID getCommandID(const std::shared_ptr<Command>& command) noexcept;
 
+  /// Emit a command to the trace
+  void emitCommand(const std::shared_ptr<Command>& command) noexcept;
+
   /// Get the ID of a content version, possibly writing it to the output if it is new
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& version) noexcept;
+
+  /// Emit a content version to the trace
+  void emitContentVersion(const std::shared_ptr<ContentVersion>& v) noexcept;
+
+  /// Make sure there is space for at least n strings in the current string table. If there isn't
+  /// room in the current string table this will start a new one.
+  void reserveStrings(size_t n) noexcept;
 
   /// Get the ID of a string, possibly writing it to the output if it is new
   StringID getStringID(const std::string& str) noexcept;
@@ -160,6 +173,9 @@ class TraceWriter : public IRSink {
  private:
   /// A unique identifier for this output trace
   size_t _id;
+
+  /// The filename where this trace should be saved, or nullopt if the trace is not saved
+  std::optional<std::string> _path = std::nullopt;
 
   int _fd = -1;              //< File descriptor for the backing file used to hold this trace
   size_t _length = 0;        //< The total size of the output trace

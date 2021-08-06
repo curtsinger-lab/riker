@@ -60,18 +60,12 @@ enum class RecordType : uint8_t {
   NewStrtab = 24,
 };
 
-TraceWriter::TraceWriter(optional<string> filename) : _id(IRBuffer::getNextID()) {
-  // Was a filename provided?
-  if (filename.has_value()) {
-    // Create a file to hold the trace
-    _fd = open(filename.value().c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
-    FAIL_IF(_fd == -1) << "Failed to open file " << filename.value() << ": " << ERR;
-
-  } else {
-    // Create a file to hold the trace
-    _fd = open("/tmp", O_RDWR | O_TMPFILE, 0644);
-    FAIL_IF(_fd == -1) << "Failed to open temporary file: " << ERR;
-  }
+TraceWriter::TraceWriter(optional<string> path) : _id(IRBuffer::getNextID()), _path(path) {
+  // Create a temporary file to hold the trace
+  // TODO: if a path was provided, get the containing directory name to make sure the trace is
+  // stored on the same device so it can be linked later
+  _fd = open(".", O_RDWR | O_TMPFILE, 0644);
+  FAIL_IF(_fd == -1) << "Failed to open temporary file: " << ERR;
 
   // Extend the trace to 256MB. Eventually it needs to grow automatically
   _length = 256 * 1024 * 1024;
@@ -84,10 +78,34 @@ TraceWriter::TraceWriter(optional<string> filename) : _id(IRBuffer::getNextID())
 }
 
 TraceWriter::~TraceWriter() noexcept {
+  // Was a path provided?
+  if (_path.has_value()) {
+    // Yes. Link the trace onto the filesystem before it vanishes
+
+    // First make sure the output path doesn't exist
+    int rc = ::unlink(_path.value().c_str());
+
+    // The output file may not exist, but if the unlink failed for some other reason give up
+    FAIL_IF(rc != 0 && errno != ENOENT)
+        << "Failed to unlink old trace output file " << _path.value() << ": " << ERR;
+
+    // Now link in the temporary file from the /proc filesystem
+    string fdpath = "/proc/self/fd/" + std::to_string(_fd);
+    rc = linkat(AT_FDCWD, fdpath.c_str(), AT_FDCWD, _path.value().c_str(), AT_SYMLINK_FOLLOW);
+
+    // TODO: if linking fails, fall back on copying
+    FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value();
+  }
+
+  // Discard any unused capacity in the trace
   int rc = ftruncate(_fd, _pos);
   WARN_IF(rc != 0) << "Failed to truncate trace: " << ERR;
+
+  // Close the trace file
   rc = close(_fd);
   WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
+
+  // Unmap the trace file to make sure it's written out to disk
   rc = munmap(_data, _length);
   WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
 }
@@ -114,6 +132,13 @@ void TraceWriter::write(T... args) noexcept {
   _pos += sizeof(R);
 }
 
+// Emit a sequence of bytes to the trace
+void TraceWriter::emitBytes(void* src, size_t len) noexcept {
+  void* dest = &_data[_pos];
+  memcpy(dest, src, len);
+  _pos += len;
+}
+
 Command::ID TraceWriter::getCommandID(const std::shared_ptr<Command>& c) noexcept {
   auto id = c->getID(_id);
   if (id.has_value()) return id.value();
@@ -125,45 +150,75 @@ Command::ID TraceWriter::getCommandID(const std::shared_ptr<Command>& c) noexcep
     Command::ID id = _commands.size();
     iter = _commands.emplace_hint(iter, c, id);
 
-    // Emit each of the strings in the argv array
-    vector<StringID> args;
-    // TODO: make sure we won't get a new string table in the middle of this process
-    for (const auto& arg : c->getArguments()) {
-      args.push_back(getStringID(arg));
-    }
-
-    // Write out the fixed-length portion of the command record
-    write(RecordType::Command, c->hasExecuted(), static_cast<uint16_t>(args.size()),
-          static_cast<uint16_t>(c->getInitialFDs().size()));
-
-    // Write out the argv string IDs
-    for (auto id : args) {
-      write(id);
-    }
+    // Write the command to the trace
+    emitCommand(c);
   }
 
   c->setID(_id, iter->second);
   return iter->second;
 }
 
+void TraceWriter::emitCommand(const std::shared_ptr<Command>& c) noexcept {
+  // We're going to emit argv strings. Make sure there's room for all of them in the string table
+  reserveStrings(c->getArguments().size());
+
+  // Emit each of the strings in the argv array
+  vector<StringID> args;
+  for (const auto& arg : c->getArguments()) {
+    args.push_back(getStringID(arg));
+  }
+
+  // Get the lengths of the variable-length parts of a command record
+  uint16_t argv_length = args.size();
+  uint16_t initial_fds_length = c->getInitialFDs().size();
+
+  // Write out the fixed-length portion of the command record
+  write(RecordType::Command, c->hasExecuted(), argv_length, initial_fds_length);
+
+  // Write out the argv string IDs
+  emitBytes(args.data(), args.size() * sizeof(StringID));
+
+  // Write out the initial FDs
+  for (auto [fd, ref] : c->getInitialFDs()) {
+    write(fd, ref);
+  }
+}
+
 // Get the ID for a content version. Emit a new metadata version record if necessary
-ContentVersion::ID TraceWriter::getContentVersionID(const shared_ptr<ContentVersion>& cv) noexcept {
-  auto id = cv->getID(_id);
+ContentVersion::ID TraceWriter::getContentVersionID(const shared_ptr<ContentVersion>& v) noexcept {
+  auto id = v->getID(_id);
   if (id.has_value()) return id.value();
 
   // Look for the provided content version in the map of known versions
-  auto iter = _versions.find(cv);
+  auto iter = _versions.find(v);
   if (iter == _versions.end()) {
     // If the version wasn't found, add it now
     ContentVersion::ID id = _versions.size();
-    iter = _versions.emplace_hint(iter, cv, id);
+    iter = _versions.emplace_hint(iter, v, id);
 
-    // TODO: write out the content version record
+    // Write the content version to the trace
+    emitContentVersion(v);
   }
 
   // Return the ID
-  cv->setID(_id, iter->second);
+  v->setID(_id, iter->second);
   return iter->second;
+}
+
+void TraceWriter::emitContentVersion(const shared_ptr<ContentVersion>& v) noexcept {
+  // TODO
+}
+
+void TraceWriter::reserveStrings(size_t n) noexcept {
+  ASSERT(n < std::numeric_limits<StringID>::max())
+      << "Requested number of strings is larger than the total string table size";
+
+  // Check if the string table will fill before n strings are emitted
+  if (std::numeric_limits<StringID>::max() - _strtab.size() < n) {
+    // Make room by starting a fresh string table
+    write(RecordType::NewStrtab);
+    _strtab.clear();
+  }
 }
 
 TraceWriter::StringID TraceWriter::getStringID(const std::string& str) noexcept {
@@ -329,8 +384,16 @@ void TraceWriter::removeEntry(const shared_ptr<Command>& c,
 void TraceWriter::launch(const shared_ptr<Command>& parent,
                          const shared_ptr<Command>& child,
                          list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-  // TODO: write list of ref mappings
-  write(RecordType::Launch, getCommandID(parent), getCommandID(child));
+  // Compute the length of the ref mapping list, which should fit in a 16-bit integer
+  uint16_t refs_length = refs.size();
+
+  // Emit the fixed-length portion of the record
+  write(RecordType::Launch, getCommandID(parent), getCommandID(child), refs_length);
+
+  // Now emit the ref mappings
+  for (auto [a, b] : refs) {
+    write(a, b);
+  }
 }
 
 /// Handle a Join IR step

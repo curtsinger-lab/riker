@@ -8,7 +8,6 @@
 
 #include "artifacts/Artifact.hh"
 #include "data/InputTrace.hh"
-#include "data/NewOutputTrace.hh"
 #include "data/OutputTrace.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "data/Trace.hh"
@@ -36,7 +35,7 @@ void do_bench(std::vector<std::string> args) noexcept {
 
   // Emulate the trace
   // trace->sendTo(IRSink());
+  // trace->sendTo(TraceWriter());
   trace->sendTo(TraceWriter("newdb"));
-  // trace->sendTo(NewOutputTrace("newdb"));
   // trace->sendTo(OutputTrace("olddb"));
 }
