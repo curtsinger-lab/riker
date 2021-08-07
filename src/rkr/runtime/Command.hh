@@ -82,16 +82,12 @@ inline Scenario& operator|=(Scenario& lhs, Scenario rhs) noexcept {
  * interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
- private:
-  /// Default constructor used to create the null command instance
-  Command() noexcept = default;
-
  public:
   /// The type of a command ID
   using ID = uint32_t;
 
   /// Create a new command
-  Command(std::vector<std::string> args) noexcept;
+  Command(std::vector<std::string> args = {}) noexcept;
 
   /// Declare a destructor
   ~Command() noexcept;
@@ -103,9 +99,6 @@ class Command : public std::enable_shared_from_this<Command> {
   // Allow Move
   Command(Command&&) noexcept = default;
   Command& operator=(Command&&) noexcept = default;
-
-  /// Create an empty command suitable for use as the root of a build
-  static std::shared_ptr<Command> createEmptyCommand() noexcept;
 
   /// Get a short, printable name for this command
   std::string getShortName(size_t limit = 40) const noexcept;

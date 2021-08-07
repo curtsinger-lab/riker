@@ -13,6 +13,7 @@
 #include "runtime/Command.hh"
 #include "util/log.hh"
 
+using std::make_shared;
 using std::make_unique;
 using std::map;
 using std::shared_ptr;
@@ -39,7 +40,7 @@ InputTrace::InputTrace(string filename, vector<string> args) :
   }
 
   // Add the root command to the command map
-  IRLoader::addCommand(0, Command::createEmptyCommand());
+  IRLoader::addCommand(0, make_shared<Command>());
 }
 
 tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filename,

@@ -38,16 +38,10 @@ map<string, size_t> argument_counts;
 /// Keep track of the total number of commands with arguments
 size_t command_count = 0;
 
-/// Create an empty command for use as the root of a build
-shared_ptr<Command> Command::createEmptyCommand() noexcept {
-  shared_ptr<Command> result(new Command());
-  result->_executed = true;
-  return result;
-}
-
 // Create a command
 Command::Command(vector<string> args) noexcept : _args(args) {
-  ASSERT(args.size() > 0) << "Attempted to create a command with no arguments";
+  // If this is a null command with no arguments, mark it as executed
+  if (args.size() == 0) _executed = true;
 
   command_count++;
 

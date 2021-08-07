@@ -22,7 +22,7 @@ using std::vector;
 
 // Create a source for a default starting trace
 DefaultTrace::DefaultTrace(vector<string> args) noexcept :
-    _root_command(Command::createEmptyCommand()), _args(args) {}
+    _root_command(make_shared<Command>()), _args(args) {}
 
 void DefaultTrace::sendTo(IRSink& handler) noexcept {
   // Send the root command

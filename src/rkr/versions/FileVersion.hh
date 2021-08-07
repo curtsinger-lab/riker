@@ -29,6 +29,13 @@ class FileVersion final : public ContentVersion {
   FileVersion(struct stat statbuf) noexcept :
       _empty(statbuf.st_size == 0), _mtime(statbuf.st_mtim) {}
 
+  /// Create a file version from serialized data
+  FileVersion(bool empty,
+              bool cached,
+              std::optional<struct timespec> mtime,
+              std::optional<Hash> hash) noexcept :
+      _empty(empty), _cached(cached), _mtime(mtime), _hash(hash) {}
+
   /// Get the name for this type of version
   virtual std::string getTypeName() const noexcept override {
     if (_empty) {

@@ -66,11 +66,29 @@ class TraceReader {
   template <RecordType T>
   void handleRecord(IRSink& sink) noexcept;
 
+  /// Get a command from the table of commands
+  const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept;
+
+  /// Get a content version from the table of content versions
+  const std::shared_ptr<ContentVersion>& getContentVersion(ContentVersion::ID id) const noexcept;
+
+  /// Get a string from the table of strings
+  const std::string& getString(StringID id) const noexcept;
+
  private:
   int _fd = -1;              //< File descriptor for the backing file used to hold this trace
   size_t _length = 0;        //< The total size of the output trace
   size_t _pos = 0;           //< The current position in the output trace
   uint8_t* _data = nullptr;  //< A pointer to the beginning of the output trace mapping
+
+  /// The table of commands indexed by ID
+  std::vector<std::shared_ptr<Command>> _commands;
+
+  /// The table of content versions indexed by ID
+  std::vector<std::shared_ptr<ContentVersion>> _versions;
+
+  /// The table of strings indexed by ID
+  std::vector<std::string> _strings;
 };
 
 class TraceWriter : public IRSink {
