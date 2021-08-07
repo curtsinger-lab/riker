@@ -38,4 +38,7 @@ void do_bench(std::vector<std::string> args) noexcept {
   // trace->sendTo(TraceWriter());
   trace->sendTo(TraceWriter("newdb"));
   // trace->sendTo(OutputTrace("olddb"));
+
+  auto reader = TraceReader("newdb");
+  reader.sendTo(TracePrinter(std::cout));
 }

@@ -13,19 +13,71 @@
 #include "versions/ContentVersion.hh"
 
 class MetadataVersion;
+class FileVersion;
+class SymlinkVersion;
+class DirListVersion;
+class PipeWriteVersion;
+class PipeCloseVersion;
+class PipeReadVersion;
+class SpecialVersion;
 
 enum class RecordType : uint8_t;
 
-class TraceReader : public IRSource {
+template <RecordType T>
+struct NewRecord;
+
+using StringID = uint16_t;
+using PathID = StringID;
+
+class TraceReader {
  public:
+  /// Create a new TraceReader to load from a provided path
+  TraceReader(std::string path) noexcept;
+
+  /// Send a loaded trace to an IRSink
+  void sendTo(IRSink& sink) noexcept;
+
+  /// Accept r-value reference to a sink
+  void sendTo(IRSink&& handler) noexcept { return sendTo(handler); }
+
  private:
+  /// Check if we've hit the end of the trace
+  bool done() const noexcept { return _pos >= _length; }
+
+  /// Peek at the type of the next record
+  RecordType peek() const noexcept;
+
+  /// Get reference to data in the trace of a requested type
+  template <typename T>
+  const T& take() noexcept;
+
+  /// Get a reference to a record in the trace
+  template <RecordType T>
+  const NewRecord<T>& take() noexcept;
+
+  /// Get a pointer to data in a requested type with a known length in bytes
+  template <typename T>
+  const T* takeBytes(size_t len) noexcept;
+
+  /// Get a pointer to a string in the trace and advance the current position past the string
+  const char* takeString() noexcept;
+
+  /// Handle a record from the trace (specialized in Trace.cc)
+  template <RecordType T>
+  void handleRecord(IRSink& sink) noexcept;
+
+ private:
+  int _fd = -1;              //< File descriptor for the backing file used to hold this trace
+  size_t _length = 0;        //< The total size of the output trace
+  size_t _pos = 0;           //< The current position in the output trace
+  uint8_t* _data = nullptr;  //< A pointer to the beginning of the output trace mapping
 };
 
 class TraceWriter : public IRSink {
  public:
   /// Create a new TraceWriter with an optional output path. If no path is provided the trace is
   /// stored only in a temporary file.
-  TraceWriter(std::optional<std::string> path = std::nullopt);
+  TraceWriter(std::optional<std::string> path = std::nullopt) noexcept;
 
   /// Destroy a TraceWriter and clean up any remaining state
   virtual ~TraceWriter() noexcept override;
@@ -138,12 +190,13 @@ class TraceWriter : public IRSink {
   virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override;
 
  private:
-  using StringID = uint16_t;
-  using PathID = StringID;
-
   /// Write a sequence of values to the trace
   template <typename... T>
   void emit(T... args) noexcept;
+
+  /// Write a record to the trace
+  template <RecordType T, typename... Args>
+  void emit(Args... args) noexcept;
 
   /// Emit a sequence of bytes to the trace
   void emitBytes(void* src, size_t len) noexcept;
@@ -157,8 +210,32 @@ class TraceWriter : public IRSink {
   /// Get the ID of a content version, possibly writing it to the output if it is new
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& version) noexcept;
 
-  /// Emit a content version to the trace
-  void emitContentVersion(const std::shared_ptr<ContentVersion>& v) noexcept;
+  /// Emit a file version to the trace
+  void emitFileVersion(const std::shared_ptr<FileVersion>& v) noexcept;
+
+  /// Emit a symlink version to the trace
+  void emitSymlinkVersion(const std::shared_ptr<SymlinkVersion>& v) noexcept;
+
+  /// Emit a directory list version to the trace
+  void emitDirListVersion(const std::shared_ptr<DirListVersion>& v) noexcept;
+
+  /// Emit a pipe write version to the trace
+  void emitPipeWriteVersion(const std::shared_ptr<PipeWriteVersion>& v) noexcept;
+
+  /// Emit a pipe close version to the trace
+  void emitPipeCloseVersion(const std::shared_ptr<PipeCloseVersion>& v) noexcept;
+
+  /// Emit a pipe read version to the trace
+  void emitPipeReadVersion(const std::shared_ptr<PipeReadVersion>& v) noexcept;
+
+  /// Emit a special version to the trace
+  void emitSpecialVersion(const std::shared_ptr<SpecialVersion>& v) noexcept;
+
+  /// Emit a string record to the trace
+  void emitString(const std::string& str) noexcept;
+
+  /// Emit a new string table record to teh trace
+  void emitNewStrtab() noexcept;
 
   /// Make sure there is space for at least n strings in the current string table. If there isn't
   /// room in the current string table this will start a new one.
