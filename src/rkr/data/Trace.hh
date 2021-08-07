@@ -47,17 +47,17 @@ class TraceReader {
   /// Peek at the type of the next record
   RecordType peek() const noexcept;
 
-  /// Get reference to data in the trace of a requested type
-  template <typename T>
-  const T& take() noexcept;
-
   /// Get a reference to a record in the trace
   template <RecordType T>
-  const NewRecord<T>& take() noexcept;
+  const NewRecord<T>& takeRecord() noexcept;
 
-  /// Get a pointer to data in a requested type with a known length in bytes
+  /// Get a reference to data in the trace of a requested type
   template <typename T>
-  const T* takeBytes(size_t len) noexcept;
+  const T& takeValue() noexcept;
+
+  /// Get a reference to an array in the trace
+  template <typename T>
+  const T* takeArray(size_t count) noexcept;
 
   /// Get a pointer to a string in the trace and advance the current position past the string
   const char* takeString() noexcept;
@@ -190,16 +190,17 @@ class TraceWriter : public IRSink {
   virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override;
 
  private:
-  /// Write a sequence of values to the trace
-  template <typename... T>
-  void emit(T... args) noexcept;
-
   /// Write a record to the trace
   template <RecordType T, typename... Args>
-  void emit(Args... args) noexcept;
+  void emitRecord(Args... args) noexcept;
 
-  /// Emit a sequence of bytes to the trace
-  void emitBytes(void* src, size_t len) noexcept;
+  /// Write a value to the trace
+  template <typename T, typename... Args>
+  void emitValue(Args... args) noexcept;
+
+  /// Emit an array to the trace
+  template <typename T>
+  void emitArray(T* src, size_t count) noexcept;
 
   /// Get the ID of a command, possibly writing it to the output if it is new
   Command::ID getCommandID(const std::shared_ptr<Command>& command) noexcept;
