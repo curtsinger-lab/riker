@@ -55,8 +55,8 @@ void do_build(vector<string> args,
   // Reset the statistics counters
   reset_stats();
 
-  // The output from the first phase will go to an IRBuffer
-  auto output = make_unique<IRBuffer>();
+  // The input TraceReader will supply the trace to each phase except the first
+  TraceReader input;
 
   // Keep track of the root command
   shared_ptr<Command> root_cmd;
@@ -64,13 +64,19 @@ void do_build(vector<string> args,
   LOG(phase) << "Starting build phase 0";
 
   // Is there a trace to load?
-  if (auto loaded = InputTrace::load(constants::DatabaseFilename, args); loaded) {
+  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded) {
     // Yes. Remember the root command
     root_cmd = loaded->getRootCommand();
 
+    // Create a trace writer to store the output trace
+    TraceWriter output;
+
     // Evaluate the loaded trace
-    Build eval(*output, print_to ? *print_to : std::cout);
+    Build eval(output, print_to ? *print_to : std::cout);
     loaded->sendTo(eval);
+
+    // The output now holds the next input. Save it
+    input = output.getReader();
 
   } else {
     // No trace was loaded. Set up a default trace
@@ -79,9 +85,15 @@ void do_build(vector<string> args,
     // Remember the root command
     root_cmd = def.getRootCommand();
 
+    // Create a trace writer to store the output trace
+    TraceWriter output;
+
     // Evaluate the default trace
-    Build eval(*output, print_to ? *print_to : std::cout);
+    Build eval(output, print_to ? *print_to : std::cout);
     def.sendTo(eval);
+
+    // The output now holds the next input. Save it
+    input = output.getReader();
   }
 
   // Plan the next phase of the build
@@ -98,11 +110,8 @@ void do_build(vector<string> args,
 
   // Loop as long as there are commands left to run
   while (!root_cmd->allFinished()) {
-    // The output from the previous phase becomes the new input
-    auto input = std::move(output);
-
     // Prepare a new output buffer with read/write combining
-    output = make_unique<ReadWriteCombiner<IRBuffer>>();
+    auto output = ReadWriteCombiner<TraceWriter>();
 
     // Revert the environment to committed state
     env::rollback();
@@ -110,9 +119,9 @@ void do_build(vector<string> args,
     LOGF(phase, "Starting build phase {}", iteration);
 
     // Run the trace and send the new trace to output
-    Build build(*output, print_to ? *print_to : std::cout);
+    Build build(output, print_to ? *print_to : std::cout);
     EmulateOnly filter(build);
-    input->sendTo(filter);
+    input.sendTo(filter);
 
     // Plan the next iteration
     root_cmd->planBuild();
@@ -125,6 +134,9 @@ void do_build(vector<string> args,
 
     // Increment the iteration
     iteration++;
+
+    // The output becomes the next input
+    input = output.getReader();
   }
 
   // Commit anything left in the environment
@@ -136,14 +148,14 @@ void do_build(vector<string> args,
     LOG(phase) << "Starting post-build checks";
 
     // Run the post-build checks and send the resulting trace directly to output
-    PostBuildChecker<OutputTrace> post(constants::DatabaseFilename);
+    PostBuildChecker<TraceWriter> output(constants::DatabaseFilename);
 
     // Reset the environment
     env::rollback();
 
     // Evaluate the trace in the output buffer from the last phase
-    Build build(post, print_to ? *print_to : std::cout);
-    output->sendTo(build);
+    Build build(output, print_to ? *print_to : std::cout);
+    input.sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
   }

@@ -32,7 +32,10 @@ using PathID = StringID;
 class TraceReader {
  public:
   /// Create a new TraceReader to load from a provided path
-  TraceReader(std::string path) noexcept;
+  static std::optional<TraceReader> load(std::string path) noexcept;
+
+  /// Create an empty TraceReader
+  TraceReader() noexcept;
 
   /// Destroy a TraceReader
   ~TraceReader() noexcept;
@@ -42,14 +45,17 @@ class TraceReader {
   TraceReader& operator=(const TraceReader&) = delete;
 
   // Allow move
-  TraceReader(TraceReader&&) = default;
-  TraceReader& operator=(TraceReader&&) = default;
+  TraceReader(TraceReader&&) noexcept;
+  TraceReader& operator=(TraceReader&&) noexcept;
 
   /// Send a loaded trace to an IRSink
   void sendTo(IRSink& sink) noexcept;
 
   /// Accept r-value reference to a sink
   void sendTo(IRSink&& handler) noexcept { return sendTo(handler); }
+
+  /// Get the root command
+  std::shared_ptr<Command> getRootCommand() const noexcept;
 
  private:
   // Allow TraceWriter to call the constructor below
@@ -92,6 +98,18 @@ class TraceReader {
   /// Get a string from the table of strings
   const std::string& getString(StringID id) const noexcept;
 
+  /// Set a command in the commands table using a known ID
+  void setCommand(Command::ID id, std::shared_ptr<Command> c) noexcept;
+
+  /// Add a command to the commands table and assign a new ID
+  void addCommand(std::shared_ptr<Command> c) noexcept;
+
+  /// Set a content version in the versions table using a known ID
+  void setVersion(ContentVersion::ID id, std::shared_ptr<ContentVersion> v) noexcept;
+
+  /// Add a content version to the table and assign a new ID
+  void addVersion(std::shared_ptr<ContentVersion> v) noexcept;
+
  private:
   int _fd = -1;              //< File descriptor for the backing file used to hold this trace
   size_t _length = 0;        //< The total size of the output trace
@@ -101,8 +119,14 @@ class TraceReader {
   /// The table of commands indexed by ID
   std::vector<std::shared_ptr<Command>> _commands;
 
+  /// The next command ID that will be assigned in the trace
+  size_t _next_command_id = 0;
+
   /// The table of content versions indexed by ID
   std::vector<std::shared_ptr<ContentVersion>> _versions;
+
+  /// The next content version ID that will be assigned in the trace
+  size_t _next_version_id = 0;
 
   /// The table of strings indexed by ID
   std::vector<std::string> _strings;

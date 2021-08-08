@@ -77,25 +77,34 @@ enum class RecordType : uint8_t {
 
 /********** TraceReader Constructor and Destructor **********/
 
-TraceReader::TraceReader(string path) noexcept : _pos(0) {
+optional<TraceReader> TraceReader::load(string path) noexcept {
   // Open the trace
-  _fd = open(path.c_str(), O_RDONLY);
-  FAIL_IF(_fd == -1) << "Failed to open trace at " << path << ": " << ERR;
+  int fd = open(path.c_str(), O_RDONLY);
+  if (fd == -1) return nullopt;
 
   // Get the length of the trace
   struct stat statbuf;
-  int rc = fstat(_fd, &statbuf);
-  FAIL_IF(rc != 0) << "Failed to stat trace file: " << ERR;
-  _length = statbuf.st_size;
+  int rc = fstat(fd, &statbuf);
+  if (rc != 0) return nullopt;
+  size_t length = statbuf.st_size;
 
   // Map the trace
-  _data = (uint8_t*)mmap(nullptr, _length, PROT_READ, MAP_SHARED, _fd, 0);
-  FAIL_IF(_data == MAP_FAILED) << "Failed to mmap file: " << ERR;
+  uint8_t* data = (uint8_t*)mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
+  if (data == MAP_FAILED) return nullopt;
+
+  return TraceReader(fd, length, data);
+}
+
+// Create an empty trace reader
+TraceReader::TraceReader() noexcept {
+  setCommand(0, make_shared<Command>());
 }
 
 // Create a trace reader from an already open trace
 TraceReader::TraceReader(int fd, size_t length, uint8_t* data) noexcept :
-    _fd(fd), _length(length), _pos(0), _data(data) {}
+    _fd(fd), _length(length), _pos(0), _data(data) {
+  setCommand(0, make_shared<Command>());
+}
 
 TraceReader::~TraceReader() noexcept {
   // Is there an open file? If not just return.
@@ -108,6 +117,57 @@ TraceReader::~TraceReader() noexcept {
   // Unmap the trace file to make sure it's written out to disk
   rc = munmap(_data, _length);
   WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+}
+
+// Allow move
+TraceReader::TraceReader(TraceReader&& other) noexcept :
+    _fd(other._fd),
+    _length(other._length),
+    _pos(other._pos),
+    _data(other._data),
+    _commands(std::move(other._commands)),
+    _versions(std::move(other._versions)),
+    _strings(std::move(other._strings)) {
+  other._fd = -1;
+  other._length = 0;
+  other._pos = 0;
+  other._data = nullptr;
+}
+
+TraceReader& TraceReader::operator=(TraceReader&& other) noexcept {
+  // Does this TraceReader already have an open file?
+  if (_fd != -1) {
+    // Close the trace file
+    int rc = close(_fd);
+    FAIL_IF(rc != 0) << "Failed to close trace: " << ERR;
+
+    // Unmap the trace file to make sure it's written out to disk
+    rc = munmap(_data, _length);
+    WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+  }
+
+  // Adopt the other trace's state
+  _fd = other._fd;
+  other._fd = -1;
+
+  _length = other._length;
+  other._length = 0;
+
+  _pos = other._pos;
+  other._pos = 0;
+
+  _data = other._data;
+  other._data = nullptr;
+
+  _commands = std::move(other._commands);
+  _versions = std::move(other._versions);
+  _strings = std::move(other._strings);
+
+  return *this;
+}
+
+shared_ptr<Command> TraceReader::getRootCommand() const noexcept {
+  return _commands[0];
 }
 
 /********** TraceWriter Constructor and Destructor **********/
@@ -169,6 +229,16 @@ TraceWriter::~TraceWriter() noexcept {
 TraceReader TraceWriter::getReader() noexcept {
   // Create a trace reader
   TraceReader result(_fd, _pos, _data);
+
+  // Transfer commands over to the reader
+  for (const auto& [c, id] : _commands) {
+    result.setCommand(id, c);
+  }
+
+  // Transfer content versions over to the reader
+  for (const auto& [v, id] : _versions) {
+    result.setVersion(id, v);
+  }
 
   // Clear the local fields
   _fd = -1;
@@ -251,7 +321,7 @@ void TraceWriter::emitArray(T* src, size_t count) noexcept {
 
 /********** Instance ID Methods **********/
 
-/// Get a command from the table of commands
+// Get a command from the table of commands
 const shared_ptr<Command>& TraceReader::getCommand(Command::ID id) const noexcept {
   return _commands[id];
 }
@@ -275,7 +345,25 @@ Command::ID TraceWriter::getCommandID(const std::shared_ptr<Command>& c) noexcep
   return iter->second;
 }
 
-/// Get a content version from the table of content versions
+// Set a command in the commands table using a known ID
+void TraceReader::setCommand(Command::ID id, std::shared_ptr<Command> c) noexcept {
+  if (_commands.size() <= id) _commands.resize(id + 1);
+  _commands[id] = c;
+}
+
+// Add a command to the commands table and assign a new ID
+void TraceReader::addCommand(std::shared_ptr<Command> c) noexcept {
+  // Assign an ID for the new command
+  size_t id = _next_command_id++;
+
+  // Make sure the commands array has space for the new command
+  if (id >= _commands.size()) _commands.resize(id + 1);
+
+  // If the command isn't already stored, store it
+  if (!_commands[id]) _commands[id] = c;
+}
+
+// Get a content version from the table of content versions
 const shared_ptr<ContentVersion>& TraceReader::getContentVersion(
     ContentVersion::ID id) const noexcept {
   return _versions[id];
@@ -323,6 +411,24 @@ ContentVersion::ID TraceWriter::getContentVersionID(const shared_ptr<ContentVers
   // Return the ID
   v->setID(_id, iter->second);
   return iter->second;
+}
+
+// Set a content version in the versions table using a known ID
+void TraceReader::setVersion(ContentVersion::ID id, std::shared_ptr<ContentVersion> v) noexcept {
+  if (_versions.size() <= id) _versions.resize(id + 1);
+  _versions[id] = v;
+}
+
+// Add a content version to the table and assign a new ID
+void TraceReader::addVersion(std::shared_ptr<ContentVersion> v) noexcept {
+  // Assign an ID for the new version
+  size_t id = _next_version_id++;
+
+  // Make sure the versions array has space for the new version
+  if (id >= _versions.size()) _versions.resize(id + 1);
+
+  // If the version isn't already stored, store it
+  if (!_versions[id]) _versions[id] = v;
 }
 
 /********** String and Path Table Methods **********/
@@ -939,7 +1045,7 @@ void TraceReader::handleRecord<RecordType::Command>(IRSink& sink) noexcept {
   }
 
   // Save the command in the commands table
-  _commands.push_back(cmd);
+  addCommand(cmd);
 }
 
 // Write a Command record to the output trace
@@ -1035,7 +1141,7 @@ void TraceReader::handleRecord<RecordType::FileVersion>(IRSink& sink) noexcept {
   optional<FileVersion::Hash> hash;
   if (data.has_hash) hash = data.hash;
 
-  _versions.push_back(make_shared<FileVersion>(data.is_empty, data.is_cached, mtime, hash));
+  addVersion(make_shared<FileVersion>(data.is_empty, data.is_cached, mtime, hash));
 }
 
 // Write a FileVersion record to the output trace
@@ -1063,7 +1169,7 @@ struct NewRecord<RecordType::SymlinkVersion> {
 template <>
 void TraceReader::handleRecord<RecordType::SymlinkVersion>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SymlinkVersion>();
-  _versions.push_back(make_shared<SymlinkVersion>(getString(data.dest)));
+  addVersion(make_shared<SymlinkVersion>(getString(data.dest)));
 }
 
 // Write a SymlinkVersion record to the output trace
@@ -1090,7 +1196,7 @@ void TraceReader::handleRecord<RecordType::DirListVersion>(IRSink& sink) noexcep
     v->addEntry(getString(entry_ids[i]));
   }
 
-  _versions.push_back(v);
+  addVersion(v);
 }
 
 // Write a DirListVersion record to the output trace
@@ -1129,7 +1235,7 @@ struct NewRecord<RecordType::PipeWriteVersion> {
 template <>
 void TraceReader::handleRecord<RecordType::PipeWriteVersion>(IRSink& sink) noexcept {
   takeRecord<RecordType::PipeWriteVersion>();
-  _versions.push_back(make_shared<PipeWriteVersion>());
+  addVersion(make_shared<PipeWriteVersion>());
 }
 
 // Write a PipeWriteVersion record to the output trace
@@ -1148,7 +1254,7 @@ struct NewRecord<RecordType::PipeCloseVersion> {
 template <>
 void TraceReader::handleRecord<RecordType::PipeCloseVersion>(IRSink& sink) noexcept {
   takeRecord<RecordType::PipeCloseVersion>();
-  _versions.push_back(make_shared<PipeCloseVersion>());
+  addVersion(make_shared<PipeCloseVersion>());
 }
 
 // Write a PipeCloseVersion record to the output trace
@@ -1167,7 +1273,7 @@ struct NewRecord<RecordType::PipeReadVersion> {
 template <>
 void TraceReader::handleRecord<RecordType::PipeReadVersion>(IRSink& sink) noexcept {
   takeRecord<RecordType::PipeReadVersion>();
-  _versions.push_back(make_shared<PipeReadVersion>());
+  addVersion(make_shared<PipeReadVersion>());
 }
 
 // Write a PipeReadVersion record to the output trace
@@ -1187,7 +1293,7 @@ struct NewRecord<RecordType::SpecialVersion> {
 template <>
 void TraceReader::handleRecord<RecordType::SpecialVersion>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SpecialVersion>();
-  _versions.push_back(make_shared<SpecialVersion>(data.can_commit));
+  addVersion(make_shared<SpecialVersion>(data.can_commit));
 }
 
 // Write a SpecialVersion record to the output trace
