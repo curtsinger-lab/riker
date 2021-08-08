@@ -6,8 +6,6 @@
 #include <vector>
 
 #include "data/DefaultTrace.hh"
-#include "data/IRBuffer.hh"
-#include "data/OutputTrace.hh"
 #include "data/PostBuildChecker.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "data/Trace.hh"

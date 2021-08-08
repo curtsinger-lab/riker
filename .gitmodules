@@ -1,9 +1,6 @@
 [submodule "deps/CLI11"]
 	path = deps/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
-[submodule "deps/cereal"]
-	path = deps/cereal
-	url = https://github.com/USCiLab/cereal.git
 [submodule "deps/BLAKE3"]
 	path = deps/BLAKE3
 	url = https://github.com/BLAKE3-team/BLAKE3.git

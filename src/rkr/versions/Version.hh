@@ -3,7 +3,6 @@
 #include <ostream>
 #include <string>
 
-#include "util/serializer.hh"
 #include "util/stats.hh"
 
 class Version {

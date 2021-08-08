@@ -2,7 +2,6 @@
 
 #include <string>
 
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 class SpecialVersion final : public ContentVersion {
@@ -26,7 +25,4 @@ class SpecialVersion final : public ContentVersion {
 
  private:
   bool _can_commit;
-
-  SpecialVersion() noexcept = default;
-  SERIALIZE(BASE(ContentVersion), _can_commit);
 };

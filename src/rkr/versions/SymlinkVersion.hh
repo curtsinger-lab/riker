@@ -5,7 +5,6 @@
 #include <sstream>
 #include <string>
 
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 namespace fs = std::filesystem;
@@ -40,8 +39,4 @@ class SymlinkVersion : public ContentVersion {
 
  private:
   fs::path _dest;
-
-  // Create a default constructor and declare fields for serialization
-  SymlinkVersion() = default;
-  SERIALIZE(BASE(ContentVersion), _dest);
 };

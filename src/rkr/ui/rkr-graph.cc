@@ -8,7 +8,6 @@
 
 #include <unistd.h>
 
-#include "data/InputTrace.hh"
 #include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "ui/commands.hh"

@@ -7,7 +7,6 @@
 #include <string>
 
 #include "util/log.hh"
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 namespace fs = std::filesystem;
@@ -55,6 +54,4 @@ class DirListVersion : public ContentVersion {
  private:
   /// The names of entries in the directory
   std::set<fs::path> _entries;
-
-  SERIALIZE(BASE(ContentVersion), _entries);
 };

@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "util/serializer.hh"
 #include "util/stats.hh"
 #include "versions/Version.hh"
 
@@ -62,10 +61,4 @@ class MetadataVersion : public Version {
 
   /// The file mode bits for this metadata version
   mode_t _mode;
-
-  friend class cereal::access;
-  friend struct MatchMetadataRecord;
-  friend struct UpdateMetadataRecord;
-  MetadataVersion() noexcept = default;
-  SERIALIZE(_uid, _gid, _mode);
 };

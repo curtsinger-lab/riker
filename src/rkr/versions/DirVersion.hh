@@ -7,7 +7,6 @@
 #include <string>
 
 #include "artifacts/Artifact.hh"
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 namespace fs = std::filesystem;
@@ -27,10 +26,6 @@ class DirVersion : public Version, public std::enable_shared_from_this<DirVersio
 
   /// Get the entry this directory version references, if any
   virtual std::optional<std::string> getEntry() const noexcept { return std::nullopt; }
-
- private:
-  // Declare fields for serialization
-  SERIALIZE_EMPTY();
 };
 
 /**
@@ -70,10 +65,6 @@ class BaseDirVersion : public DirVersion {
   /// Does this version encode the creation of a new directory? If not, accessing entries requires
   /// checks against the actual filesystem.
   bool _created;
-
-  // Create default constructor and declare fields for serialization
-  BaseDirVersion() noexcept = default;
-  SERIALIZE(BASE(DirVersion), _created);
 };
 
 /// An DirEntryVersion version updates a directory with a new entry

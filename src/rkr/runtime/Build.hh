@@ -13,8 +13,8 @@
 
 #include <sys/types.h>
 
-#include "data/IRBuffer.hh"
 #include "data/IRSink.hh"
+#include "data/Trace.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Tracer.hh"
 
@@ -163,7 +163,7 @@ class Build : public IRSink {
   IRSink& _output;
 
   /// Deferred trace steps are placed in this buffer for later running
-  std::unique_ptr<IRBuffer> _deferred_steps;
+  TraceWriter _deferred_steps;
 
   /// The set of deferred commands
   std::set<std::shared_ptr<Command>> _deferred_commands;

@@ -7,7 +7,6 @@
 
 #include "tracing/Flags.hh"
 #include "util/log.hh"
-#include "util/serializer.hh"
 
 // Add a success constant so we don't have to keep returning 0 as a magic number
 enum : int8_t { SUCCESS = 0 };
@@ -70,9 +69,6 @@ class AccessType {
   int8_t _rc_file = SUCCESS;
   int8_t _rc_symlink = SUCCESS;
   int8_t _rc_dir = SUCCESS;
-
-  friend class cereal::access;
-  SERIALIZE(_rc_file, _rc_symlink, _rc_dir);
 };
 
 /// This struct encodes the flags specified when making an access to a particular reference

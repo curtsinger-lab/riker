@@ -15,7 +15,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "data/IRBuffer.hh"
 #include "data/IRSink.hh"
 #include "runtime/Command.hh"
 #include "util/log.hh"
@@ -126,7 +125,9 @@ TraceReader::TraceReader(TraceReader&& other) noexcept :
     _pos(other._pos),
     _data(other._data),
     _commands(std::move(other._commands)),
+    _next_command_id(other._next_command_id),
     _versions(std::move(other._versions)),
+    _next_version_id(other._next_version_id),
     _strings(std::move(other._strings)) {
   other._fd = -1;
   other._length = 0;
@@ -158,6 +159,9 @@ TraceReader& TraceReader::operator=(TraceReader&& other) noexcept {
 
   _data = other._data;
   other._data = nullptr;
+
+  _next_command_id = other._next_command_id;
+  _next_version_id = other._next_version_id;
 
   _commands = std::move(other._commands);
   _versions = std::move(other._versions);
@@ -223,6 +227,73 @@ TraceWriter::~TraceWriter() noexcept {
   // Unmap the trace file to make sure it's written out to disk
   rc = munmap(_data, _length);
   WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+}
+
+// Allow move
+TraceWriter::TraceWriter(TraceWriter&& other) noexcept :
+    _id(other._id),
+    _path(std::move(other._path)),
+    _fd(other._fd),
+    _length(other._length),
+    _pos(other._pos),
+    _data(other._data),
+    _commands(std::move(other._commands)),
+    _versions(std::move(other._versions)),
+    _strtab(std::move(other._strtab)) {
+  other._fd = -1;
+  other._length = 0;
+  other._pos = 0;
+  other._data = nullptr;
+}
+
+TraceWriter& TraceWriter::operator=(TraceWriter&& other) noexcept {
+  // Does this trace writer have an open file?
+  if (_fd != -1) {
+    // Was a path provided?
+    if (_path.has_value()) {
+      // Yes. Link the trace onto the filesystem before it vanishes
+
+      // First make sure the output path doesn't exist
+      int rc = ::unlink(_path.value().c_str());
+
+      // The output file may not exist, but if the unlink failed for some other reason give up
+      FAIL_IF(rc != 0 && errno != ENOENT)
+          << "Failed to unlink old trace output file " << _path.value() << ": " << ERR;
+
+      // Now link in the temporary file from the /proc filesystem
+      string fdpath = "/proc/self/fd/" + std::to_string(_fd);
+      rc = linkat(AT_FDCWD, fdpath.c_str(), AT_FDCWD, _path.value().c_str(), AT_SYMLINK_FOLLOW);
+
+      // TODO: if linking fails, fall back on copying
+      FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value();
+    }
+
+    // Discard any unused capacity in the trace
+    int rc = ftruncate(_fd, _pos);
+    WARN_IF(rc != 0) << "Failed to truncate trace: " << ERR;
+
+    // Close the trace file
+    rc = close(_fd);
+    WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
+
+    // Unmap the trace file to make sure it's written out to disk
+    rc = munmap(_data, _length);
+    WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+  }
+
+  _id = other._id;
+  _path = std::move(other._path);
+  _fd = other._fd;
+  other._fd = -1;
+  _length = other._length;
+  _pos = other._pos;
+  _data = other._data;
+  other._data = nullptr;
+  _commands = std::move(other._commands);
+  _versions = std::move(other._versions);
+  _strtab = std::move(other._strtab);
+
+  return *this;
 }
 
 // Create a TraceReader to traverse this trace. Makes the writer unusable

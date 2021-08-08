@@ -12,7 +12,6 @@
 #include <sys/stat.h>
 
 #include "blake3.h"
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 namespace fs = std::filesystem;
@@ -108,8 +107,6 @@ class FileVersion final : public ContentVersion {
 
   /// What is the has of this file version's contents?
   std::optional<Hash> _hash;
-
-  SERIALIZE(BASE(ContentVersion), _empty, _cached, _mtime, _hash);
 
   /// Transient field: has this version been linked into the new cache directory?
   bool _linked = false;

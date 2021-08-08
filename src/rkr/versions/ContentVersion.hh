@@ -5,7 +5,6 @@
 #include <ostream>
 
 #include "util/log.hh"
-#include "util/serializer.hh"
 #include "util/stats.hh"
 #include "versions/Version.hh"
 
@@ -73,9 +72,6 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
   }
 
  protected:
-  // Declare fields for serialization
-  SERIALIZE_EMPTY();
-
   ContentVersion::ID _id;
   size_t _buffer_id;
 };

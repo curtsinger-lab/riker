@@ -6,7 +6,6 @@
 #include <ostream>
 #include <string>
 
-#include "util/serializer.hh"
 #include "versions/ContentVersion.hh"
 
 namespace fs = std::filesystem;
@@ -26,9 +25,6 @@ class PipeWriteVersion : public ContentVersion {
   virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[pipe write]";
   }
-
- private:
-  SERIALIZE(BASE(ContentVersion));
 };
 
 class PipeCloseVersion : public PipeWriteVersion {
@@ -45,9 +41,6 @@ class PipeCloseVersion : public PipeWriteVersion {
   virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[pipe close]";
   }
-
- private:
-  SERIALIZE(BASE(PipeWriteVersion));
 };
 
 class PipeReadVersion : public ContentVersion {
@@ -65,8 +58,4 @@ class PipeReadVersion : public ContentVersion {
   virtual std::ostream& print(std::ostream& o) const noexcept override {
     return o << "[pipe read]";
   }
-
- private:
-  // Declare fields for serialization
-  SERIALIZE(BASE(ContentVersion));
 };

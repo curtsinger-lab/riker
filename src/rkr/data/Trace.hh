@@ -8,7 +8,6 @@
 #include <unordered_map>
 
 #include "data/IRSink.hh"
-#include "data/IRSource.hh"
 #include "runtime/Command.hh"
 #include "versions/ContentVersion.hh"
 
@@ -146,8 +145,8 @@ class TraceWriter : public IRSink {
   TraceWriter& operator=(const TraceWriter&) = delete;
 
   // Allow move
-  TraceWriter(TraceWriter&&) = default;
-  TraceWriter& operator=(TraceWriter&&) = default;
+  TraceWriter(TraceWriter&&) noexcept;
+  TraceWriter& operator=(TraceWriter&&) noexcept;
 
   /// Create a TraceReader to traverse this trace. Makes the writer unusable
   TraceReader getReader() noexcept;
