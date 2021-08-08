@@ -23,7 +23,7 @@ class SpecialVersion;
 enum class RecordType : uint8_t;
 
 template <RecordType T>
-struct NewRecord;
+struct Record;
 
 using StringID = uint16_t;
 using PathID = StringID;
@@ -108,7 +108,7 @@ class TraceReader {
 
   /// Get a reference to a record in the trace
   template <RecordType T>
-  const NewRecord<T>& takeRecord() noexcept;
+  const Record<T>& takeRecord() noexcept;
 
   /// Get a reference to data in the trace of a requested type
   template <typename T>

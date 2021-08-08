@@ -341,8 +341,8 @@ RecordType TraceReader::peek() const noexcept {
 
 // Get a reference to a record in the input trace
 template <RecordType T>
-const NewRecord<T>& TraceReader::takeRecord() noexcept {
-  return takeValue<NewRecord<T>>();
+const Record<T>& TraceReader::takeRecord() noexcept {
+  return takeValue<Record<T>>();
 }
 
 // Get reference to data in the trace of a requested type
@@ -370,7 +370,7 @@ const char* TraceReader::takeString() noexcept {
 // Write a record to the trace
 template <RecordType T, typename... Args>
 void TraceWriter::emitRecord(Args... args) noexcept {
-  using R = NewRecord<T>;
+  using R = Record<T>;
   R* r = reinterpret_cast<R*>(_file.advance(sizeof(R), true));
   *r = R{T, args...};
 }
@@ -557,7 +557,7 @@ PathID TraceWriter::getPathID(const fs::path& path) noexcept {
 /********** Start Record **********/
 
 template <>
-struct NewRecord<RecordType::Start> {
+struct Record<RecordType::Start> {
   RecordType type;
   Command::ID root_command;
 } __attribute__((packed));
@@ -578,7 +578,7 @@ void TraceWriter::start(const shared_ptr<Command>& c) noexcept {
 /********** Finish Record **********/
 
 template <>
-struct NewRecord<RecordType::Finish> {
+struct Record<RecordType::Finish> {
   RecordType type;
 } __attribute__((packed));
 
@@ -597,7 +597,7 @@ void TraceWriter::finish() noexcept {
 /********** SpecialRef Record **********/
 
 template <>
-struct NewRecord<RecordType::SpecialRef> {
+struct Record<RecordType::SpecialRef> {
   RecordType type;
   Command::ID command;
   SpecialRef entity;
@@ -621,7 +621,7 @@ void TraceWriter::specialRef(const shared_ptr<Command>& c,
 /********** PipeRef Record **********/
 
 template <>
-struct NewRecord<RecordType::PipeRef> {
+struct Record<RecordType::PipeRef> {
   RecordType type;
   Command::ID command;
   Ref::ID read_end;
@@ -645,7 +645,7 @@ void TraceWriter::pipeRef(const shared_ptr<Command>& c,
 /********** FileRef Record **********/
 
 template <>
-struct NewRecord<RecordType::FileRef> {
+struct Record<RecordType::FileRef> {
   RecordType type;
   Command::ID command;
   mode_t mode;
@@ -667,7 +667,7 @@ void TraceWriter::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID out
 /********** SymlinkRef Record **********/
 
 template <>
-struct NewRecord<RecordType::SymlinkRef> {
+struct Record<RecordType::SymlinkRef> {
   RecordType type;
   Command::ID command;
   PathID target;
@@ -691,7 +691,7 @@ void TraceWriter::symlinkRef(const shared_ptr<Command>& c,
 /********** DirRef Record **********/
 
 template <>
-struct NewRecord<RecordType::DirRef> {
+struct Record<RecordType::DirRef> {
   RecordType type;
   Command::ID command;
   mode_t mode;
@@ -713,7 +713,7 @@ void TraceWriter::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID outp
 /********** PathRef Record **********/
 
 template <>
-struct NewRecord<RecordType::PathRef> {
+struct Record<RecordType::PathRef> {
   RecordType type;
   Command::ID command;
   Ref::ID base;
@@ -741,7 +741,7 @@ void TraceWriter::pathRef(const shared_ptr<Command>& c,
 /********** UsingRef Record **********/
 
 template <>
-struct NewRecord<RecordType::UsingRef> {
+struct Record<RecordType::UsingRef> {
   RecordType type;
   Command::ID command;
   Ref::ID ref;
@@ -762,7 +762,7 @@ void TraceWriter::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
 /********** DoneWithRef Record **********/
 
 template <>
-struct NewRecord<RecordType::DoneWithRef> {
+struct Record<RecordType::DoneWithRef> {
   RecordType type;
   Command::ID command;
   Ref::ID ref;
@@ -783,7 +783,7 @@ void TraceWriter::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref) noexcep
 /********** CompareRefs Record **********/
 
 template <>
-struct NewRecord<RecordType::CompareRefs> {
+struct Record<RecordType::CompareRefs> {
   RecordType type;
   Command::ID command;
   Ref::ID ref1;
@@ -809,7 +809,7 @@ void TraceWriter::compareRefs(const shared_ptr<Command>& c,
 /********** ExpectResult Record **********/
 
 template <>
-struct NewRecord<RecordType::ExpectResult> {
+struct Record<RecordType::ExpectResult> {
   RecordType type;
   Command::ID command;
   Scenario scenario;
@@ -835,7 +835,7 @@ void TraceWriter::expectResult(const shared_ptr<Command>& c,
 /********** MatchMetadata Record **********/
 
 template <>
-struct NewRecord<RecordType::MatchMetadata> {
+struct Record<RecordType::MatchMetadata> {
   RecordType type;
   Command::ID command;
   Scenario scenario;
@@ -861,7 +861,7 @@ void TraceWriter::matchMetadata(const shared_ptr<Command>& c,
 /********** MatchContent Record **********/
 
 template <>
-struct NewRecord<RecordType::MatchContent> {
+struct Record<RecordType::MatchContent> {
   RecordType type;
   Command::ID command;
   Scenario scenario;
@@ -889,7 +889,7 @@ void TraceWriter::matchContent(const shared_ptr<Command>& c,
 /********** UpdateMetadata Record **********/
 
 template <>
-struct NewRecord<RecordType::UpdateMetadata> {
+struct Record<RecordType::UpdateMetadata> {
   RecordType type;
   Command::ID command;
   Ref::ID ref;
@@ -913,7 +913,7 @@ void TraceWriter::updateMetadata(const shared_ptr<Command>& c,
 /********** UpdateContent Record **********/
 
 template <>
-struct NewRecord<RecordType::UpdateContent> {
+struct Record<RecordType::UpdateContent> {
   RecordType type;
   Command::ID command;
   Ref::ID ref;
@@ -937,7 +937,7 @@ void TraceWriter::updateContent(const shared_ptr<Command>& c,
 /********** AddEntry Record **********/
 
 template <>
-struct NewRecord<RecordType::AddEntry> {
+struct Record<RecordType::AddEntry> {
   RecordType type;
   Command::ID command;
   Ref::ID dir;
@@ -963,7 +963,7 @@ void TraceWriter::addEntry(const shared_ptr<Command>& c,
 /********** RemoveEntry Record **********/
 
 template <>
-struct NewRecord<RecordType::RemoveEntry> {
+struct Record<RecordType::RemoveEntry> {
   RecordType type;
   Command::ID command;
   Ref::ID dir;
@@ -989,7 +989,7 @@ void TraceWriter::removeEntry(const shared_ptr<Command>& c,
 /********** Launch Record **********/
 
 template <>
-struct NewRecord<RecordType::Launch> {
+struct Record<RecordType::Launch> {
   RecordType type;
   Command::ID parent;
   Command::ID child;
@@ -1034,7 +1034,7 @@ void TraceWriter::launch(const shared_ptr<Command>& parent,
 /********** Join Record **********/
 
 template <>
-struct NewRecord<RecordType::Join> {
+struct Record<RecordType::Join> {
   RecordType type;
   Command::ID parent;
   Command::ID child;
@@ -1058,7 +1058,7 @@ void TraceWriter::join(const shared_ptr<Command>& parent,
 /********** Exit Record **********/
 
 template <>
-struct NewRecord<RecordType::Exit> {
+struct Record<RecordType::Exit> {
   RecordType type;
   Command::ID command;
   int exit_status;
@@ -1080,7 +1080,7 @@ void TraceWriter::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
 // The fixed-size data written for each command in the trace
 template <>
-struct NewRecord<RecordType::Command> {
+struct Record<RecordType::Command> {
   RecordType type;
   bool has_executed;
   uint16_t argv_length;
@@ -1149,7 +1149,7 @@ void TraceWriter::emitCommand(const std::shared_ptr<Command>& c) noexcept {
 /********** String Record **********/
 
 template <>
-struct NewRecord<RecordType::String> {
+struct Record<RecordType::String> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1171,7 +1171,7 @@ void TraceWriter::emitString(const string& str) noexcept {
 /********** NewStrtab Record **********/
 
 template <>
-struct NewRecord<RecordType::NewStrtab> {
+struct Record<RecordType::NewStrtab> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1190,7 +1190,7 @@ void TraceWriter::emitNewStrtab() noexcept {
 
 /********** End Record **********/
 template <>
-struct NewRecord<RecordType::End> {
+struct Record<RecordType::End> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1210,7 +1210,7 @@ void TraceWriter::emitEnd() noexcept {
 /********** FileVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::FileVersion> {
+struct Record<RecordType::FileVersion> {
   RecordType type;
   bool is_empty : 1;
   bool is_cached : 1;
@@ -1250,7 +1250,7 @@ void TraceWriter::emitFileVersion(const shared_ptr<FileVersion>& v) noexcept {
 /********** SymlinkVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::SymlinkVersion> {
+struct Record<RecordType::SymlinkVersion> {
   RecordType type;
   StringID dest;
 } __attribute__((packed));
@@ -1270,7 +1270,7 @@ void TraceWriter::emitSymlinkVersion(const shared_ptr<SymlinkVersion>& v) noexce
 /********** DirListVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::DirListVersion> {
+struct Record<RecordType::DirListVersion> {
   RecordType type;
   uint16_t entry_count;
 } __attribute__((packed));
@@ -1317,7 +1317,7 @@ void TraceWriter::emitDirListVersion(const shared_ptr<DirListVersion>& v) noexce
 /********** PipeWriteVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::PipeWriteVersion> {
+struct Record<RecordType::PipeWriteVersion> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1336,7 +1336,7 @@ void TraceWriter::emitPipeWriteVersion(const shared_ptr<PipeWriteVersion>& v) no
 /********** PipeCloseVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::PipeCloseVersion> {
+struct Record<RecordType::PipeCloseVersion> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1355,7 +1355,7 @@ void TraceWriter::emitPipeCloseVersion(const shared_ptr<PipeCloseVersion>& v) no
 /********** PipeReadVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::PipeReadVersion> {
+struct Record<RecordType::PipeReadVersion> {
   RecordType type;
 } __attribute__((packed));
 
@@ -1374,7 +1374,7 @@ void TraceWriter::emitPipeReadVersion(const shared_ptr<PipeReadVersion>& v) noex
 /********** SpecialVersion Record **********/
 
 template <>
-struct NewRecord<RecordType::SpecialVersion> {
+struct Record<RecordType::SpecialVersion> {
   RecordType type;
   bool can_commit;
 } __attribute__((packed));
