@@ -177,44 +177,22 @@ void rkr_inject_init() {
 }
 
 size_t channel_acquire() {
-  // The shmem->in_use value is a bit set, where each bit with a 1 indicates a channel that is in
-  // use. To claim a channel, a tracee must change a bit from zero to one. Instead of trying one at
-  // a time, we'll try to set ALL the bits. We can then use some bit-twiddling tricks to identify
-  // one of the bits that changed---that will be the channel we keep---and then turn the rest of the
-  // changed bits off.
-
-  // Create a value with all the bits from 0 up to TRACING_CHANNEL_COUNT-1 set
-  uint64_t all_bits = (1LLU << TRACING_CHANNEL_COUNT) - 1;
-
+  // Loop until we find a channel to claim
   while (true) {
-    // Try to claim all channels at once
-    uint64_t old_state = __atomic_fetch_or(&shmem->in_use, all_bits, __ATOMIC_ACQ_REL);
-
-    // Did we get any?
-    uint64_t changed_bits = old_state ^ all_bits;
-    if (changed_bits > 0) {
-      // Yes. Find the index of the lowest-order bit we changed. This is the channel we're keeping.
-      size_t claimed = __builtin_ctzl(changed_bits);
-
-      // Turn off the claimed bit in changed_bits
-      changed_bits &= ~(1LLU << claimed);
-
-      // Release the extra channels claimed by turning off the extra bits
-      __atomic_fetch_and(&shmem->in_use, ~changed_bits, __ATOMIC_RELEASE);
-
-      // Set the thread ID in the claimed channel
-      __atomic_store_n(&shmem->channels[claimed].tid, gettid(), __ATOMIC_RELEASE);
-
-      // Return the index of the claimed channel
-      return claimed;
+    for (size_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
+      uint8_t expected = CHANNEL_STATE_AVAILABLE;
+      if (__atomic_compare_exchange_n(&shmem->channels[i].state, &expected, CHANNEL_STATE_ACQUIRED,
+                                      false, __ATOMIC_ACQ_REL, __ATOMIC_ACQ_REL)) {
+        shmem->channels[i].tid = gettid();
+        return i;
+      }
     }
   }
 }
 
 void channel_release(size_t c) {
   // Reset the channel to available
-  uint64_t mask = ~(1LLU << c);
-  __atomic_fetch_and(&shmem->in_use, mask, __ATOMIC_RELEASE);
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
 }
 
 /// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
@@ -236,17 +214,15 @@ bool channel_enter(size_t c,
   shmem->channels[c].regs.SYSCALL_ARG5 = arg5;
   shmem->channels[c].regs.SYSCALL_ARG6 = arg6;
 
-  // The channel is in syscall entry mode
-  shmem->channels[c].syscall_entry = true;
-
   // Clear the exit_instead flag in case it was left set by a previous use of this channel
   shmem->channels[c].exit_instead = false;
 
-  // Set the c-th bit in the waiting bit-set
-  __atomic_fetch_or(&shmem->waiting, 1LLU << c, __ATOMIC_RELEASE);
+  // Set the channel to a waiting-on-entry state
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_ENTRY_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&shmem->waiting, __ATOMIC_ACQUIRE) & (1LLU << c)) {
+  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
+         CHANNEL_STATE_ENTRY_PROCEED) {
   }
 
   // Was the tracee asked to exit instead of proceeding?
@@ -266,14 +242,14 @@ bool channel_enter(size_t c,
 
 void channel_exit(size_t c, long syscall_nr, long rc) {
   shmem->channels[c].regs.SYSCALL_NUMBER = syscall_nr;
-  shmem->channels[c].syscall_entry = false;
   shmem->channels[c].return_value = rc;
 
-  // Set the c-th bit in the waiting bit-set
-  __atomic_fetch_or(&shmem->waiting, 1LLU << c, __ATOMIC_RELEASE);
+  // Set the channel to waiting-on-exit state
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_EXIT_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  while (__atomic_load_n(&shmem->waiting, __ATOMIC_ACQUIRE) & (1LLU << c)) {
+  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
+         CHANNEL_STATE_EXIT_PROCEED) {
   }
 }
 
