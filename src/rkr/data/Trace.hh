@@ -34,6 +34,17 @@ class TraceReader {
   /// Create a new TraceReader to load from a provided path
   TraceReader(std::string path) noexcept;
 
+  /// Destroy a TraceReader
+  ~TraceReader() noexcept;
+
+  // Disallow copy
+  TraceReader(const TraceReader&) = delete;
+  TraceReader& operator=(const TraceReader&) = delete;
+
+  // Allow move
+  TraceReader(TraceReader&&) = default;
+  TraceReader& operator=(TraceReader&&) = default;
+
   /// Send a loaded trace to an IRSink
   void sendTo(IRSink& sink) noexcept;
 
@@ -41,6 +52,12 @@ class TraceReader {
   void sendTo(IRSink&& handler) noexcept { return sendTo(handler); }
 
  private:
+  // Allow TraceWriter to call the constructor below
+  friend class TraceWriter;
+
+  /// Create a trace reader from an already open trace
+  TraceReader(int fd, size_t length, uint8_t* data) noexcept;
+
   /// Check if we've hit the end of the trace
   bool done() const noexcept { return _pos >= _length; }
 
@@ -103,6 +120,13 @@ class TraceWriter : public IRSink {
   // Disallow copy
   TraceWriter(const TraceWriter&) = delete;
   TraceWriter& operator=(const TraceWriter&) = delete;
+
+  // Allow move
+  TraceWriter(TraceWriter&&) = default;
+  TraceWriter& operator=(TraceWriter&&) = default;
+
+  /// Create a TraceReader to traverse this trace. Makes the writer unusable
+  TraceReader getReader() noexcept;
 
   /// Called when starting a trace. The root command is passed in.
   virtual void start(const std::shared_ptr<Command>& c) noexcept override;

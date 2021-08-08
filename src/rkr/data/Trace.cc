@@ -93,6 +93,23 @@ TraceReader::TraceReader(string path) noexcept : _pos(0) {
   FAIL_IF(_data == MAP_FAILED) << "Failed to mmap file: " << ERR;
 }
 
+// Create a trace reader from an already open trace
+TraceReader::TraceReader(int fd, size_t length, uint8_t* data) noexcept :
+    _fd(fd), _length(length), _pos(0), _data(data) {}
+
+TraceReader::~TraceReader() noexcept {
+  // Is there an open file? If not just return.
+  if (_fd == -1) return;
+
+  // Close the trace file
+  int rc = close(_fd);
+  WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
+
+  // Unmap the trace file to make sure it's written out to disk
+  rc = munmap(_data, _length);
+  WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+}
+
 /********** TraceWriter Constructor and Destructor **********/
 
 TraceWriter::TraceWriter(optional<string> path) noexcept : _id(IRBuffer::getNextID()), _path(path) {
@@ -113,6 +130,9 @@ TraceWriter::TraceWriter(optional<string> path) noexcept : _id(IRBuffer::getNext
 }
 
 TraceWriter::~TraceWriter() noexcept {
+  // Is there an open file? If not, just return
+  if (_fd == -1) return;
+
   // Was a path provided?
   if (_path.has_value()) {
     // Yes. Link the trace onto the filesystem before it vanishes
@@ -143,6 +163,21 @@ TraceWriter::~TraceWriter() noexcept {
   // Unmap the trace file to make sure it's written out to disk
   rc = munmap(_data, _length);
   WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
+}
+
+// Create a TraceReader to traverse this trace. Makes the writer unusable
+TraceReader TraceWriter::getReader() noexcept {
+  // Create a trace reader
+  TraceReader result(_fd, _pos, _data);
+
+  // Clear the local fields
+  _fd = -1;
+  _pos = 0;
+  _data = nullptr;
+  _length = 0;
+
+  // Return the new reader
+  return result;
 }
 
 /********** TraceReader Reading Methods **********/
