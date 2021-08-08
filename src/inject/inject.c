@@ -177,16 +177,19 @@ void rkr_inject_init() {
 }
 
 size_t channel_acquire() {
+  static __thread size_t i = 0;
+
   // Loop until we find a channel to claim
   while (true) {
-    for (size_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
-      uint8_t expected = CHANNEL_STATE_AVAILABLE;
-      if (__atomic_compare_exchange_n(&shmem->channels[i].state, &expected, CHANNEL_STATE_ACQUIRED,
-                                      false, __ATOMIC_ACQ_REL, __ATOMIC_ACQ_REL)) {
-        shmem->channels[i].tid = gettid();
-        return i;
-      }
+    uint8_t expected = CHANNEL_STATE_AVAILABLE;
+    if (__atomic_compare_exchange_n(&shmem->channels[i].state, &expected, CHANNEL_STATE_ACQUIRED,
+                                    false, __ATOMIC_ACQ_REL, __ATOMIC_ACQ_REL)) {
+      shmem->channels[i].tid = gettid();
+      return i;
     }
+
+    i++;
+    if (i >= TRACING_CHANNEL_COUNT) i = 0;
   }
 }
 

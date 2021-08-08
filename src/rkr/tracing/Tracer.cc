@@ -93,7 +93,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
 
         if (state == CHANNEL_STATE_ENTRY_WAITING) {
           // The state has been observed. Update it so we don't handle his entry again later
-          __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_ENTRY_SEEN, __ATOMIC_RELEASE);
+          _shmem->channels[i].state = CHANNEL_STATE_ENTRY_SEEN;
 
           // Find the thread using this channel
           auto iter = _threads.find(_shmem->channels[i].tid);
@@ -106,7 +106,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
 
         } else if (state == CHANNEL_STATE_EXIT_WAITING) {
           // The state has been observed. Update it so we don't handle this exit again later
-          __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_EXIT_SEEN, __ATOMIC_RELEASE);
+          _shmem->channels[i].state = CHANNEL_STATE_EXIT_SEEN;
 
           // Find the thread using this channel
           auto iter = _threads.find(_shmem->channels[i].tid);
@@ -700,12 +700,11 @@ long Tracer::getSyscallResult(ssize_t i) noexcept {
 
 // Allow a tracee blocked on a shared memory channel to proceed
 void Tracer::channelProceed(ssize_t i, bool stop_on_exit) noexcept {
-  auto state = __atomic_load_n(&_shmem->channels[i].state, __ATOMIC_ACQUIRE);
-  if (state == CHANNEL_STATE_ENTRY_SEEN) {
+  if (_shmem->channels[i].state == CHANNEL_STATE_ENTRY_SEEN) {
     _shmem->channels[i].stop_on_exit = stop_on_exit;
     __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
 
-  } else if (state == CHANNEL_STATE_EXIT_SEEN) {
+  } else if (_shmem->channels[i].state == CHANNEL_STATE_EXIT_SEEN) {
     __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
 
   } else {
