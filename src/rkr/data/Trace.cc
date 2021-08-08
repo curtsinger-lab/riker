@@ -37,6 +37,170 @@ using std::string;
 using std::tuple;
 using std::vector;
 
+// Grow the trace file by 2MB as needed
+enum : size_t { TraceFileSizeIncrement = 2 * 1024 * 1024 };
+
+/********** Trace File Operations **********/
+
+// Open a trace file at a given path
+TraceFile TraceFile::open(string path) noexcept {
+  TraceFile result;
+
+  // First try to open the file
+  result.fd = ::open(path.c_str(), O_RDONLY);
+  if (result.fd == -1) return result;
+
+  // Get the length of the opened file
+  struct stat statbuf;
+  int rc = fstat(result.fd, &statbuf);
+  if (rc != 0) {
+    WARN << "Failed to get size of opened trace file " << path;
+    return result;
+  }
+  result.length = statbuf.st_size;
+
+  // Map the opened file
+  result.data = (uint8_t*)mmap(nullptr, result.length, PROT_READ, MAP_SHARED, result.fd, 0);
+  if (result.data == MAP_FAILED) {
+    WARN << "Failed to mmap opened trace file " << path;
+    result.data = nullptr;
+  }
+
+  return result;
+}
+
+// Create an anonymous trace file for writing
+TraceFile TraceFile::create() noexcept {
+  TraceFile result;
+
+  // Create a temporary file to hold the trace
+  result.fd = ::open(".", O_RDWR | O_TMPFILE, 0644);
+  if (result.fd == -1) {
+    WARN << "Failed to open temporary file: " << ERR;
+    return result;
+  }
+
+  // Make space in the backing file
+  result.length = TraceFileSizeIncrement;
+  int rc = ftruncate(result.fd, result.length);
+  if (rc != 0) {
+    WARN << "Failed to extend trace file: " << ERR;
+    return result;
+  }
+
+  // Map the file
+  result.data =
+      (uint8_t*)mmap(nullptr, result.length, PROT_READ | PROT_WRITE, MAP_SHARED, result.fd, 0);
+  if (result.data == MAP_FAILED) {
+    WARN << "Failed to mmap file: " << ERR;
+    result.data = nullptr;
+  }
+
+  return result;
+}
+
+// Destructor
+TraceFile::~TraceFile() noexcept {
+  destroy();
+}
+
+// Move constructor for trace file
+TraceFile::TraceFile(TraceFile&& other) noexcept {
+  // Copy state from the other trace file
+  fd = other.fd;
+  length = other.length;
+  pos = other.pos;
+  data = other.data;
+
+  // Reset state in the other trace file
+  other.fd = -1;
+  other.length = 0;
+  other.pos = 0;
+  other.data = nullptr;
+}
+
+// Move assignment operator for trace file
+TraceFile& TraceFile::operator=(TraceFile&& other) noexcept {
+  // Clean up any state that will be overwritten in this instance
+  destroy();
+
+  // Copy state from the other trace file
+  fd = other.fd;
+  length = other.length;
+  pos = other.pos;
+  data = other.data;
+
+  // Reset state in the other trace file
+  other.fd = -1;
+  other.length = 0;
+  other.pos = 0;
+  other.data = nullptr;
+
+  return *this;
+}
+
+// Check if a trace file is open and usable
+TraceFile::operator bool() const noexcept {
+  return fd != -1 && data != nullptr;
+}
+
+/// Grab a pointer into the trace data without advancing the position
+void* TraceFile::peek() const noexcept {
+  ASSERT(data != nullptr) << "Cannot peek into an unopened trace file";
+  return &data[pos];
+}
+
+/// Grab a pointer into the trace data and advance the position by a requested size
+void* TraceFile::advance(size_t bytes, bool grow) noexcept {
+  ASSERT(data != nullptr) << "Cannot advance in an unopened trace file";
+
+  // Will this advance beyond the end of the file?
+  if (pos + bytes > length) {
+    // Yes. Are we permitted to grow the file?
+    if (grow) {
+      size_t new_length = length + TraceFileSizeIncrement;
+
+      // Extend the trace file
+      int rc = ftruncate(fd, new_length);
+      FAIL_IF(rc != 0) << "Failed to expand the trace file";
+
+      // Remap the data region
+      data = (uint8_t*)mremap(data, length, new_length, MREMAP_MAYMOVE);
+      if (data == MAP_FAILED) {
+        FAIL << "Failed to map extended trace file";
+      }
+
+      // Save the extended size
+      length = new_length;
+
+    } else {
+      FAIL << "Attempted to advance beyond the end of a trace file";
+    }
+  }
+
+  void* result = &data[pos];
+  pos += bytes;
+  return result;
+}
+
+// Clean up state from this trace file by closing, unmapping, etc.
+void TraceFile::destroy() noexcept {
+  if (fd != -1) {
+    close(fd);
+    fd = -1;
+  }
+
+  if (data != nullptr && data != MAP_FAILED) {
+    munmap(data, length);
+    data = nullptr;
+  }
+
+  length = 0;
+  pos = 0;
+}
+
+/********** Trace Record Types **********/
+
 /// Tags to identify each type of record
 enum class RecordType : uint8_t {
   Start = 0,
@@ -63,6 +227,7 @@ enum class RecordType : uint8_t {
   Command = 21,
   String = 22,
   NewStrtab = 23,
+  End = 24,
 
   // Content version subtypes
   FileVersion = 32,
@@ -77,21 +242,11 @@ enum class RecordType : uint8_t {
 /********** TraceReader Constructor and Destructor **********/
 
 optional<TraceReader> TraceReader::load(string path) noexcept {
-  // Open the trace
-  int fd = open(path.c_str(), O_RDONLY);
-  if (fd == -1) return nullopt;
+  // Open the trace file
+  auto file = TraceFile::open(path);
+  if (!file) return nullopt;
 
-  // Get the length of the trace
-  struct stat statbuf;
-  int rc = fstat(fd, &statbuf);
-  if (rc != 0) return nullopt;
-  size_t length = statbuf.st_size;
-
-  // Map the trace
-  uint8_t* data = (uint8_t*)mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
-  if (data == MAP_FAILED) return nullopt;
-
-  return TraceReader(fd, length, data);
+  return TraceReader(std::move(file));
 }
 
 // Create an empty trace reader
@@ -99,75 +254,13 @@ TraceReader::TraceReader() noexcept {
   setCommand(0, make_shared<Command>());
 }
 
-// Create a trace reader from an already open trace
-TraceReader::TraceReader(int fd, size_t length, uint8_t* data) noexcept :
-    _fd(fd), _length(length), _pos(0), _data(data) {
+// Create a trace reader from an already open trace file
+TraceReader::TraceReader(TraceFile&& file) noexcept : _file(std::move(file)) {
+  // Jump back to the beginning of the file
+  _file.pos = 0;
+
+  // Create a root command
   setCommand(0, make_shared<Command>());
-}
-
-TraceReader::~TraceReader() noexcept {
-  // Is there an open file? If not just return.
-  if (_fd == -1) return;
-
-  // Close the trace file
-  int rc = close(_fd);
-  WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
-
-  // Unmap the trace file to make sure it's written out to disk
-  rc = munmap(_data, _length);
-  WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
-}
-
-// Allow move
-TraceReader::TraceReader(TraceReader&& other) noexcept :
-    _fd(other._fd),
-    _length(other._length),
-    _pos(other._pos),
-    _data(other._data),
-    _commands(std::move(other._commands)),
-    _next_command_id(other._next_command_id),
-    _versions(std::move(other._versions)),
-    _next_version_id(other._next_version_id),
-    _strings(std::move(other._strings)) {
-  other._fd = -1;
-  other._length = 0;
-  other._pos = 0;
-  other._data = nullptr;
-}
-
-TraceReader& TraceReader::operator=(TraceReader&& other) noexcept {
-  // Does this TraceReader already have an open file?
-  if (_fd != -1) {
-    // Close the trace file
-    int rc = close(_fd);
-    FAIL_IF(rc != 0) << "Failed to close trace: " << ERR;
-
-    // Unmap the trace file to make sure it's written out to disk
-    rc = munmap(_data, _length);
-    WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
-  }
-
-  // Adopt the other trace's state
-  _fd = other._fd;
-  other._fd = -1;
-
-  _length = other._length;
-  other._length = 0;
-
-  _pos = other._pos;
-  other._pos = 0;
-
-  _data = other._data;
-  other._data = nullptr;
-
-  _next_command_id = other._next_command_id;
-  _next_version_id = other._next_version_id;
-
-  _commands = std::move(other._commands);
-  _versions = std::move(other._versions);
-  _strings = std::move(other._strings);
-
-  return *this;
 }
 
 shared_ptr<Command> TraceReader::getRootCommand() const noexcept {
@@ -176,26 +269,48 @@ shared_ptr<Command> TraceReader::getRootCommand() const noexcept {
 
 /********** TraceWriter Constructor and Destructor **********/
 
-TraceWriter::TraceWriter(optional<string> path) noexcept : _id(getNextID()), _path(path) {
-  // Create a temporary file to hold the trace
-  // TODO: if a path was provided, get the containing directory name to make sure the trace is
-  // stored on the same device so it can be linked later
-  _fd = open(".", O_RDWR | O_TMPFILE, 0644);
-  FAIL_IF(_fd == -1) << "Failed to open temporary file: " << ERR;
-
-  // Extend the trace to 256MB. Eventually it needs to grow automatically
-  _length = 256 * 1024 * 1024;
-  int rc = ftruncate(_fd, _length);
-  FAIL_IF(rc != 0) << "Failed to extend file to 256MB: " << ERR;
-
-  // Map the file
-  _data = (uint8_t*)mmap(nullptr, _length, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0);
-  FAIL_IF(_data == MAP_FAILED) << "Failed to mmap file: " << ERR;
+TraceWriter::TraceWriter(optional<string> path) noexcept :
+    _id(getNextID()), _path(path), _file(TraceFile::create()) {
+  ASSERT(_file) << "Failed to create backing file for TraceWrite";
+  ASSERT(_file.pos == 0) << "File is not at the beginning";
 }
 
 TraceWriter::~TraceWriter() noexcept {
+  // If there is an active trace file, write an end record
+  if (_file) emitEnd();
+
+  // Link the file if necessary
+  link();
+}
+
+// Create a TraceReader to traverse this trace. Makes the writer unusable
+TraceReader TraceWriter::getReader() noexcept {
+  // Emit an end record to mark the end of the trace
+  emitEnd();
+
+  // Link the written trace if necessary
+  link();
+
+  // Create a trace reader
+  TraceReader result(std::move(_file));
+
+  // Transfer commands over to the reader
+  for (const auto& [c, id] : _commands) {
+    result.setCommand(id, c);
+  }
+
+  // Transfer content versions over to the reader
+  for (const auto& [v, id] : _versions) {
+    result.setVersion(id, v);
+  }
+
+  // Return the new reader
+  return result;
+}
+
+void TraceWriter::link() const noexcept {
   // Is there an open file? If not, just return
-  if (_fd == -1) return;
+  if (!_file) return;
 
   // Was a path provided?
   if (_path.has_value()) {
@@ -209,124 +324,19 @@ TraceWriter::~TraceWriter() noexcept {
         << "Failed to unlink old trace output file " << _path.value() << ": " << ERR;
 
     // Now link in the temporary file from the /proc filesystem
-    string fdpath = "/proc/self/fd/" + std::to_string(_fd);
+    string fdpath = "/proc/self/fd/" + std::to_string(_file.fd);
     rc = linkat(AT_FDCWD, fdpath.c_str(), AT_FDCWD, _path.value().c_str(), AT_SYMLINK_FOLLOW);
 
     // TODO: if linking fails, fall back on copying
     FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value();
   }
-
-  // Discard any unused capacity in the trace
-  int rc = ftruncate(_fd, _pos);
-  WARN_IF(rc != 0) << "Failed to truncate trace: " << ERR;
-
-  // Close the trace file
-  rc = close(_fd);
-  WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
-
-  // Unmap the trace file to make sure it's written out to disk
-  rc = munmap(_data, _length);
-  WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
-}
-
-// Allow move
-TraceWriter::TraceWriter(TraceWriter&& other) noexcept :
-    _id(other._id),
-    _path(std::move(other._path)),
-    _fd(other._fd),
-    _length(other._length),
-    _pos(other._pos),
-    _data(other._data),
-    _commands(std::move(other._commands)),
-    _versions(std::move(other._versions)),
-    _strtab(std::move(other._strtab)) {
-  other._fd = -1;
-  other._length = 0;
-  other._pos = 0;
-  other._data = nullptr;
-}
-
-TraceWriter& TraceWriter::operator=(TraceWriter&& other) noexcept {
-  // Does this trace writer have an open file?
-  if (_fd != -1) {
-    // Was a path provided?
-    if (_path.has_value()) {
-      // Yes. Link the trace onto the filesystem before it vanishes
-
-      // First make sure the output path doesn't exist
-      int rc = ::unlink(_path.value().c_str());
-
-      // The output file may not exist, but if the unlink failed for some other reason give up
-      FAIL_IF(rc != 0 && errno != ENOENT)
-          << "Failed to unlink old trace output file " << _path.value() << ": " << ERR;
-
-      // Now link in the temporary file from the /proc filesystem
-      string fdpath = "/proc/self/fd/" + std::to_string(_fd);
-      rc = linkat(AT_FDCWD, fdpath.c_str(), AT_FDCWD, _path.value().c_str(), AT_SYMLINK_FOLLOW);
-
-      // TODO: if linking fails, fall back on copying
-      FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value();
-    }
-
-    // Discard any unused capacity in the trace
-    int rc = ftruncate(_fd, _pos);
-    WARN_IF(rc != 0) << "Failed to truncate trace: " << ERR;
-
-    // Close the trace file
-    rc = close(_fd);
-    WARN_IF(rc != 0) << "Failed to close trace: " << ERR;
-
-    // Unmap the trace file to make sure it's written out to disk
-    rc = munmap(_data, _length);
-    WARN_IF(rc != 0) << "Failed to munmap trace: " << ERR;
-  }
-
-  _id = other._id;
-  _path = std::move(other._path);
-  _fd = other._fd;
-  other._fd = -1;
-  _length = other._length;
-  _pos = other._pos;
-  _data = other._data;
-  other._data = nullptr;
-  _commands = std::move(other._commands);
-  _versions = std::move(other._versions);
-  _strtab = std::move(other._strtab);
-
-  return *this;
-}
-
-// Create a TraceReader to traverse this trace. Makes the writer unusable
-TraceReader TraceWriter::getReader() noexcept {
-  // Create a trace reader
-  TraceReader result(_fd, _pos, _data);
-
-  // Transfer commands over to the reader
-  for (const auto& [c, id] : _commands) {
-    result.setCommand(id, c);
-  }
-
-  // Transfer content versions over to the reader
-  for (const auto& [v, id] : _versions) {
-    result.setVersion(id, v);
-  }
-
-  // Clear the local fields
-  _fd = -1;
-  _pos = 0;
-  _data = nullptr;
-  _length = 0;
-
-  // Return the new reader
-  return result;
 }
 
 /********** TraceReader Reading Methods **********/
 
 // Look at the type of the next record without advancing the current position
 RecordType TraceReader::peek() const noexcept {
-  RecordType* p = reinterpret_cast<RecordType*>(&_data[_pos]);
-  return *p;
+  return *reinterpret_cast<RecordType*>(_file.peek());
 }
 
 // Get a reference to a record in the input trace
@@ -338,28 +348,20 @@ const NewRecord<T>& TraceReader::takeRecord() noexcept {
 // Get reference to data in the trace of a requested type
 template <typename T>
 const T& TraceReader::takeValue() noexcept {
-  T* p = reinterpret_cast<T*>(&_data[_pos]);
-  _pos += sizeof(T);
-  return *p;
+  return *reinterpret_cast<T*>(_file.advance(sizeof(T), false));
 }
 
 // Get a reference to an array in the trace
 template <typename T>
 const T* TraceReader::takeArray(size_t count) noexcept {
-  T* p = reinterpret_cast<T*>(&_data[_pos]);
-  _pos += count * sizeof(T);
-  return p;
+  return reinterpret_cast<T*>(_file.advance(count * sizeof(T), false));
 }
 
 // Get a pointer to a string and advance the current position to the end of the string
 const char* TraceReader::takeString() noexcept {
-  const char* current = reinterpret_cast<const char*>(&_data[_pos]);
-  const char* result = current;
-  while (*current != '\0') {
-    current++;
-    _pos++;
-  }
-  _pos++;
+  const char* result = reinterpret_cast<const char*>(_file.peek());
+  size_t len = strlen(result);
+  _file.advance(len + 1, false);
   return result;
 }
 
@@ -369,25 +371,22 @@ const char* TraceReader::takeString() noexcept {
 template <RecordType T, typename... Args>
 void TraceWriter::emitRecord(Args... args) noexcept {
   using R = NewRecord<T>;
-  R* r = reinterpret_cast<R*>(&_data[_pos]);
+  R* r = reinterpret_cast<R*>(_file.advance(sizeof(R), true));
   *r = R{T, args...};
-  _pos += sizeof(R);
 }
 
 // Write a value to the trace
 template <typename T, typename... Args>
 void TraceWriter::emitValue(Args... args) noexcept {
-  T* p = reinterpret_cast<T*>(&_data[_pos]);
+  T* p = reinterpret_cast<T*>(_file.advance(sizeof(T), true));
   *p = T{args...};
-  _pos += sizeof(T);
 }
 
 // Emit an array to the trace
 template <typename T>
 void TraceWriter::emitArray(T* src, size_t count) noexcept {
-  void* dest = &_data[_pos];
+  void* dest = _file.advance(sizeof(T) * count, true);
   memcpy(dest, src, sizeof(T) * count);
-  _pos += sizeof(T) * count;
 }
 
 /********** Instance ID Methods **********/
@@ -566,6 +565,7 @@ struct NewRecord<RecordType::Start> {
 // Read a Start record from the input trace
 template <>
 void TraceReader::handleRecord<RecordType::Start>(IRSink& sink) noexcept {
+  ASSERT(_file.pos == 6) << "Reading a start record at a weird place (" << _file.pos << ")";
   const auto& data = takeRecord<RecordType::Start>();
   sink.start(getCommand(data.root_command));
 }
@@ -1188,6 +1188,25 @@ void TraceWriter::emitNewStrtab() noexcept {
   _strtab.clear();
 }
 
+/********** End Record **********/
+template <>
+struct NewRecord<RecordType::End> {
+  RecordType type;
+} __attribute__((packed));
+
+// Read an end record from the input trace
+template <>
+void TraceReader::handleRecord<RecordType::End>(IRSink& sink) noexcept {
+  takeRecord<RecordType::End>();
+  // The reader is finished
+  _done = true;
+}
+
+// Write an end record to the output trace
+void TraceWriter::emitEnd() noexcept {
+  emitRecord<RecordType::End>();
+}
+
 /********** FileVersion Record **********/
 
 template <>
@@ -1472,6 +1491,10 @@ void TraceReader::sendTo(IRSink& sink) noexcept {
 
       case RecordType::NewStrtab:
         handleRecord<RecordType::NewStrtab>(sink);
+        break;
+
+      case RecordType::End:
+        handleRecord<RecordType::End>(sink);
         break;
 
       case RecordType::FileVersion:

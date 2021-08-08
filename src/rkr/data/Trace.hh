@@ -28,6 +28,46 @@ struct NewRecord;
 using StringID = uint16_t;
 using PathID = StringID;
 
+struct TraceFile {
+  int fd = -1;              //< The file descriptor for the open file
+  size_t length = 0;        //< The total size of the mapped file
+  size_t pos = 0;           //< The current position in the mapped file
+  uint8_t* data = nullptr;  //< A pointer to the beginning of the mapped file
+
+  /// Open a trace file at a given path for reading
+  static TraceFile open(std::string path) noexcept;
+
+  /// Create an anonymous trace file for writing
+  static TraceFile create() noexcept;
+
+  /// Default constructor
+  TraceFile() noexcept = default;
+
+  /// Destructor
+  ~TraceFile() noexcept;
+
+  // Disallow copying
+  TraceFile(const TraceFile&) = delete;
+  TraceFile& operator=(const TraceFile&) = delete;
+
+  // Allow move
+  TraceFile(TraceFile&& other) noexcept;
+  TraceFile& operator=(TraceFile&& other) noexcept;
+
+  /// Check if a trace file is usable (e.g. it was opened successfully)
+  operator bool() const noexcept;
+
+  /// Grab a pointer into the trace data without advancing the position
+  void* peek() const noexcept;
+
+  /// Grab a pointer into the trace data and advance the position by a requested size
+  void* advance(size_t bytes, bool grow) noexcept;
+
+ private:
+  /// Clean up state from this trace file by unmapping, closing, etc.
+  void destroy() noexcept;
+};
+
 class TraceReader {
  public:
   /// Create a new TraceReader to load from a provided path
@@ -36,16 +76,13 @@ class TraceReader {
   /// Create an empty TraceReader
   TraceReader() noexcept;
 
-  /// Destroy a TraceReader
-  ~TraceReader() noexcept;
-
   // Disallow copy
   TraceReader(const TraceReader&) = delete;
   TraceReader& operator=(const TraceReader&) = delete;
 
   // Allow move
-  TraceReader(TraceReader&&) noexcept;
-  TraceReader& operator=(TraceReader&&) noexcept;
+  TraceReader(TraceReader&&) noexcept = default;
+  TraceReader& operator=(TraceReader&&) noexcept = default;
 
   /// Send a loaded trace to an IRSink
   void sendTo(IRSink& sink) noexcept;
@@ -60,11 +97,11 @@ class TraceReader {
   // Allow TraceWriter to call the constructor below
   friend class TraceWriter;
 
-  /// Create a trace reader from an already open trace
-  TraceReader(int fd, size_t length, uint8_t* data) noexcept;
+  /// Create a trace reader from an already open trace file
+  TraceReader(TraceFile&& file) noexcept;
 
   /// Check if we've hit the end of the trace
-  bool done() const noexcept { return _pos >= _length; }
+  bool done() const noexcept { return _done; }
 
   /// Peek at the type of the next record
   RecordType peek() const noexcept;
@@ -110,10 +147,11 @@ class TraceReader {
   void addVersion(std::shared_ptr<ContentVersion> v) noexcept;
 
  private:
-  int _fd = -1;              //< File descriptor for the backing file used to hold this trace
-  size_t _length = 0;        //< The total size of the output trace
-  size_t _pos = 0;           //< The current position in the output trace
-  uint8_t* _data = nullptr;  //< A pointer to the beginning of the output trace mapping
+  /// The trace file mapped for this TraceReader
+  TraceFile _file;
+
+  /// When true, the reader has reached the end of the trace
+  bool _done = false;
 
   /// The table of commands indexed by ID
   std::vector<std::shared_ptr<Command>> _commands;
@@ -145,8 +183,8 @@ class TraceWriter : public IRSink {
   TraceWriter& operator=(const TraceWriter&) = delete;
 
   // Allow move
-  TraceWriter(TraceWriter&&) noexcept;
-  TraceWriter& operator=(TraceWriter&&) noexcept;
+  TraceWriter(TraceWriter&&) noexcept = default;
+  TraceWriter& operator=(TraceWriter&&) noexcept = default;
 
   /// Create a TraceReader to traverse this trace. Makes the writer unusable
   TraceReader getReader() noexcept;
@@ -300,8 +338,11 @@ class TraceWriter : public IRSink {
   /// Emit a string record to the trace
   void emitString(const std::string& str) noexcept;
 
-  /// Emit a new string table record to teh trace
+  /// Emit a new string table record to the trace
   void emitNewStrtab() noexcept;
+
+  /// Emit an end record to the trace
+  void emitEnd() noexcept;
 
   /// Make sure there is space for at least n strings in the current string table. If there isn't
   /// room in the current string table this will start a new one.
@@ -320,6 +361,9 @@ class TraceWriter : public IRSink {
   /// Get the next ID for a TraceWriter
   static size_t getNextID() noexcept { return _next_id++; }
 
+  /// Link the trace file to the requested path
+  void link() const noexcept;
+
  private:
   /// The next unique identifier for a trace writer
   inline static size_t _next_id = 777;
@@ -330,10 +374,8 @@ class TraceWriter : public IRSink {
   /// The filename where this trace should be saved, or nullopt if the trace is not saved
   std::optional<std::string> _path = std::nullopt;
 
-  int _fd = -1;              //< File descriptor for the backing file used to hold this trace
-  size_t _length = 0;        //< The total size of the output trace
-  size_t _pos = 0;           //< The current position in the output trace
-  uint8_t* _data = nullptr;  //< A pointer to the beginning of the output trace mapping
+  /// The file that holds data for this TraceWriter
+  TraceFile _file;
 
   /// The map from commands to their IDs in the output trace
   std::map<std::shared_ptr<Command>, Command::ID> _commands;
