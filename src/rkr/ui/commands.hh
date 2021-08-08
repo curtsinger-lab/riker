@@ -24,5 +24,3 @@ void do_graph(std::vector<std::string> args,
               bool no_render) noexcept;
 
 void do_stats(std::vector<std::string> args, bool list_artifacts) noexcept;
-
-void do_bench(std::vector<std::string> args) noexcept;
