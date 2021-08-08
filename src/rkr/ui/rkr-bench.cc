@@ -7,8 +7,6 @@
 #include <sys/mman.h>
 
 #include "artifacts/Artifact.hh"
-#include "data/InputTrace.hh"
-#include "data/OutputTrace.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "data/Trace.hh"
 #include "runtime/Build.hh"
@@ -31,7 +29,7 @@ using std::vector;
  */
 void do_bench(std::vector<std::string> args) noexcept {
   // Load the serialized build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  auto trace = TraceReader::load(constants::DatabaseFilename);
   FAIL_IF(!trace) << "No trace to load. Run a build first.";
 
   TraceWriter buffer;

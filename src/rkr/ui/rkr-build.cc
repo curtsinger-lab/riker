@@ -7,9 +7,6 @@
 
 #include "data/DefaultTrace.hh"
 #include "data/EmulateOnly.hh"
-#include "data/IRBuffer.hh"
-#include "data/InputTrace.hh"
-#include "data/OutputTrace.hh"
 #include "data/PostBuildChecker.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "data/Trace.hh"

@@ -318,8 +318,14 @@ class TraceWriter : public IRSink {
   /// Get the ID of a path, possibly writing it to the output if it is new
   PathID getPathID(const fs::path& path) noexcept;
 
+  /// Get the next ID for a TraceWriter
+  static size_t getNextID() noexcept { return _next_id++; }
+
  private:
-  /// A unique identifier for this output trace
+  /// The next unique identifier for a trace writer
+  inline static size_t _next_id = 777;
+
+  /// A unique identifier for this trace writer
   size_t _id;
 
   /// The filename where this trace should be saved, or nullopt if the trace is not saved

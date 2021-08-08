@@ -10,6 +10,7 @@
 #include "data/OutputTrace.hh"
 #include "data/PostBuildChecker.hh"
 #include "data/ReadWriteCombiner.hh"
+#include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
 #include "ui/commands.hh"
@@ -43,8 +44,8 @@ void do_audit(vector<string> args, string command_output) noexcept {
   DefaultTrace input(args);
   auto root_cmd = input.getRootCommand();
 
-  // Set up an IRBuffer to hold the output
-  IRBuffer output;
+  // Set up an anonymous trace writer to hold the output
+  TraceWriter output;
 
   // Run the trace and send the new trace to output
   Build phase1(output, (print_to ? *print_to : std::cout));
@@ -55,5 +56,5 @@ void do_audit(vector<string> args, string command_output) noexcept {
 
   // Now run the actual build. The run depends on whether we're printing to cout or a file
   Build phase2(print_to ? *print_to : std::cout);
-  output.sendTo(phase2);
+  output.getReader().sendTo(phase2);
 }

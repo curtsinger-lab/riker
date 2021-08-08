@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "artifacts/Artifact.hh"
-#include "data/InputTrace.hh"
+#include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "runtime/env.hh"
 #include "ui/commands.hh"
@@ -33,8 +33,8 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   reset_stats();
 
   // Load the serialized build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
-  FAIL_IF(!trace) << "No trace was loaded. Run a build first.";
+  auto trace = TraceReader::load(constants::DatabaseFilename);
+  FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
 
   // Emulate the trace
   trace->sendTo(Build());

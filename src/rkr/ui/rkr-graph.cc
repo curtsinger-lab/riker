@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include "data/InputTrace.hh"
+#include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "ui/commands.hh"
 #include "util/Graph.hh"
@@ -43,8 +44,8 @@ void do_graph(vector<string> args,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
-  FAIL_IF(!trace) << "No trace was loaded. Run a build first.";
+  auto trace = TraceReader::load(constants::DatabaseFilename);
+  FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
   auto root_cmd = trace->getRootCommand();
 
   // Emulate the build

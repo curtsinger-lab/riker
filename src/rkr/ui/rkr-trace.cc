@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "data/InputTrace.hh"
+#include "data/Trace.hh"
 #include "ui/commands.hh"
 #include "util/TracePrinter.hh"
 #include "util/constants.hh"
@@ -18,8 +18,8 @@ using std::vector;
  * \param output    The name of the output file, or "-" for stdout
  */
 void do_trace(vector<string> args, string output) noexcept {
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
-  FAIL_IF(!trace) << "No trace available. Run a build first.";
+  auto trace = TraceReader::load(constants::DatabaseFilename);
+  FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
 
   // Are we printing to stdout or a file?
   if (output == "-") {

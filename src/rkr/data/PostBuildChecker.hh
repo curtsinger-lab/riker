@@ -3,9 +3,9 @@
 #include "artifacts/Artifact.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
+#include "versions/ContentVersion.hh"
 
 class MetadataVersion;
-class ContentVersion;
 
 /**
  * This class processes a build trace that has already been completed, and adds new predicates to

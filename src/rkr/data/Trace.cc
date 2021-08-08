@@ -172,7 +172,7 @@ shared_ptr<Command> TraceReader::getRootCommand() const noexcept {
 
 /********** TraceWriter Constructor and Destructor **********/
 
-TraceWriter::TraceWriter(optional<string> path) noexcept : _id(IRBuffer::getNextID()), _path(path) {
+TraceWriter::TraceWriter(optional<string> path) noexcept : _id(getNextID()), _path(path) {
   // Create a temporary file to hold the trace
   // TODO: if a path was provided, get the containing directory name to make sure the trace is
   // stored on the same device so it can be linked later

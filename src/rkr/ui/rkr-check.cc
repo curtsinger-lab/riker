@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-#include "data/InputTrace.hh"
+#include "data/Trace.hh"
 #include "runtime/Build.hh"
 #include "ui/commands.hh"
 #include "util/constants.hh"
@@ -18,8 +18,8 @@ using std::vector;
  */
 void do_check(vector<string> args) noexcept {
   // Load the build trace
-  auto trace = InputTrace::load(constants::DatabaseFilename, args);
-  FAIL_IF(!trace) << "No trace to load. You need to run a build to produce a graph.";
+  auto trace = TraceReader::load(constants::DatabaseFilename);
+  FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
   auto root_cmd = trace->getRootCommand();
 
   // Emulate the loaded trace
