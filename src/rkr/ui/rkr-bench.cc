@@ -31,14 +31,17 @@ using std::vector;
  */
 void do_bench(std::vector<std::string> args) noexcept {
   // Load the serialized build trace
-  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
+  // auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
 
   // Emulate the trace
   // trace->sendTo(IRSink());
   // trace->sendTo(TraceWriter());
-  trace->sendTo(TraceWriter("newdb"));
+  // trace->sendTo(TraceWriter("newdb"));
   // trace->sendTo(OutputTrace("olddb"));
 
-  auto reader = TraceReader("newdb");
-  reader.sendTo(TracePrinter(std::cout));
+  // auto reader = TraceReader("newdb");
+  // reader.sendTo(TracePrinter(std::cout));
+
+  // auto reader = TraceReader("newdb");
+  // reader.sendTo(TraceWriter("newnewdb"));
 }

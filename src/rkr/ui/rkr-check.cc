@@ -17,11 +17,14 @@ using std::vector;
  * Run the `check` subcommand
  */
 void do_check(vector<string> args) noexcept {
-  // Load a build, or set up a default build if necessary
-  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
+  // Load the build trace
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  FAIL_IF(!trace) << "No trace to load. You need to run a build to produce a graph.";
+  auto root_cmd = trace->getRootCommand();
 
   // Emulate the loaded trace
-  trace->sendTo(Build());
+  Build eval;
+  trace->sendTo(eval);
 
   // Plan the next build
   root_cmd->planBuild();

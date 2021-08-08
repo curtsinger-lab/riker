@@ -33,7 +33,8 @@ void do_stats(vector<string> args, bool list_artifacts) noexcept {
   reset_stats();
 
   // Load the serialized build trace
-  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  FAIL_IF(!trace) << "No trace was loaded. Run a build first.";
 
   // Emulate the trace
   trace->sendTo(Build());

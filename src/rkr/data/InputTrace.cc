@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,8 @@
 using std::make_shared;
 using std::make_unique;
 using std::map;
+using std::nullopt;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::tuple;
@@ -43,17 +46,14 @@ InputTrace::InputTrace(string filename, vector<string> args) :
   IRLoader::addCommand(0, make_shared<Command>());
 }
 
-tuple<shared_ptr<Command>, unique_ptr<IRSource>> InputTrace::load(string filename,
-                                                                  vector<string> args) noexcept {
+unique_ptr<InputTrace> InputTrace::load(string filename, vector<string> args) noexcept {
   try {
     // Try to create an input trace and return it
-    unique_ptr<InputTrace> trace(new InputTrace(filename, args));
-    return {trace->getRootCommand(), std::move(trace)};
+    return unique_ptr<InputTrace>(new InputTrace(filename, args));
 
   } catch (cereal::Exception& e) {
-    // If there is an exception when loading the trace, revert to a default trace
-    auto trace = make_unique<DefaultTrace>(args);
-    return {trace->getRootCommand(), std::move(trace)};
+    // If there is an exception when loading the trace the load fails
+    return nullptr;
   }
 }
 

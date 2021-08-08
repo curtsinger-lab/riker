@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "data/DefaultTrace.hh"
 #include "data/EmulateOnly.hh"
 #include "data/IRBuffer.hh"
 #include "data/InputTrace.hh"
@@ -25,6 +26,7 @@ using std::make_unique;
 using std::ofstream;
 using std::optional;
 using std::ostream;
+using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -53,18 +55,55 @@ void do_build(vector<string> args,
   // Reset the statistics counters
   reset_stats();
 
-  // Load the input trace from the database (or use a default if no trace exists)
-  // This returns a root command and IRSource
-  auto [root_cmd, input] = InputTrace::load(constants::DatabaseFilename, args);
-
-  // Output from this phase goes directly to an IRBuffer
+  // The output from the first phase will go to an IRBuffer
   auto output = make_unique<IRBuffer>();
 
-  // Count build iterations
-  size_t iteration = 0;
+  // Keep track of the root command
+  shared_ptr<Command> root_cmd;
 
-  // Start the build loop
-  do {
+  LOG(phase) << "Starting build phase 0";
+
+  // Is there a trace to load?
+  if (auto loaded = InputTrace::load(constants::DatabaseFilename, args); loaded) {
+    // Yes. Remember the root command
+    root_cmd = loaded->getRootCommand();
+
+    // Evaluate the loaded trace
+    Build eval(*output, print_to ? *print_to : std::cout);
+    loaded->sendTo(eval);
+
+  } else {
+    // No trace was loaded. Set up a default trace
+    DefaultTrace def(args);
+
+    // Remember the root command
+    root_cmd = def.getRootCommand();
+
+    // Evaluate the default trace
+    Build eval(*output, print_to ? *print_to : std::cout);
+    def.sendTo(eval);
+  }
+
+  // Plan the next phase of the build
+  root_cmd->planBuild();
+
+  LOG(phase) << "Finished build phase 0";
+
+  // Write stats out to CSV & reset counters
+  gather_stats(stats_log_path, stats, 0);
+  reset_stats();
+
+  // Keep track of the build phase
+  size_t iteration = 1;
+
+  // Loop as long as there are commands left to run
+  while (!root_cmd->allFinished()) {
+    // The output from the previous phase becomes the new input
+    auto input = std::move(output);
+
+    // Prepare a new output buffer with read/write combining
+    output = make_unique<ReadWriteCombiner<IRBuffer>>();
+
     // Revert the environment to committed state
     env::rollback();
 
@@ -80,21 +119,13 @@ void do_build(vector<string> args,
 
     LOGF(phase, "Finished build phase {}", iteration);
 
-    // The output becomes the new input
-    input = std::move(output);
-
-    // Prepare a new output buffer with read/write combining
-    output = make_unique<ReadWriteCombiner<IRBuffer>>();
-
     // Write stats out to CSV & reset counters
     gather_stats(stats_log_path, stats, iteration);
     reset_stats();
 
     // Increment the iteration
     iteration++;
-
-    // Keep looping as long as there are commands to run
-  } while (!root_cmd->allFinished());
+  }
 
   // Commit anything left in the environment
   LOG(phase) << "Committing environment changes";
@@ -105,14 +136,14 @@ void do_build(vector<string> args,
     LOG(phase) << "Starting post-build checks";
 
     // Run the post-build checks and send the resulting trace directly to output
-    PostBuildChecker<OutputTrace> output(constants::DatabaseFilename);
+    PostBuildChecker<OutputTrace> post(constants::DatabaseFilename);
 
     // Reset the environment
     env::rollback();
 
-    // Run the build
-    Build build(output, print_to ? *print_to : std::cout);
-    input->sendTo(build);
+    // Evaluate the trace in the output buffer from the last phase
+    Build build(post, print_to ? *print_to : std::cout);
+    output->sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
   }

@@ -43,7 +43,9 @@ void do_graph(vector<string> args,
   if (output.find('.') == string::npos) output += "." + type;
 
   // Load the build trace
-  auto [root_cmd, trace] = InputTrace::load(constants::DatabaseFilename, args);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  FAIL_IF(!trace) << "No trace was loaded. Run a build first.";
+  auto root_cmd = trace->getRootCommand();
 
   // Emulate the build
   trace->sendTo(Build());

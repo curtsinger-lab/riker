@@ -18,7 +18,8 @@ using std::vector;
  * \param output    The name of the output file, or "-" for stdout
  */
 void do_trace(vector<string> args, string output) noexcept {
-  auto [_, trace] = InputTrace::load(constants::DatabaseFilename, args);
+  auto trace = InputTrace::load(constants::DatabaseFilename, args);
+  FAIL_IF(!trace) << "No trace available. Run a build first.";
 
   // Are we printing to stdout or a file?
   if (output == "-") {

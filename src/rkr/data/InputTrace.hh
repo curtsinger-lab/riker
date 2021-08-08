@@ -27,13 +27,12 @@ class InputTrace : public IRSource, public IRLoader {
 
  public:
   /**
-   * Load an IR trace from disk, or create a default trace if no previous trace exists.
+   * Try to load an input trace.
    *
-   * \returns a tuple of the root command from the loaded trace and the IRSource
+   * \returns a the loaded trace, or nullptr if one was not available
    */
-  static std::tuple<std::shared_ptr<Command>, std::unique_ptr<IRSource>> load(
-      std::string filename,
-      std::vector<std::string> args = {}) noexcept;
+  static std::unique_ptr<InputTrace> load(std::string filename,
+                                          std::vector<std::string> args = {}) noexcept;
 
   // Disallow copy
   InputTrace(const InputTrace&) = delete;
@@ -41,6 +40,9 @@ class InputTrace : public IRSource, public IRLoader {
 
   /// Send the loaded trace to a trace handler
   virtual void sendTo(IRSink& handler) noexcept override;
+
+  /// Accept r-value reference to a trace handler
+  void sendTo(IRSink&& handler) noexcept { return sendTo(handler); }
 
   /// Get the root command for this trace
   std::shared_ptr<Command> getRootCommand() const noexcept { return IRLoader::getCommand(0); }
