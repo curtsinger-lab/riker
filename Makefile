@@ -7,7 +7,7 @@ BLAKE3 := deps/BLAKE3/c
 
 # Flags shared by both debug and release builds
 COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3)
-COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include
+COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/CLI11/include
 COMMON_LDFLAGS := -lstdc++fs -lfmt
 
 # Debug settings
