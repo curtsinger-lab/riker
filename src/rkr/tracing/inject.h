@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/user.h>
 
 // The page that must contain code to issue untraced system calls
@@ -17,7 +18,7 @@
 #define TRACING_CHANNEL_BUFFER_SIZE 4096
 
 // A special pointer value that indicates the tracing channel buffer should be used
-#define TRACING_CHANNEL_BUFFER_PTR -77
+#define TRACING_CHANNEL_BUFFER_PTR 0x7777777700000000
 
 // Register meanings on syscall entry
 #define INSTRUCTION_POINTER rip
@@ -62,7 +63,8 @@ typedef struct tracing_channel {
   struct user_regs_struct regs;
   bool stop_on_exit;
   bool exit_instead;
-  long return_value;
+  int64_t return_value;
+  size_t buffer_pos;
   char buffer[TRACING_CHANNEL_BUFFER_SIZE];
 } tracing_channel_t;
 

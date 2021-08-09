@@ -59,15 +59,6 @@ typedef struct jump {
 typedef int (*main_t)(int, char**, char**);
 typedef int (*start_main_t)(main_t, int, char**, void (*)(), void (*)(), void (*)(), void*);
 
-// The program's real main function
-main_t real_main;
-
-// The replacement main function that runs before the program's actual main
-int wrapped_main(int argc, char** argv, char** envp) {
-  rkr_inject_init();
-  return real_main(argc, argv, envp);
-}
-
 // Interpose on __libc_start_main, and send calls to wrapped_libc_start_main
 int __libc_start_main(main_t, int, char**, void (*)(), void (*)(), void (*)(), void*)
     __attribute__((weak, alias("wrapped_libc_start_main")));
@@ -80,10 +71,10 @@ int wrapped_libc_start_main(main_t main_fn,
                             void (*fini)(),
                             void (*rtld_fini)(),
                             void* stack_end) {
+  rkr_inject_init();
   // Call the real libc_start_main, but pass in the wrapped main function
   start_main_t real_libc_start_main = dlsym(RTLD_NEXT, "__libc_start_main");
-  real_main = main_fn;
-  return real_libc_start_main(wrapped_main, argc, argv, init, fini, rtld_fini, stack_end);
+  return real_libc_start_main(main_fn, argc, argv, init, fini, rtld_fini, stack_end);
 }
 
 // Detour a function in libc to a given function address
@@ -181,6 +172,7 @@ size_t channel_acquire() {
   static __thread size_t i = 0;
 
   // Loop until we find a channel to claim
+  size_t count = 0;
   while (true) {
     uint8_t expected = CHANNEL_STATE_AVAILABLE;
     if (__atomic_compare_exchange_n(&shmem->channels[i].state, &expected, CHANNEL_STATE_ACQUIRED,
@@ -191,6 +183,8 @@ size_t channel_acquire() {
 
     i++;
     if (i >= TRACING_CHANNEL_COUNT) i = 0;
+
+    if (++count % 2048 == 0) sched_yield();
   }
 }
 
@@ -225,9 +219,10 @@ bool channel_enter(size_t c,
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_ENTRY_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
+  size_t count = 0;
   while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
          CHANNEL_STATE_ENTRY_PROCEED) {
-    sched_yield();
+    if (count++ % 2048 == 0) sched_yield();
   }
 
   // Was the tracee asked to exit instead of proceeding?
@@ -253,41 +248,73 @@ void channel_exit(size_t c, long syscall_nr, long rc) {
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_EXIT_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
+  size_t count = 0;
   while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
          CHANNEL_STATE_EXIT_PROCEED) {
-    sched_yield();
+    if (count++ % 2048 == 0) sched_yield();
   }
 }
 
 uint64_t channel_buffer_string(size_t c, const char* str) {
-  // Will the string fit in the channel's data buffer?
-  if (str != NULL && strlen(str) < TRACING_CHANNEL_BUFFER_SIZE) {
-    // Yes. Copy the string into the buffer
-    strcpy(shmem->channels[c].buffer, str);
-    return TRACING_CHANNEL_BUFFER_PTR;
+  // If the string is null just return null
+  if (str == NULL) return (uint64_t)NULL;
 
-  } else {
-    // No. Just return the pointer as-is but cast to a uint64_t
-    return (uint64_t)str;
+  // Get the size of the string (including the null terminator)
+  size_t size = strlen(str) + 1;
+
+  // Get the current position in the buffer
+  size_t pos = shmem->channels[c].buffer_pos;
+
+  // Will the string fit in the buffer?
+  if (pos + size <= TRACING_CHANNEL_BUFFER_SIZE) {
+    // Yes. Copy the string into the buffer
+    void* dest = shmem->channels[c].buffer + pos;
+    memcpy(dest, str, size);
+
+    // Move the buffer position forward
+    shmem->channels[c].buffer_pos += size;
+
+    // Return the special tracing channel buffer pointer
+    return TRACING_CHANNEL_BUFFER_PTR + pos;
   }
+
+  // The string won't fit. Just return the pointer as-is but cast to a uint64_t
+  return (uint64_t)str;
 }
 
 uint64_t channel_buffer_argv(size_t c, char* const* argv) {
+  if (argv == NULL) return (uint64_t)NULL;
+
+  // How many values are in the argv array?
   int count = 0;
   while (argv[count] != NULL) {
     count++;
   }
 
-  // Will the argv array fit in the buffer?
-  if ((count + 1) * sizeof(char*) <= TRACING_CHANNEL_BUFFER_SIZE) {
-    // Yes. Copy it and return the special pointer value
-    memcpy(shmem->channels[c].buffer, argv, (count + 1) * sizeof(char*));
-    return TRACING_CHANNEL_BUFFER_PTR;
+  // Calculate the size of the argv array including the NULL terminator
+  size_t size = sizeof(char* const*) * (count + 1);
 
-  } else {
-    // No. Just return the existing pointer.
-    return (uint64_t)argv;
+  // Get the current position int he buffer
+  size_t pos = shmem->channels[c].buffer_pos;
+
+  // Will the array fit in the buffer?
+  if (pos + size <= TRACING_CHANNEL_BUFFER_SIZE) {
+    // Yes. Copy the array into the buffer
+    void* dest = shmem->channels[c].buffer + pos;
+    memcpy(dest, argv, size);
+
+    // Move the buffer position forward
+    shmem->channels[c].buffer_pos += size;
+
+    // Now try to move some strings into the buffer
+    uint64_t* buffered_argv = (uint64_t*)dest;
+    for (size_t i = 0; i < count; i++) {
+      buffered_argv[i] = channel_buffer_string(c, argv[i]);
+    }
   }
+
+  // The array won't fit. Just return the existing pointer.
+  return (uint64_t)argv;
 }
 
 int fast_open(const char* pathname, int flags, mode_t mode) {
@@ -570,7 +597,10 @@ int fast_access(const char* pathname, int mode) {
 
   if (!stop_on_exit) channel_release(c);
 
-  int rc = safe_syscall(__NR_access, pathname, mode);
+  // Use the return value from the tracer instead of issuing a syscall.
+  // TODO: This needs a safer, more consistent interface, but it does help performance.
+  int rc = shmem->channels[c].return_value;
+  // int rc = safe_syscall(__NR_access, pathname, mode);
 
   if (stop_on_exit) {
     // Inform the tracer that this command is exiting a library call
@@ -628,13 +658,15 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
 
   long rc = safe_syscall(__NR_pread64, fd, buf, count, offset);
 
-  c = channel_acquire();
+  if (stop_on_exit) {
+    c = channel_acquire();
 
-  // Inform the tracer that this command is exiting a library call
-  if (stop_on_exit) channel_exit(c, __NR_pread64, rc);
+    // Inform the tracer that this command is exiting a library call
+    channel_exit(c, __NR_pread64, rc);
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -655,13 +687,15 @@ long fast_write(int fd, const void* data, size_t count) {
 
   long rc = safe_syscall(__NR_write, fd, data, count);
 
-  c = channel_acquire();
-
   // Inform the tracer that this command is exiting a library call
-  if (stop_on_exit) channel_exit(c, __NR_write, rc);
+  if (stop_on_exit) {
+    c = channel_acquire();
 
-  // Release the channel for use by another library call
-  channel_release(c);
+    channel_exit(c, __NR_write, rc);
+
+    // Release the channel for use by another library call
+    channel_release(c);
+  }
 
   if (rc < 0) {
     errno = -rc;
@@ -675,12 +709,15 @@ int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   // Find an available channel
   size_t c = channel_acquire();
 
+  // Try to pass the pathname string in the channel's data buffer
+  uint64_t pathname_arg = channel_buffer_string(c, pathname);
+
   // Try to pass the argv array in the channel's data buffer
   uint64_t argv_arg = channel_buffer_argv(c, argv);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit =
-      channel_enter(c, __NR_execve, (uint64_t)pathname, argv_arg, (uint64_t)envp, 0, 0, 0);
+      channel_enter(c, __NR_execve, pathname_arg, argv_arg, (uint64_t)envp, 0, 0, 0);
 
   channel_release(c);
 

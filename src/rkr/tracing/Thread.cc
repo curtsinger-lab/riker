@@ -149,6 +149,11 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
   FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
 }
 
+void Thread::setSyscallResult(int64_t result) noexcept {
+  // If there is a tracing channel, use it to set the syscall result
+  if (_channel != -1) Tracer::setSyscallResult(_channel, result);
+}
+
 void Thread::resume() noexcept {
   // Is this thread blocked on the shared memory channel?
   if (_channel >= 0) {
@@ -201,11 +206,6 @@ unsigned long Thread::getEventMessage() noexcept {
 }
 
 string Thread::readString(uintptr_t tracee_pointer) noexcept {
-  // If the pointer is a pointer into the shared memory tracing channel buffer, use that
-  if (tracee_pointer == TRACING_CHANNEL_BUFFER_PTR) {
-    return std::string((const char*)Tracer::channelGetBuffer(_channel));
-  }
-
   // Strings are just char arrays terminated by '\0'
   auto data = readTerminatedArray<char, '\0'>(tracee_pointer);
 
@@ -245,6 +245,19 @@ template <typename T, T Terminator, size_t BatchSize>
 vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
   // If the pointer is null, return an empty array
   if (tracee_pointer == 0) return vector<T>();
+
+  // Is the tracee pointer in the share memory channel buffer?
+  if (tracee_pointer >= TRACING_CHANNEL_BUFFER_PTR &&
+      tracee_pointer < TRACING_CHANNEL_BUFFER_PTR + TRACING_CHANNEL_BUFFER_SIZE) {
+    uintptr_t buffer_base = reinterpret_cast<uintptr_t>(Tracer::channelGetBuffer(_channel));
+    T* start = reinterpret_cast<T*>(tracee_pointer - TRACING_CHANNEL_BUFFER_PTR + buffer_base);
+    T* end = start;
+    while (*end != Terminator) {
+      end++;
+    }
+
+    return vector<T>(start, end);
+  }
 
   // We will read BatchSize values at a time into this buffer
   T buffer[BatchSize];
@@ -293,16 +306,6 @@ vector<T> Thread::readTerminatedArray(uintptr_t tracee_pointer) noexcept {
 }
 
 vector<string> Thread::readArgvArray(uintptr_t tracee_pointer) noexcept {
-  // Is this a pointer into the shared memory tracing channel's buffer?
-  if (tracee_pointer == TRACING_CHANNEL_BUFFER_PTR) {
-    uintptr_t* src = (uintptr_t*)Tracer::channelGetBuffer(_channel);
-    std::vector<std::string> result;
-    while (src[result.size()] != 0) {
-      result.push_back(readString(src[result.size()]));
-    }
-    return result;
-  }
-
   auto arg_pointers = readTerminatedArray<uintptr_t, 0>(tracee_pointer);
 
   vector<string> args;
@@ -584,23 +587,16 @@ void Thread::_faccessat(Build& build,
   LOGF(trace, "{}: faccessat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname, mode,
        flags);
 
-  // Finish the syscall so we can see its result
-  finishSyscall([=](Build& build, long rc) {
-    // Resume the process' execution
-    resume();
+  // Create a reference
+  auto ref_id = makePathRef(build, pathname, AccessFlags::fromAccess(mode, flags), dirfd);
+  auto ref = getCommand()->getRef(ref_id);
+  build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
-    // Create a reference
-    auto ref = makePathRef(build, pathname, AccessFlags::fromAccess(mode, flags), dirfd);
+  // Try to set the system call result (currently only works for shared memory tracing)
+  setSyscallResult(-ref->getResultCode());
 
-    // Record the outcome of the reference
-    build.expectResult(getCommand(), Scenario::Build, ref, -rc);
-
-    if (rc == 0) {
-      if (!getCommand()->getRef(ref)->isResolved()) WARN << "Failed to resolve reference " << ref;
-      // Don't abort here because the riker self-build accesses /proc/self.
-      // We need to fix these references for real at some point.
-    }
-  });
+  // Resume the thread
+  resume();
 }
 
 void Thread::_fstatat(Build& build,

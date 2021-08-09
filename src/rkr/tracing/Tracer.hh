@@ -73,6 +73,9 @@ class Tracer {
   /// Get the result of the system call being traced through a shared memory channel
   static long getSyscallResult(ssize_t channel) noexcept;
 
+  /// Set the result of the system call being traced through a shared memory channel
+  static long setSyscallResult(ssize_t channel, int64_t result) noexcept;
+
   /// Allow a tracee blocked on a shared memory channel to proceed
   static void channelProceed(ssize_t channel, bool stop_on_exit) noexcept;
 

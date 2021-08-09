@@ -75,6 +75,9 @@ class Thread {
   /// Change the register state for this thread
   void setRegisters(user_regs_struct& regs) noexcept;
 
+  /// Set the result of a system call
+  void setSyscallResult(int64_t result) noexcept;
+
   /// Read a string from this thread's memory
   std::string readString(uintptr_t tracee_pointer) noexcept;
 

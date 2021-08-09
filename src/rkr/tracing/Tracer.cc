@@ -145,6 +145,9 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
         // No. The event is for a known process. Return it now.
         return tuple{child, wait_status};
       }
+    } else {
+      // If there were no ptrace events, just pause briefly
+      sched_yield();
     }
   }
 }
@@ -523,7 +526,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
         bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[4])));
 
         // If fd is -1, allow the syscall. Otherwise trace it.
-        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 1));
+        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 0));
         bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
         bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
 
@@ -696,6 +699,11 @@ const user_regs_struct& Tracer::getRegisters(ssize_t i) noexcept {
 // Get the result of the system call being traced through a shared memory channel
 long Tracer::getSyscallResult(ssize_t i) noexcept {
   return _shmem->channels[i].return_value;
+}
+
+// Get the result of the system call being traced through a shared memory channel
+long Tracer::setSyscallResult(ssize_t i, int64_t result) noexcept {
+  return _shmem->channels[i].return_value = result;
 }
 
 // Allow a tracee blocked on a shared memory channel to proceed
