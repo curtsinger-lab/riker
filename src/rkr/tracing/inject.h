@@ -33,37 +33,48 @@
 
 /********** Channel States **********/
 
-// The channel is available for use
+/**
+ * Channels always have a single state. The options are:
+ * - available: the channel is not in use and can be acquired by any tracee
+ * - acquired: a tracee owns the channel but it is not waiting on the tracer yet
+ * - pre-syscall wait: a tracee is waiting before issuing a system call
+ * - post-syscall notify: a tracee has finished a system call but is not blocking
+ * - post-syscall wait: a tracee has finished a system call and is waiting to be resumed
+ * - proceed: the tracee can unblock
+ * - observed: the tracer has observed the state of the channel and is currently handling it
+ */
+
 #define CHANNEL_STATE_AVAILABLE 0
-
-// An acquired channel is owned by a tracee
 #define CHANNEL_STATE_ACQUIRED 1
+#define CHANNEL_STATE_PRE_SYSCALL_WAIT 2
+#define CHANNEL_STATE_POST_SYSCALL_NOTIFY 3
+#define CHANNEL_STATE_POST_SYSCALL_WAIT 4
+#define CHANNEL_STATE_PROCEED 5
+#define CHANNEL_STATE_OBSERVED 6
 
-// A tracee is waiting before entering a system call
-#define CHANNEL_STATE_ENTRY_WAITING 2
+/********** Channel Actions **********/
 
-// The tracer has observed a tracee waiting before a system call
-#define CHANNEL_STATE_ENTRY_SEEN 3
+/**
+ * When the tracer resumes a tracee it can request that the trace perform one of the following
+ * actions:
+ * - continue: the tracee can run the syscall and does not have to block
+ * - notify: the tracee can run the syscall and should report the result without blocking
+ * - finish: the tracee should run the syscall and block again
+ * - exit: the tracee should exit instead of running the system call
+ * - skip: the tracee should skip the system call and use the return value from the channel
+ */
 
-// The tracee may proceed with the system call
-#define CHANNEL_STATE_ENTRY_PROCEED 4
-
-// A tracee is waiting after exiting a system call
-#define CHANNEL_STATE_EXIT_WAITING 5
-
-// The tracer has observed a tracee waiting after a system call
-#define CHANNEL_STATE_EXIT_SEEN 6
-
-// The tracee may resume executing after a system call
-#define CHANNEL_STATE_EXIT_PROCEED 7
+#define CHANNEL_ACTION_CONTINUE 0
+#define CHANNEL_ACTION_NOTIFY 1
+#define CHANNEL_ACTION_FINISH 2
+#define CHANNEL_ACTION_EXIT 3
+#define CHANNEL_ACTION_SKIP 4
 
 typedef struct tracing_channel {
   uint8_t state;
+  uint8_t action;
   int tid;
   struct user_regs_struct regs;
-  bool stop_on_exit;
-  bool exit_instead;
-  int64_t return_value;
   size_t buffer_pos;
   char buffer[TRACING_CHANNEL_BUFFER_SIZE];
 } tracing_channel_t;

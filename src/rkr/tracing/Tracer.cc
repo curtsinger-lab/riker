@@ -94,27 +94,21 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
       for (size_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
         auto state = __atomic_load_n(&_shmem->channels[i].state, __ATOMIC_ACQUIRE);
 
-        if (state == CHANNEL_STATE_ENTRY_WAITING) {
-          // The state has been observed. Update it so we don't handle his entry again later
-          _shmem->channels[i].state = CHANNEL_STATE_ENTRY_SEEN;
+        if (state == CHANNEL_STATE_PRE_SYSCALL_WAIT || state == CHANNEL_STATE_POST_SYSCALL_NOTIFY ||
+            state == CHANNEL_STATE_POST_SYSCALL_WAIT) {
+          // Reset the state so we don't try to handle this event again later
+          _shmem->channels[i].state = CHANNEL_STATE_OBSERVED;
 
           // Find the thread using this channel
           auto iter = _threads.find(_shmem->channels[i].tid);
           if (iter != _threads.end()) {
-            // Handle system call entry
-            iter->second.syscallEntryChannel(build, i);
-          } else {
-            WARN << "Tracing channel is owned by unrecognized thread " << _shmem->channels[i].tid;
-          }
-
-        } else if (state == CHANNEL_STATE_EXIT_WAITING) {
-          // The state has been observed. Update it so we don't handle this exit again later
-          _shmem->channels[i].state = CHANNEL_STATE_EXIT_SEEN;
-
-          // Find the thread using this channel
-          auto iter = _threads.find(_shmem->channels[i].tid);
-          if (iter != _threads.end()) {
-            iter->second.syscallExitChannel(build, i);
+            if (state == CHANNEL_STATE_PRE_SYSCALL_WAIT) {
+              iter->second.syscallEntryChannel(build, i);
+            } else if (state == CHANNEL_STATE_POST_SYSCALL_NOTIFY) {
+              FAIL << "Channel is in post-syscall notify state, which is not yet handled";
+            } else if (state == CHANNEL_STATE_POST_SYSCALL_WAIT) {
+              iter->second.syscallExitChannel(build, i);
+            }
           } else {
             WARN << "Tracing channel is owned by unrecognized thread " << _shmem->channels[i].tid;
           }
@@ -705,36 +699,44 @@ const user_regs_struct& Tracer::getRegisters(ssize_t i) noexcept {
 
 // Get the result of the system call being traced through a shared memory channel
 long Tracer::getSyscallResult(ssize_t i) noexcept {
-  return _shmem->channels[i].return_value;
+  return _shmem->channels[i].regs.SYSCALL_RETURN;
 }
 
-// Get the result of the system call being traced through a shared memory channel
-long Tracer::setSyscallResult(ssize_t i, int64_t result) noexcept {
-  return _shmem->channels[i].return_value = result;
+// Let the tracee resume without blocking again
+void Tracer::channelContinue(ssize_t i) noexcept {
+  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
+  _shmem->channels[i].action = CHANNEL_ACTION_CONTINUE;
+  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
 }
 
-// Allow a tracee blocked on a shared memory channel to proceed
-void Tracer::channelProceed(ssize_t i, bool stop_on_exit) noexcept {
-  if (_shmem->channels[i].state == CHANNEL_STATE_ENTRY_SEEN) {
-    _shmem->channels[i].stop_on_exit = stop_on_exit;
-    __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_ENTRY_PROCEED, __ATOMIC_RELEASE);
-
-  } else if (_shmem->channels[i].state == CHANNEL_STATE_EXIT_SEEN) {
-    __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_EXIT_PROCEED, __ATOMIC_RELEASE);
-
-  } else {
-    FAIL << "Channel is not waiting on entry or exit from a system call";
-  }
+// Ask the tracee to finish the system call and report the result without blocking
+void Tracer::channelNotify(ssize_t i) noexcept {
+  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
+  _shmem->channels[i].action = CHANNEL_ACTION_NOTIFY;
+  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
 }
 
-void Tracer::channelForceExit(ssize_t i, int exit_status) noexcept {
-  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_ENTRY_SEEN)
-      << "Channel is not blocked on syscall entry";
-  ASSERT(getSyscallNumber(i) == __NR_execve)
-      << "Attempted to force exit with syscall " << getSyscallNumber(i);
+// Ask the tracee to finish the system call and block again
+void Tracer::channelFinish(ssize_t i) noexcept {
+  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
+  _shmem->channels[i].action = CHANNEL_ACTION_FINISH;
+  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+}
 
-  _shmem->channels[i].exit_instead = true;
+// Ask the tracee to exit instead of running the system call
+void Tracer::channelExit(ssize_t i, int exit_status) noexcept {
+  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
+  _shmem->channels[i].action = CHANNEL_ACTION_EXIT;
   _shmem->channels[i].regs.SYSCALL_ARG1 = exit_status;
+  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+}
+
+// Ask the tracee to skip the system call and use the provided result instead
+void Tracer::channelSkip(ssize_t i, long result) noexcept {
+  ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
+  _shmem->channels[i].action = CHANNEL_ACTION_SKIP;
+  _shmem->channels[i].regs.SYSCALL_RETURN = result;
+  __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
 }
 
 void* Tracer::channelGetBuffer(ssize_t i) noexcept {

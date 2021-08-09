@@ -149,15 +149,20 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
   FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
 }
 
-void Thread::setSyscallResult(int64_t result) noexcept {
+void Thread::skip(int64_t result) noexcept {
   // If there is a tracing channel, use it to set the syscall result
-  if (_channel != -1) Tracer::setSyscallResult(_channel, result);
+  if (_channel != -1) {
+    Tracer::channelSkip(_channel, result);
+  } else {
+    // If the tracee is stopped under ptrace, just run the syscall
+    resume();
+  }
 }
 
 void Thread::resume() noexcept {
   // Is this thread blocked on the shared memory channel?
   if (_channel >= 0) {
-    Tracer::channelProceed(_channel, false);
+    Tracer::channelContinue(_channel);
   } else {
     int rc = ptrace(PTRACE_CONT, _tid, nullptr, 0);
     FAIL_IF(rc == -1 && errno != ESRCH) << "Failed to resume child: " << ERR;
@@ -169,7 +174,7 @@ void Thread::finishSyscall(function<void(Build&, long)> handler) noexcept {
 
   // Is this thread blocked on the shared memory channel?
   if (_channel >= 0) {
-    Tracer::channelProceed(_channel, true);
+    Tracer::channelFinish(_channel);
 
   } else {
     // Allow the tracee to resume until its syscall finishes
@@ -181,17 +186,17 @@ void Thread::finishSyscall(function<void(Build&, long)> handler) noexcept {
 void Thread::forceExit(int exit_status) noexcept {
   // Is the thread blocked on a shared memory channel?
   if (_channel >= 0) {
-    Tracer::channelForceExit(_channel, exit_status);
+    Tracer::channelExit(_channel, exit_status);
 
   } else {
     auto regs = getRegisters();
     regs.SYSCALL_NUMBER = __NR_exit;
     regs.SYSCALL_ARG1 = exit_status;
     setRegisters(regs);
-  }
 
-  // Resume the thread so it can actually perform the exit
-  resume();
+    // Resume the tracee if it's stopped under ptrace
+    resume();
+  }
 }
 
 unsigned long Thread::getEventMessage() noexcept {
@@ -593,10 +598,7 @@ void Thread::_faccessat(Build& build,
   build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
   // Try to set the system call result (currently only works for shared memory tracing)
-  setSyscallResult(-ref->getResultCode());
-
-  // Resume the thread
-  resume();
+  skip(-ref->getResultCode());
 }
 
 void Thread::_fstatat(Build& build,

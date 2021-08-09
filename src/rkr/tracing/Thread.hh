@@ -55,6 +55,9 @@ class Thread {
   /// Check if a ptrace stop can be skipped because a shared memory channel is in use
   bool canSkipTrace(user_regs_struct& regs) const noexcept;
 
+  /// Skip a system cal and return the given result instead
+  void skip(int64_t result) noexcept;
+
   /// Resume a traced thread that is currently stopped
   void resume() noexcept;
 
@@ -74,9 +77,6 @@ class Thread {
 
   /// Change the register state for this thread
   void setRegisters(user_regs_struct& regs) noexcept;
-
-  /// Set the result of a system call
-  void setSyscallResult(int64_t result) noexcept;
 
   /// Read a string from this thread's memory
   std::string readString(uintptr_t tracee_pointer) noexcept;

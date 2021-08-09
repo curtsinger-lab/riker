@@ -196,6 +196,7 @@ size_t channel_acquire(pid_t tid) {
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
       // Successfully acquired the channel
       shmem->channels[i].tid = tid;
+
       return i;
     }
 
@@ -221,9 +222,30 @@ void channel_release(size_t c) {
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
 }
 
-/// Block until the tracer allows the given syscall to proceed. Returns true if the tracee should
-/// wait again after the syscall completes.
-bool channel_enter(size_t c,
+/// Spin until the tracer sets the channel state to PROCEED
+void channel_wait(size_t c) {
+  // Spin until the tracer allows the tracee to proceed
+  size_t spin_count = 0;
+  while (true) {
+    // Load the channel state
+    uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
+
+    // Can we proceed?
+    if (state == CHANNEL_STATE_PROCEED) break;
+
+    // Nope. Back off.
+    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
+      // Hint to the OS scheduler that this thread isn't busy
+      sched_yield();
+    } else {
+      // Hint to the CPU that this thread isn't busy
+      _mm_pause();
+    }
+  }
+}
+
+/// Block until the tracer allows the given syscall to proceed
+void channel_enter(size_t c,
                    long syscall_nr,
                    uint64_t arg1,
                    uint64_t arg2,
@@ -240,71 +262,108 @@ bool channel_enter(size_t c,
   shmem->channels[c].regs.SYSCALL_ARG5 = arg5;
   shmem->channels[c].regs.SYSCALL_ARG6 = arg6;
 
-  // Clear the exit_instead flag in case it was left set by a previous use of this channel
-  shmem->channels[c].exit_instead = false;
-
   // Set the channel to a waiting-on-entry state
-  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_ENTRY_WAITING, __ATOMIC_RELEASE);
+  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_PRE_SYSCALL_WAIT, __ATOMIC_RELEASE);
 
-  // Spin until the tracer allows the tracee to proceed
-  size_t spin_count = 0;
-  while (true) {
-    // Load the channel state
-    uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
+  // Wait
+  channel_wait(c);
+}
 
-    // Can we proceed?
-    if (state == CHANNEL_STATE_ENTRY_PROCEED) break;
+long channel_proceed(size_t c,
+                     long syscall_nr,
+                     uint64_t arg1,
+                     uint64_t arg2,
+                     uint64_t arg3,
+                     uint64_t arg4,
+                     uint64_t arg5,
+                     uint64_t arg6,
+                     bool unblock_channel) {
+  uint8_t action = __atomic_load_n(&shmem->channels[c].action, __ATOMIC_ACQUIRE);
+  long rc;
 
-    // Nope. Back off.
-    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
-      // Hint to the OS scheduler that this thread isn't busy
-      sched_yield();
-    } else {
-      // Hint to the CPU that this thread isn't busy
-      _mm_pause();
+  if (action == CHANNEL_ACTION_CONTINUE) {
+    // Release the channel and run the system call without further interruption
+    channel_release(c);
+    rc = safe_syscall(syscall_nr, arg1, arg2, arg3, arg4, arg5, arg6);
+
+  } else if (action == CHANNEL_ACTION_NOTIFY) {
+    // Unblock the channel if requested
+    pid_t tid;
+    if (unblock_channel) {
+      tid = shmem->channels[c].tid;
+      channel_release(c);
     }
-  }
 
-  // Was the tracee asked to exit instead of proceeding?
-  if (shmem->channels[c].exit_instead) {
-    // Grab the exit status from the registers struct
-    int exit_status = shmem->channels[c].regs.SYSCALL_ARG1;
+    // Run the syscall, report the result, and move on (the tracer will release the channel)
+    rc = safe_syscall(syscall_nr, arg1, arg2, arg3, arg4, arg5, arg6);
+
+    // Acquire a new channel if it was previously unblocked
+    if (unblock_channel) {
+      c = channel_acquire(tid);
+    }
+
+    // Store the result of the system call in the channel
+    shmem->channels[c].regs.SYSCALL_RETURN = rc;
+
+    // Mark the channel to notify the tracer of the result
+    __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_POST_SYSCALL_NOTIFY,
+                     __ATOMIC_RELEASE);
+
+    // We do not free the channel here. The tracer will do that after seeing the syscall result.
+
+  } else if (action == CHANNEL_ACTION_FINISH) {
+    // Unblock the channel if requested
+    pid_t tid;
+    if (unblock_channel) {
+      tid = shmem->channels[c].tid;
+      channel_release(c);
+    }
+
+    // Run the syscall, report the result, and move on (the tracer will release the channel)
+    rc = safe_syscall(syscall_nr, arg1, arg2, arg3, arg4, arg5, arg6);
+
+    // Acquire a new channel if it was previously unblocked
+    if (unblock_channel) {
+      c = channel_acquire(tid);
+    }
+
+    // Store the result of the system call in the channel
+    shmem->channels[c].regs.SYSCALL_RETURN = rc;
+
+    // Tell the tracer that we're waiting here
+    __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_POST_SYSCALL_WAIT, __ATOMIC_RELEASE);
+
+    // Spin until the tracer allows us to proceed
+    channel_wait(c);
 
     // Release the channel
     channel_release(c);
 
-    // Exit now
+  } else if (action == CHANNEL_ACTION_EXIT) {
+    // Pull the exit status out of the channel registers, release it, and then exit
+    uint64_t exit_status = shmem->channels[c].regs.SYSCALL_ARG1;
+    channel_release(c);
     safe_syscall(__NR_exit, exit_status);
+
+    // Should be unreachable
+    abort();
+
+  } else if (action == CHANNEL_ACTION_SKIP) {
+    // Pull the syscall result out of the channel registers and release it
+    rc = shmem->channels[c].regs.SYSCALL_RETURN;
+    channel_release(c);
+
+  } else {
+    abort();
   }
 
-  return shmem->channels[c].stop_on_exit;
-}
-
-void channel_exit(size_t c, long syscall_nr, long rc) {
-  shmem->channels[c].regs.SYSCALL_NUMBER = syscall_nr;
-  shmem->channels[c].return_value = rc;
-
-  // Set the channel to waiting-on-exit state
-  __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_EXIT_WAITING, __ATOMIC_RELEASE);
-
-  // Spin until the tracer allows the tracee to proceed
-  size_t spin_count = 0;
-  while (true) {
-    // Load the channel state
-    uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
-
-    // Can we proceed?
-    if (state == CHANNEL_STATE_EXIT_PROCEED) break;
-
-    // Nope. Back off.
-    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
-      // Hint to the OS scheduler that this thread isn't busy
-      sched_yield();
-    } else {
-      // Hint to the CPU that this thread isn't busy
-      _mm_pause();
-    }
+  // Set errno if required
+  if (rc < 0) {
+    errno = -rc;
+    return -1;
   }
+
+  return rc;
 }
 
 uint64_t channel_buffer_string(size_t c, const char* str) {
@@ -379,29 +438,10 @@ int fast_open(const char* pathname, int flags, mode_t mode) {
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a syscall
-  bool stop_on_exit =
-      channel_enter(c, __NR_open, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0, 0);
+  channel_enter(c, __NR_open, pathname_arg, flags, mode, 0, 0, 0);
 
-  // If we don't have to stop on exist, release the channel
-  if (!stop_on_exit) channel_release(c);
-
-  // Issue the syscall
-  int rc = safe_syscall(__NR_open, pathname, flags, mode);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a syscall
-    channel_exit(c, __NR_open, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_open, (uint64_t)pathname, flags, mode, 0, 0, 0, false);
 }
 
 int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
@@ -414,28 +454,10 @@ int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a syscall
-  bool stop_on_exit =
-      channel_enter(c, __NR_openat, dfd, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0);
+  channel_enter(c, __NR_openat, dfd, pathname_arg, (uint64_t)flags, (uint64_t)mode, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  // Issue the syscall
-  int rc = safe_syscall(__NR_openat, dfd, pathname, flags, mode);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a syscall
-    channel_exit(c, __NR_openat, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_openat, dfd, (uint64_t)pathname, flags, mode, 0, 0, false);
 }
 
 int fast_close(int fd) {
@@ -445,27 +467,10 @@ int fast_close(int fd) {
   size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a syscall
-  bool stop_on_exit = channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
+  channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  // Issue the syscall
-  int rc = safe_syscall(__NR_close, fd);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a syscall
-    channel_exit(c, __NR_close, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_close, fd, 0, 0, 0, 0, 0, false);
 }
 
 void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
@@ -474,27 +479,12 @@ void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t of
   // Find an available channel
   size_t c = channel_acquire(tid);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
 
-  if (!stop_on_exit) channel_release(c);
-
-  long rc = safe_syscall(__NR_mmap, addr, length, prot, flags, fd, offset);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_mmap, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return MAP_FAILED;
-  } else {
-    return (void*)rc;
-  }
+  // Finish the system call and return
+  return (void*)channel_proceed(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset,
+                                false);
 }
 
 int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
@@ -506,27 +496,11 @@ int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  int rc = safe_syscall(__NR_stat, pathname, statbuf);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_stat, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, false);
 }
 
 int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
@@ -538,27 +512,11 @@ int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  int rc = safe_syscall(__NR_lstat, pathname, statbuf);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_lstat, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, false);
 }
 
 int fast_fxstat(int ver, int fd, struct stat* statbuf) {
@@ -567,27 +525,11 @@ int fast_fxstat(int ver, int fd, struct stat* statbuf) {
   // Find an available channel
   size_t c = channel_acquire(tid);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  int rc = safe_syscall(__NR_fstat, fd, statbuf);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_fstat, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0, false);
 }
 
 int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
@@ -599,28 +541,12 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit =
-      channel_enter(c, __NR_newfstatat, dfd, pathname_arg, (uint64_t)statbuf, flags, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_newfstatat, dfd, pathname_arg, (uint64_t)statbuf, flags, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  int rc = safe_syscall(__NR_newfstatat, dfd, pathname, statbuf, flags);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_newfstatat, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_newfstatat, dfd, (uint64_t)pathname, (uint64_t)statbuf, flags, 0,
+                         0, false);
 }
 
 ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
@@ -632,27 +558,12 @@ ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  int rc = safe_syscall(__NR_readlink, pathname, buf, bufsiz);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_readlink, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_readlink, (uint64_t)pathname, (uint64_t)buf, bufsiz, 0, 0, 0,
+                         false);
 }
 
 int fast_access(const char* pathname, int mode) {
@@ -664,30 +575,11 @@ int fast_access(const char* pathname, int mode) {
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
 
-  if (!stop_on_exit) channel_release(c);
-
-  // Use the return value from the tracer instead of issuing a syscall.
-  // TODO: This needs a safer, more consistent interface, but it does help performance.
-  int rc = shmem->channels[c].return_value;
-  // int rc = safe_syscall(__NR_access, pathname, mode);
-
-  if (stop_on_exit) {
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_access, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return
+  return channel_proceed(c, __NR_access, (uint64_t)pathname, mode, 0, 0, 0, 0, false);
 }
 
 long fast_read(int fd, void* data, size_t count) {
@@ -696,29 +588,11 @@ long fast_read(int fd, void* data, size_t count) {
   // Find an available channel
   size_t c = channel_acquire(tid);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
 
-  channel_release(c);
-
-  long rc = safe_syscall(__NR_read, fd, data, count);
-
-  if (stop_on_exit) {
-    c = channel_acquire(tid);
-
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_read, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return. Unblock the channel before issuing the syscall.
+  return channel_proceed(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0, true);
 }
 
 ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
@@ -727,29 +601,11 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   // Find an available channel
   size_t c = channel_acquire(tid);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
 
-  channel_release(c);
-
-  long rc = safe_syscall(__NR_pread64, fd, buf, count, offset);
-
-  if (stop_on_exit) {
-    c = channel_acquire(tid);
-
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_pread64, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return. Unblock the channel before issuing the syscall.
+  return channel_proceed(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0, true);
 }
 
 long fast_write(int fd, const void* data, size_t count) {
@@ -758,29 +614,11 @@ long fast_write(int fd, const void* data, size_t count) {
   // Find an available channel
   size_t c = channel_acquire(tid);
 
-  // Inform the tracer that this command is entering a library call
-  bool stop_on_exit = channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
 
-  channel_release(c);
-
-  long rc = safe_syscall(__NR_write, fd, data, count);
-
-  // Inform the tracer that this command is exiting a library call
-  if (stop_on_exit) {
-    c = channel_acquire(tid);
-
-    channel_exit(c, __NR_write, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return. Unblock the channel before issuing the syscall.
+  return channel_proceed(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0, true);
 }
 
 int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
@@ -796,60 +634,9 @@ int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   uint64_t argv_arg = channel_buffer_argv(c, argv);
 
   // Inform the tracer that this command is entering a library call
-  bool stop_on_exit =
-      channel_enter(c, __NR_execve, pathname_arg, argv_arg, (uint64_t)envp, 0, 0, 0);
+  channel_enter(c, __NR_execve, pathname_arg, argv_arg, (uint64_t)envp, 0, 0, 0);
 
-  channel_release(c);
-
-  long rc = safe_syscall(__NR_execve, pathname, argv, envp);
-
-  if (stop_on_exit) {
-    c = channel_acquire(tid);
-
-    // Inform the tracer that this command is exiting a library call
-    channel_exit(c, __NR_execve, rc);
-
-    // Release the channel for use by another library call
-    channel_release(c);
-  }
-
-  if (rc < 0) {
-    errno = -rc;
-    return -1;
-  } else {
-    return rc;
-  }
+  // Finish the system call and return. Unblock the channel before issuing the syscall.
+  return channel_proceed(c, __NR_execve, (uint64_t)pathname, (uint64_t)argv, (uint64_t)envp, 0, 0,
+                         0, true);
 }
-
-/*
- * Next task is to set up a channel to communicate with rkr.
- *
- * Idea: start commands with a known high-numbered FD for a temporary file. The command can mmap
- * that file to create a shared memory channel to rkr. When entering a system call, the process
- * will acquire a lock in the channel, then write out its tid and syscall registers. It should
- * then wait on a spinlock that rkr will unlock when the process can proceed before issuing the
- * actual library call.
- *
- * After the library call, the process should set a flag to indicate that it has finished the
- * library function, and then wait on a spinlock. When rkr is ready for the process to resume
- * after any post-syscall handling it will unlock that spinlock.
- *
- * If a matching system call number was traced during the library function, rkr will write the
- * syscall instruction pointer to a special field in the shared memory channel. This library can
- * then detour that system call through the safe syscall wrapper.
- *
- * Traced processes will hold the lock associated with this type of syscall entry for the entire
- * system call, so we probably need more than one. A page full of these channels should work
- * just fine. The library just has to scan through the array to find a free entry. It could
- * start at a random index (or its TID modulo the array size) and scan forward to find the first
- * free entry. Then just reuse that entry as long as it remains free.
- *
- * Messages:
- * 1. tracee claims a channel by locking it
- * 2. tracee indicates to rkr that it is ready to enter a syscall-issuing libc function
- * 3. rkr allows tracee to proceed to libc function
- * 4. tracee indicates to rkr that it has finished libc function
- * 5. rkr allows trace to resume after libc function---may include information about a syscall
- * ip
- * 6. tracee releases a channel by unlocking it
- */
