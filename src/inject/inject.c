@@ -6,6 +6,7 @@
 
 #include <dlfcn.h>
 #include <errno.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -226,6 +227,7 @@ bool channel_enter(size_t c,
   // Spin until the tracer allows the tracee to proceed
   while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
          CHANNEL_STATE_ENTRY_PROCEED) {
+    sched_yield();
   }
 
   // Was the tracee asked to exit instead of proceeding?
@@ -253,6 +255,7 @@ void channel_exit(size_t c, long syscall_nr, long rc) {
   // Spin until the tracer allows the tracee to proceed
   while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
          CHANNEL_STATE_EXIT_PROCEED) {
+    sched_yield();
   }
 }
 
