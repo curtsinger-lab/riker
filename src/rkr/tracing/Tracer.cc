@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include <emmintrin.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -83,6 +84,8 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
     }
   }
 
+  size_t spin_count = 0;
+
   // Wait for an event from ptrace
   while (true) {
     // Check the shared memory channel
@@ -147,7 +150,11 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
       }
     } else {
       // If there were no ptrace events, just pause briefly
-      sched_yield();
+      if (++spin_count % 16 == 0) {
+        sched_yield();
+      } else {
+        _mm_pause();
+      }
     }
   }
 }

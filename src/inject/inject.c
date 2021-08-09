@@ -5,6 +5,7 @@
 #include "tracing/inject.h"
 
 #include <dlfcn.h>
+#include <emmintrin.h>
 #include <errno.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -16,6 +17,12 @@
 #include <sys/types.h>
 #include <syscall.h>
 #include <unistd.h>
+
+// How many times should a thread spin on a contended lock before backing off?
+#define SPIN_BACKOFF_COUNT 128
+
+// How many times should a thread try a channel before moving to a new one
+#define SPIN_LIMIT 2048
 
 // These symbols are provided by the assembly implementation of the safe syscall function
 extern void safe_syscall_start;
@@ -168,23 +175,44 @@ void rkr_inject_init() {
   rkr_detour("execve", fast_execve);
 }
 
-size_t channel_acquire() {
-  static __thread size_t i = 0;
+size_t channel_acquire(pid_t tid) {
+  static __thread ssize_t i = -1;
+
+  // Set the index where we'll start looking
+  if (i < 0 || i >= TRACING_CHANNEL_COUNT) {
+    // If i isn't initialized, set it to a "hash" of the thread ID
+    i = tid % TRACING_CHANNEL_COUNT;
+  }
 
   // Loop until we find a channel to claim
-  size_t count = 0;
+  size_t spin_count = 0;
   while (true) {
-    uint8_t expected = CHANNEL_STATE_AVAILABLE;
-    if (__atomic_compare_exchange_n(&shmem->channels[i].state, &expected, CHANNEL_STATE_ACQUIRED,
-                                    false, __ATOMIC_ACQ_REL, __ATOMIC_ACQ_REL)) {
-      shmem->channels[i].tid = gettid();
+    // Peek at the state of the channel
+    uint8_t state = __atomic_load_n(&shmem->channels[i].state, __ATOMIC_RELAXED);
+
+    // If the channel is available, try to acquire it.
+    if (state == CHANNEL_STATE_AVAILABLE &&
+        __atomic_compare_exchange_n(&shmem->channels[i].state, &state, CHANNEL_STATE_ACQUIRED, true,
+                                    __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+      // Successfully acquired the channel
+      shmem->channels[i].tid = tid;
       return i;
     }
 
-    i++;
-    if (i >= TRACING_CHANNEL_COUNT) i = 0;
+    // We didn't get the channel. Back off.
+    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
+      // Hint to the OS scheduler that this thread isn't busy
+      sched_yield();
+    } else {
+      // Hint to the CPU that this thread isn't busy
+      _mm_pause();
+    }
 
-    if (++count % 2048 == 0) sched_yield();
+    // Move to a new channel if we've waited too long
+    if (spin_count >= SPIN_LIMIT) {
+      i = (i + 1) % TRACING_CHANNEL_COUNT;
+      spin_count = 0;
+    }
   }
 }
 
@@ -219,10 +247,22 @@ bool channel_enter(size_t c,
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_ENTRY_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  size_t count = 0;
-  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
-         CHANNEL_STATE_ENTRY_PROCEED) {
-    if (count++ % 2048 == 0) sched_yield();
+  size_t spin_count = 0;
+  while (true) {
+    // Load the channel state
+    uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
+
+    // Can we proceed?
+    if (state == CHANNEL_STATE_ENTRY_PROCEED) break;
+
+    // Nope. Back off.
+    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
+      // Hint to the OS scheduler that this thread isn't busy
+      sched_yield();
+    } else {
+      // Hint to the CPU that this thread isn't busy
+      _mm_pause();
+    }
   }
 
   // Was the tracee asked to exit instead of proceeding?
@@ -248,10 +288,22 @@ void channel_exit(size_t c, long syscall_nr, long rc) {
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_EXIT_WAITING, __ATOMIC_RELEASE);
 
   // Spin until the tracer allows the tracee to proceed
-  size_t count = 0;
-  while (__atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE) !=
-         CHANNEL_STATE_EXIT_PROCEED) {
-    if (count++ % 2048 == 0) sched_yield();
+  size_t spin_count = 0;
+  while (true) {
+    // Load the channel state
+    uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
+
+    // Can we proceed?
+    if (state == CHANNEL_STATE_EXIT_PROCEED) break;
+
+    // Nope. Back off.
+    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
+      // Hint to the OS scheduler that this thread isn't busy
+      sched_yield();
+    } else {
+      // Hint to the CPU that this thread isn't busy
+      _mm_pause();
+    }
   }
 }
 
@@ -318,8 +370,10 @@ uint64_t channel_buffer_argv(size_t c, char* const* argv) {
 }
 
 int fast_open(const char* pathname, int flags, mode_t mode) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -351,8 +405,10 @@ int fast_open(const char* pathname, int flags, mode_t mode) {
 }
 
 int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -383,8 +439,10 @@ int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
 }
 
 int fast_close(int fd) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a syscall
   bool stop_on_exit = channel_enter(c, __NR_close, fd, 0, 0, 0, 0, 0);
@@ -411,8 +469,10 @@ int fast_close(int fd) {
 }
 
 void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
@@ -438,8 +498,10 @@ void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t of
 }
 
 int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -468,8 +530,10 @@ int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
 }
 
 int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -498,8 +562,10 @@ int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
 }
 
 int fast_fxstat(int ver, int fd, struct stat* statbuf) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
@@ -525,8 +591,10 @@ int fast_fxstat(int ver, int fd, struct stat* statbuf) {
 }
 
 int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -556,8 +624,10 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
 }
 
 ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -586,8 +656,10 @@ ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
 }
 
 int fast_access(const char* pathname, int mode) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname argument in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -619,8 +691,10 @@ int fast_access(const char* pathname, int mode) {
 }
 
 long fast_read(int fd, void* data, size_t count) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_read, fd, (uint64_t)data, count, 0, 0, 0);
@@ -630,7 +704,7 @@ long fast_read(int fd, void* data, size_t count) {
   long rc = safe_syscall(__NR_read, fd, data, count);
 
   if (stop_on_exit) {
-    c = channel_acquire();
+    c = channel_acquire(tid);
 
     // Inform the tracer that this command is exiting a library call
     channel_exit(c, __NR_read, rc);
@@ -648,8 +722,10 @@ long fast_read(int fd, void* data, size_t count) {
 }
 
 ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_pread64, fd, (uint64_t)buf, count, offset, 0, 0);
@@ -659,7 +735,7 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
   long rc = safe_syscall(__NR_pread64, fd, buf, count, offset);
 
   if (stop_on_exit) {
-    c = channel_acquire();
+    c = channel_acquire(tid);
 
     // Inform the tracer that this command is exiting a library call
     channel_exit(c, __NR_pread64, rc);
@@ -677,8 +753,10 @@ ssize_t fast_pread(int fd, void* buf, size_t count, off_t offset) {
 }
 
 long fast_write(int fd, const void* data, size_t count) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Inform the tracer that this command is entering a library call
   bool stop_on_exit = channel_enter(c, __NR_write, fd, (uint64_t)data, count, 0, 0, 0);
@@ -689,7 +767,7 @@ long fast_write(int fd, const void* data, size_t count) {
 
   // Inform the tracer that this command is exiting a library call
   if (stop_on_exit) {
-    c = channel_acquire();
+    c = channel_acquire(tid);
 
     channel_exit(c, __NR_write, rc);
 
@@ -706,8 +784,10 @@ long fast_write(int fd, const void* data, size_t count) {
 }
 
 int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
+  pid_t tid = gettid();
+
   // Find an available channel
-  size_t c = channel_acquire();
+  size_t c = channel_acquire(tid);
 
   // Try to pass the pathname string in the channel's data buffer
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
@@ -724,7 +804,7 @@ int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   long rc = safe_syscall(__NR_execve, pathname, argv, envp);
 
   if (stop_on_exit) {
-    c = channel_acquire();
+    c = channel_acquire(tid);
 
     // Inform the tracer that this command is exiting a library call
     channel_exit(c, __NR_execve, rc);

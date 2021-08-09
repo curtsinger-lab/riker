@@ -98,7 +98,7 @@ $(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: src/rkr-launch/launch
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(RKR_INJECT_SRCS) Makefile
+$(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(RKR_INJECT_SRCS) src/rkr/tracing/inject.h Makefile
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl
 
