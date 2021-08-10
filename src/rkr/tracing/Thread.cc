@@ -654,13 +654,20 @@ void Thread::_fstatat(Build& build,
     // Make the reference
     auto ref_id = makePathRef(build, pathname, AccessFlags::fromAtFlags(flags), dirfd);
 
-    // Depend on content so the size field is accurate
     auto ref = getCommand()->getRef(ref_id);
     if (ref->isResolved()) {
-      ref->getArtifact()->beforeStat(build, getCommand(), ref_id);
-    }
+      auto a = ref->getArtifact();
 
-    resume();
+      // Depend on content so the size field is accurate
+      a->beforeStat(build, getCommand(), ref_id);
+
+      // Let the tracee run the stat call
+      resume();
+
+    } else {
+      // The stat call will fail, so we can skip it and just send along the result
+      skip(-ref->getResultCode());
+    }
 
     build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
@@ -1540,7 +1547,8 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
   } else {
     // The reference does not resolve successfully, so exec will fail
     // finishSyscall([=](Build& build, long rc) {
-    resume();
+    // resume();
+    skip(-getCommand()->getRef(exe_ref_id)->getResultCode());
 
     //  ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
     //      << "Outcome of exec call did not match expected behavior.";

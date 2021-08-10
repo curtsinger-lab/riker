@@ -474,6 +474,15 @@ int fast_close(int fd) {
 }
 
 void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t offset) {
+  if (fd == -1) {
+    intptr_t rc = safe_syscall(__NR_mmap, (uint64_t)addr, length, prot, flags, fd, offset);
+    if (rc < 0) {
+      errno = -rc;
+      return MAP_FAILED;
+    }
+    return (void*)rc;
+  }
+
   pid_t tid = gettid();
 
   // Find an available channel

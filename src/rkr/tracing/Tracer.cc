@@ -527,7 +527,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
         bpf.push_back(BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, args[4])));
 
         // If fd is -1, allow the syscall. Otherwise trace it.
-        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 0));
+        bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, static_cast<uint32_t>(-1), 0, 1));
         bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
         bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
 
