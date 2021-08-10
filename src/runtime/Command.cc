@@ -750,6 +750,11 @@ const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
   return _previous_run._uses_output_from;
 }
 
+// Get the set of commands that produce inputs to this command
+const Command::WeakCommandSet& Command::getOutputConsumers() const noexcept {
+  return _previous_run._output_used_by;
+}
+
 optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args,
                                                   const map<int, Ref::ID>& fds) const noexcept {
   // If the argument arrays are different lengths, there cannot be a match

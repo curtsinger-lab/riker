@@ -358,6 +358,9 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get the set of commands that produce inputs to this command
   const WeakCommandSet& getInputProducers() const noexcept;
 
+  /// Get the set of commands that produce inputs to this command
+  const WeakCommandSet& getOutputConsumers() const noexcept;
+
   /**
    * Does this command match a given set of launch arguments? If so, return a set of substitutions
    * required to make the match work. These substitutions should be applied if the match is used,
