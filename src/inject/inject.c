@@ -210,10 +210,10 @@ size_t channel_acquire(pid_t tid) {
     }
 
     // Move to a new channel if we've waited too long
-    if (spin_count >= SPIN_LIMIT) {
+    /*if (spin_count >= SPIN_LIMIT) {
       i = (i + 1) % TRACING_CHANNEL_COUNT;
       spin_count = 0;
-    }
+    }*/
   }
 }
 

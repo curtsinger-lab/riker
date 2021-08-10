@@ -43,4 +43,7 @@ namespace options {
 
   /// Inject the shared memory tracing library
   inline bool inject_tracing_lib = true;
+
+  /// Use the parallel compiler wrapper
+  inline bool parallel_wrapper = false;
 }

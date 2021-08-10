@@ -142,6 +142,9 @@ int main(int argc, char* argv[]) noexcept {
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
+  build->add_flag("--wrapper", options::parallel_wrapper,
+                  "Turn on the wrapper for parallel compilation");
+
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");

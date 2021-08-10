@@ -29,6 +29,11 @@ RKR_DEBUG_DEPS := $(patsubst src/%.cc, $(DEBUG_DIR)/.obj/%.d, $(RKR_SRCS))
 RKR_RELEASE_OBJS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.o, $(RKR_SRCS))
 RKR_RELEASE_DEPS := $(patsubst src/%.cc, $(RELEASE_DIR)/.obj/%.d, $(RKR_SRCS))
 
+# Create parallel compiler wrappers with the following names
+WRAPPER_NAMES := clang clang++ gcc g++ cc c++
+DEBUG_WRAPPERS := $(addprefix $(DEBUG_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
+RELEASE_WRAPPERS := $(addprefix $(RELEASE_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
+
 # TODO: Don't hard-code the architecture-specific assembly file
 RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
 
@@ -53,14 +58,16 @@ debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
 debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/bin/rkr-launch \
-			 $(DEBUG_DIR)/share/rkr/rkr-inject.so
+			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
+			 $(DEBUG_WRAPPERS)
 
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
 release: LDFLAGS = $(RELEASE_LDFLAGS)
 release: $(RELEASE_DIR)/bin/rkr \
 				 $(RELEASE_DIR)/bin/rkr-launch \
-				 $(RELEASE_DIR)/share/rkr/rkr-inject.so
+				 $(RELEASE_DIR)/share/rkr/rkr-inject.so \
+				 $(RELEASE_WRAPPERS)
 
 clean: clean-debug clean-release
 
@@ -101,6 +108,20 @@ $(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: src/rkr-launch/launch
 $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(RKR_INJECT_SRCS) src/rkr/tracing/inject.h Makefile
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl
+
+$(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wraper: src/wrapper/wrapper.cc Makefile
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc
+
+$(DEBUG_WRAPPERS): $(DEBUG_DIR)/share/rkr/rkr-wrapper
+	@mkdir -p `dirname $@`
+	@rm -f $@
+	ln $(DEBUG_DIR)/share/rkr/rkr-wrapper $@
+
+$(RELEASE_WRAPPERS): $(RELEASE_DIR)/share/rkr/rkr-wrapper
+	@mkdir -p `dirname $@`
+	@rm -f $@
+	ln $(RELEASE_DIR)/share/rkr/rkr-wrapper $@
 
 # Set file-specific flags for blake3 build
 %/.obj/blake3/blake3_sse2.o: CFLAGS += -msse2

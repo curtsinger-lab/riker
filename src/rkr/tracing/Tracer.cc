@@ -616,6 +616,15 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
       setenv("LD_PRELOAD", ld_preload.c_str(), 1);
     }
 
+    if (options::parallel_wrapper) {
+      std::string path =
+          readlink("/proc/self/exe").parent_path().string() + "/../share/rkr/wrappers";
+      if (char* old_path = getenv("PATH"); old_path != NULL) {
+        path += ":" + std::string(old_path);
+      }
+      setenv("PATH", path.c_str(), 1);
+    }
+
     // TODO: explicitly handle the environment
     auto exe = cmd->getRef(Ref::Exe)->getArtifact();
     auto exe_path = exe->getCommittedPath();
