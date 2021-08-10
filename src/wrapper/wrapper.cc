@@ -78,7 +78,7 @@ void parse_args(vector<string> args) {
   }
 
   vector<string> supported_flags = {"-print", "-D", "-f",   "-o",    "-W",        "-pthread", "-g",
-                                    "-M",     "-O", "-std", "--std", "-pedantic", "-m", "-U"};
+                                    "-M",     "-O", "-std", "--std", "-pedantic", "-m",       "-U"};
   vector<string> supported_compile_flags = {};
   vector<string> supported_linker_flags = {"-L", "-shared", "-Wl", "-l", "-r"};
 
@@ -104,6 +104,9 @@ void parse_args(vector<string> args) {
       args = pop_front(args);
       args = pop_front(args);
     } else if ((argstr.size() > 2) && (0 == argstr.compare(argstr.size() - 2, 2, ".c"))) {
+      c_file_arr.push_back(argstr);
+      args = pop_front(args);
+    } else if ((argstr.size() > 2) && (0 == argstr.compare(argstr.size() - 2, 2, ".S"))) {
       c_file_arr.push_back(argstr);
       args = pop_front(args);
     } else if ((argstr.size() > 3) && ((0 == argstr.compare(argstr.size() - 3, 3, ".cc")))) {
