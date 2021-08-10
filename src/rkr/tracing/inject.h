@@ -1,5 +1,6 @@
 #pragma once
 
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -71,6 +72,7 @@
 #define CHANNEL_ACTION_SKIP 4
 
 typedef struct tracing_channel {
+  sem_t wake_tracee;
   uint8_t state;
   uint8_t action;
   int tid;
@@ -80,5 +82,6 @@ typedef struct tracing_channel {
 } tracing_channel_t;
 
 struct shared_tracing_data {
+  sem_t available;
   tracing_channel_t channels[TRACING_CHANNEL_COUNT];
 };

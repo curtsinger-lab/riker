@@ -22,6 +22,7 @@
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <semaphore.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
@@ -485,6 +486,14 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
 
       // Zero out the tracing channel data
       memset(_shmem, 0, sizeof(struct shared_tracing_data));
+
+      // Initialize the semaphore that tracees use to coordinate channel acquisition
+      sem_init(&_shmem->available, 1, TRACING_CHANNEL_COUNT);
+
+      // Initialize the semaphores used to wake tracees in each channel
+      for (size_t i = 0; i < TRACING_CHANNEL_COUNT; i++) {
+        sem_init(&_shmem->channels[i].wake_tracee, 1, 0);
+      }
     }
   }
 
@@ -716,6 +725,9 @@ void Tracer::channelContinue(ssize_t i) noexcept {
   ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
   _shmem->channels[i].action = CHANNEL_ACTION_CONTINUE;
   __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  while (sem_post(&_shmem->channels[i].wake_tracee) == -1) {
+    WARN_IF(errno != EAGAIN) << "Error from sem_post: " << ERR;
+  }
 }
 
 // Ask the tracee to finish the system call and report the result without blocking
@@ -723,6 +735,9 @@ void Tracer::channelNotify(ssize_t i) noexcept {
   ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
   _shmem->channels[i].action = CHANNEL_ACTION_NOTIFY;
   __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  while (sem_post(&_shmem->channels[i].wake_tracee) == -1) {
+    WARN_IF(errno != EAGAIN) << "Error from sem_post: " << ERR;
+  }
 }
 
 // Ask the tracee to finish the system call and block again
@@ -730,6 +745,9 @@ void Tracer::channelFinish(ssize_t i) noexcept {
   ASSERT(_shmem->channels[i].state == CHANNEL_STATE_OBSERVED) << "Channel is not blocked";
   _shmem->channels[i].action = CHANNEL_ACTION_FINISH;
   __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  while (sem_post(&_shmem->channels[i].wake_tracee) == -1) {
+    WARN_IF(errno != EAGAIN) << "Error from sem_post: " << ERR;
+  }
 }
 
 // Ask the tracee to exit instead of running the system call
@@ -738,6 +756,9 @@ void Tracer::channelExit(ssize_t i, int exit_status) noexcept {
   _shmem->channels[i].action = CHANNEL_ACTION_EXIT;
   _shmem->channels[i].regs.SYSCALL_ARG1 = exit_status;
   __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  while (sem_post(&_shmem->channels[i].wake_tracee) == -1) {
+    WARN_IF(errno != EAGAIN) << "Error from sem_post: " << ERR;
+  }
 }
 
 // Ask the tracee to skip the system call and use the provided result instead
@@ -746,6 +767,9 @@ void Tracer::channelSkip(ssize_t i, long result) noexcept {
   _shmem->channels[i].action = CHANNEL_ACTION_SKIP;
   _shmem->channels[i].regs.SYSCALL_RETURN = result;
   __atomic_store_n(&_shmem->channels[i].state, CHANNEL_STATE_PROCEED, __ATOMIC_RELEASE);
+  while (sem_post(&_shmem->channels[i].wake_tracee) == -1) {
+    WARN_IF(errno != EAGAIN) << "Error from sem_post: " << ERR;
+  }
 }
 
 void* Tracer::channelGetBuffer(ssize_t i) noexcept {

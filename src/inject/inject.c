@@ -19,10 +19,7 @@
 #include <unistd.h>
 
 // How many times should a thread spin on a contended lock before backing off?
-#define SPIN_BACKOFF_COUNT 128
-
-// How many times should a thread try a channel before moving to a new one
-#define SPIN_LIMIT 2048
+#define SPIN_BACKOFF_COUNT 16
 
 // These symbols are provided by the assembly implementation of the safe syscall function
 extern void safe_syscall_start;
@@ -176,16 +173,12 @@ void rkr_inject_init() {
 }
 
 size_t channel_acquire(pid_t tid) {
-  static __thread ssize_t i = -1;
-
-  // Set the index where we'll start looking
-  if (i < 0 || i >= TRACING_CHANNEL_COUNT) {
-    // If i isn't initialized, set it to a "hash" of the thread ID
-    i = tid % TRACING_CHANNEL_COUNT;
+  // Block until we know there's an available channel
+  while (sem_wait(&shmem->available) == -1) {
   }
 
   // Loop until we find a channel to claim
-  size_t spin_count = 0;
+  size_t i = tid % TRACING_CHANNEL_COUNT;
   while (true) {
     // Peek at the state of the channel
     uint8_t state = __atomic_load_n(&shmem->channels[i].state, __ATOMIC_RELAXED);
@@ -200,47 +193,36 @@ size_t channel_acquire(pid_t tid) {
       return i;
     }
 
-    // We didn't get the channel. Back off.
-    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
-      // Hint to the OS scheduler that this thread isn't busy
-      sched_yield();
-    } else {
-      // Hint to the CPU that this thread isn't busy
-      _mm_pause();
-    }
-
-    // Move to a new channel if we've waited too long
-    /*if (spin_count >= SPIN_LIMIT) {
-      i = (i + 1) % TRACING_CHANNEL_COUNT;
-      spin_count = 0;
-    }*/
+    i = (i + 1) % TRACING_CHANNEL_COUNT;
   }
 }
 
 void channel_release(size_t c) {
   // Reset the channel to available
   __atomic_store_n(&shmem->channels[c].state, CHANNEL_STATE_AVAILABLE, __ATOMIC_RELEASE);
+
+  // Post an available channel
+  while (sem_post(&shmem->available) == -1) {
+  }
 }
 
 /// Spin until the tracer sets the channel state to PROCEED
 void channel_wait(size_t c) {
-  // Spin until the tracer allows the tracee to proceed
-  size_t spin_count = 0;
-  while (true) {
+  for (size_t i = 0; i < SPIN_BACKOFF_COUNT; i++) {
     // Load the channel state
     uint8_t state = __atomic_load_n(&shmem->channels[c].state, __ATOMIC_ACQUIRE);
 
     // Can we proceed?
-    if (state == CHANNEL_STATE_PROCEED) break;
-
-    // Nope. Back off.
-    if (++spin_count % SPIN_BACKOFF_COUNT == 0) {
-      // Hint to the OS scheduler that this thread isn't busy
-      sched_yield();
+    if (state == CHANNEL_STATE_PROCEED) {
+      // Yes. Break out of the loop
+      break;
     } else {
-      // Hint to the CPU that this thread isn't busy
       _mm_pause();
     }
+  }
+
+  // Wait on the semaphore
+  while (sem_wait(&shmem->channels[c].wake_tracee) != 0) {
   }
 }
 

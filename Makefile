@@ -8,7 +8,7 @@ BLAKE3 := deps/BLAKE3/c
 # Flags shared by both debug and release builds
 COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3)
 COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/CLI11/include
-COMMON_LDFLAGS := -lstdc++fs -lfmt
+COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread
 
 # Debug settings
 DEBUG_DIR := debug
@@ -107,7 +107,7 @@ $(DEBUG_DIR)/bin/rkr-launch $(RELEASE_DIR)/bin/rkr-launch: src/rkr-launch/launch
 
 $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(RKR_INJECT_SRCS) src/rkr/tracing/inject.h Makefile
 	@mkdir -p `dirname $@`
-	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl
+	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl -lpthread
 
 $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wraper: src/wrapper/wrapper.cc Makefile
 	@mkdir -p `dirname $@`
