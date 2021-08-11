@@ -1476,10 +1476,7 @@ void Thread::_execveat(at_fd dfd,
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
     _build.traceExpectResult(getCommand(), exe_ref_id, SUCCESS);
-    // vector<string> envar2;
-    // for (int i = 0; environ[i] != nullptr; i++) {
-    //   envar2.push_back(environ[i]);
-    // }
+
     const auto& child = _process->exec(exe_ref_id, args, envar);
 
     // Does the child command need to run?

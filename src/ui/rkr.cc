@@ -33,16 +33,6 @@ static bool stderr_supports_colors() noexcept {
   return isatty(STDERR_FILENO) && getenv("TERM") != nullptr;
 }
 
-// static void setDefaultEnvironment() noexcept {
-//   extern char** environ;
-//   for (int i = 0; environ[i] != nullptr; i++) {
-//     string variable = string(environ[i]);
-//     string key = variable.substr(0, variable.find("="));
-//     variable.erase(0, variable.find("=") + 1);
-//     Command::default_envar.insert({key, variable});
-//   }
-// }
-
 /**
  * This is the entry point for the rkr command line tool
  */
