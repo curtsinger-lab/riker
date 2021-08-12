@@ -1,0 +1,33 @@
+{
+  "git": "https://github.com/sqlite/sqlite",
+  "commit": "c1cace0832fa2af5ab8315e217d708c09d586425",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "./configure",
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "./configure",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}
