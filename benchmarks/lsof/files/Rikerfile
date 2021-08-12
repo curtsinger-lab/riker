@@ -18,6 +18,7 @@ rm -f version.h
 echo '#define LSOF_BLDCMT ""' > version.h;
 echo '#define LSOF_CC "cc"' >> version.h
 echo '#define LSOF_CCV "'`cc -v 2>&1 | sed -n 's/.*version \(.*\)/\1/p'`'"' >> version.h
+echo '#define	LSOF_CCDATE	"'`date`'"' >> version.h
 echo '#define LSOF_CCFLAGS "'`echo $CFLAGS | sed 's/\\\\(/\\(/g' | sed 's/\\\\)/\\)/g' | sed 's/"/\\\\"/g'`'"' >> version.h
 echo '#define LSOF_CINFO ""' >> version.h
 echo '#define LSOF_HOST "'`uname -n`'"' >> version.h
