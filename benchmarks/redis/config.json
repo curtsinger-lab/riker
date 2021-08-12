@@ -1,0 +1,34 @@
+{
+  "git": "https://github.com/redis/redis",
+  "commit": "d96f47cf06b1cc24b82109e0e87ac5428517525a",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean",
+      "make .make-prerequisites"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr",
+      "make .make-prerequisites"
+    ],
+    "build": "rkr"
+  }
+}
