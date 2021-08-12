@@ -109,7 +109,7 @@ $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(R
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl -lpthread
 
-$(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wraper: src/wrapper/wrapper.cc Makefile
+$(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrapper/wrapper.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc
 

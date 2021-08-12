@@ -8,3 +8,7 @@ core
 out.png
 *.t.err
 benchmark.local
+__pycache__
+benchmarks/*/checkout
+log-default
+log-rkr

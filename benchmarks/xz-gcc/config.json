@@ -1,0 +1,32 @@
+{
+  "git": "https://github.com/xz-mirror/xz",
+  "commit": "2327a461e1afce862c22269b80d3517801103c1b",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "CC=gcc cmake -G \"Unix Makefiles\" .",
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}

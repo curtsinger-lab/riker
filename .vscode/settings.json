@@ -78,9 +78,8 @@
   "C_Cpp.clang_format_path": "/usr/bin/clang-format",
   "files.exclude": {
     "**/.rkr/**": true,
-    "debug": true,
-    "release": true,
     "benchmark.local/**": true,
+    "**/__pycache__": true,
   },
   "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -88,8 +87,9 @@
     "**/.rkr/**": true,
     "benchmark.local/**": true,
     "tests/**": true,
-    "benchmarks/*/rkr-commands/**": true,
-    "benchmarks/*/make-commands/**": true,
+    "**/benchmarks/*/rkr-commands/**": true,
+    "**/benchmarks/*/make-commands/**": true,
+    "**/benchmarks/**/checkout/**": true,
   },
   "search.exclude": {
     "**/.git/objects/**": true,
@@ -99,6 +99,7 @@
     "benchmarks/*/rkr-commands/**": true,
     "benchmarks/*/make-commands/**": true,
     "benchmark.local/**": true,
+    "benchmarks/**/checkout/**": true,
   },
   "editor.rulers": [
     100

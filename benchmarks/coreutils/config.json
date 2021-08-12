@@ -1,0 +1,29 @@
+{
+  "checkout": [
+    "wget --no-clobber https://ftp.gnu.org/gnu/coreutils/coreutils-8.32.tar.gz",
+    "tar xzf coreutils-8.32.tar.gz",
+    "mv coreutils-8.32 checkout",
+    "rm coreutils-8.32.tar.gz"
+  ],
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean"
+    ],
+    "build": "make --quiet"
+  },
+  "rkr": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean",
+      "rm -rf .rkr"
+    ],
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "build": "rkr"
+  }
+}

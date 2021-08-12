@@ -194,6 +194,7 @@ size_t channel_acquire(pid_t tid) {
     }
 
     i = (i + 1) % TRACING_CHANNEL_COUNT;
+    _mm_pause();
   }
 }
 
