@@ -1,0 +1,35 @@
+{
+  "git": "https://github.com/memcached/memcached.git",
+  "commit": "c472369fed5981ba8c004d426cee62d5165c47ca",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "./autogen.sh",
+      "./configure",
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "./autogen.sh",
+      "./configure",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-make --quiet 2>&1 > /dev/null
+make --quiet
