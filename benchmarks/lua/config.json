@@ -6,8 +6,7 @@
     "rm lua-5.4.3.tar.gz"
   ],
   "experiments": [
-    "full-build",
-    "case-study"
+    "full-build"
   ],
   "default": {
     "copy": {
