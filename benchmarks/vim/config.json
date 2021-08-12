@@ -1,0 +1,33 @@
+{
+  "git": "https://github.com/vim/vim.git",
+  "commit": "b836f631dba2534efd314a8f77439cebc75acd4e",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "./configure",
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "./configure",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}
