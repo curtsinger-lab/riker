@@ -1,0 +1,38 @@
+{
+  "git": "git@github.com:curtsinger-lab/riker",
+  "commit": "fbfef5653abe3c44c496ab23fadf233157091ae1",
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Makefile": "Makefile",
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "git submodule init",
+      "git submodule update",
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "dirname",
+      "mkdir"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr",
+      "git submodule init",
+      "git submodule update",
+      "make clean"
+    ],
+    "build": "rkr"
+  }
+}

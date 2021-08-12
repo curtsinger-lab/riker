@@ -6,15 +6,9 @@ OPT="-O3"
 CFLAGS="$OPT -Isrc -Ideps/cereal/include -Ideps/CLI11/include -I$BLAKE3 -Wall -Wfatal-errors"
 CXXFLAGS="$CFLAGS --std=c++17"
 
-mkdir -p .blake3obj
-clang $CFLAGS -o .blake3obj/blake3.o -c $BLAKE3/blake3.c
-clang $CFLAGS -o .blake3obj/blake3_dispatch.o -c $BLAKE3/blake3_dispatch.c
-clang $CFLAGS -o .blake3obj/blake3_portable.o -c $BLAKE3/blake3_portable.c
-clang $CFLAGS -msse2 -o .blake3obj/blake3_sse2.o -c $BLAKE3/blake3_sse2.c
-clang $CFLAGS -msse4.1 -o .blake3obj/blake3_sse41.o -c $BLAKE3/blake3_sse41.c
-clang $CFLAGS -mavx2 -o .blake3obj/blake3_avx2.o -c $BLAKE3/blake3_avx2.c
-clang $CFLAGS -mavx512f -mavx512vl -o .blake3obj/blake3_avx512.o -c $BLAKE3/blake3_avx512.c
+BLAKE3=deps/BLAKE3/c
+clang -fPIC -shared -O3 -o libblake3.so $BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S
 
-clang++ $CXXFLAGS -o rkr src/*/*.cc .blake3obj/*.o -lstdc++fs -lfmt
+clang++ $CFLAGS --std=c++17 -o rkr src/*/*.cc -L. -lblake3 -lstdc++fs -lfmt
 
 clang $CFLAGS -o rkr-launch launch/launch.c
