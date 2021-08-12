@@ -1,10 +1,8 @@
 #!/bin/sh
 
-# Warning - ar: `u' modifier ignored since `D' is the default (see `U')
-
-cd src 
-
 CFLAGS="-std=gnu99 -O2 -Wall -Wextra -DLUA_COMPAT_5_3 -DLUA_USE_LINUX"
+
+cd src
 
 gcc $CFLAGS -c `ls *.c | grep -v lua_`
 

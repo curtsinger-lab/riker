@@ -1,0 +1,35 @@
+{
+  "checkout": [
+    "wget https://www.lua.org/ftp/lua-5.4.3.tar.gz",
+    "tar xzf lua-5.4.3.tar.gz",
+    "mv lua-5.4.3 checkout",
+    "rm lua-5.4.3.tar.gz"
+  ],
+  "experiments": [
+    "full-build",
+    "case-study"
+  ],
+  "default": {
+    "copy": {
+      "files/Rikerfile-make": "Rikerfile"
+    },
+    "setup": [
+      "make clean"
+    ],
+    "build": "make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}
