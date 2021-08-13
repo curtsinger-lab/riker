@@ -11,7 +11,7 @@ RKR_DIR = path.abspath(path.dirname(__file__))
 BENCH_DIR = path.join(RKR_DIR, 'benchmarks')
 BENCHMARKS = {}
 DEFAULT_REPS = 5
-COMMIT_COUNT = 5
+COMMIT_COUNT = 100
 
 # Get information about all of the available benchmarks
 for entry in os.listdir(BENCH_DIR):
