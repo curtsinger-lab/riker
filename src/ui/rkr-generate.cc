@@ -33,6 +33,7 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+// Name of resulting Rikerfile
 string rikerfile_name = "Rikerfile-gen";
 
 // Helper function for converting to execv format
@@ -51,21 +52,6 @@ bool hasEnding(string const& fullString, string const& ending) {
     return false;
   }
 }
-
-// // Function removes all lines whose first token ends in ':', filtering out non-command messages
-// void removeComments(string temp_name = "temp.txt") {
-//   fstream original_file(rikerfile_name.c_str(), fstream::in);
-//   fstream new_file(temp_name, fstream::trunc | fstream::out);
-//   string line, token, delimiter = " ";
-//   while (getline(original_file, line)) {
-//     token = line.substr(0, line.find(delimiter));
-//     if (!hasEnding(token, ":")) {
-//       new_file << line << endl;
-//     }a
-//   }
-//   remove(rikerfile_name.c_str());
-//   rename(temp_name.c_str(), rikerfile_name.c_str());
-// }
 
 // Erase all Occurrences of to_find with to_replace
 void replaceToken(string& str, const string& to_find, const string& to_replace) {
@@ -106,29 +92,25 @@ void formatShellCommands(string temp_name = "temp.txt") {
   rename(temp_name.c_str(), rikerfile_name.c_str());
 }
 
+// This function splits Rikerfile into a vector of commands (each line), where the commands are
+// vectors of arguments.
 void getCommandArgs(vector<vector<string>>& command_args) {
   fstream original_file(rikerfile_name.c_str(), fstream::in);
   string line, token, delimiter = " ";
-  // size_t delim_length = delimiter.length();
   getline(original_file, line);
 
   // Iterate over every line in the Rikerfile
   while (getline(original_file, line)) {
+    // Remove any new line characters
     replaceToken(line, "\\\\n", "");
-    // size_t pos_start = 0, pos_end;
-    // vector<string> line_args;
-    // while ((pos_end = line.find(delimiter, pos_start) != string::npos)) {
-    //   token = line.substr(pos_start, pos_end - pos_start);
-    //   cout << token << endl;
-    //   pos_start = pos_end + delim_length;
-    //   line_args.push_back(token);
-    // }
     vector<string> list;
     string s = line;
     size_t pos = 0;
     string token;
     while ((pos = s.find(delimiter)) != string::npos) {
+      // Break up line into tokens at spaces
       token = s.substr(0, pos);
+      // Remove unnecessary spaces
       replaceToken(token, " ", "");
       list.push_back(token);
       s.erase(0, pos + delimiter.length());
@@ -139,6 +121,10 @@ void getCommandArgs(vector<vector<string>>& command_args) {
   original_file.close();
 }
 
+// Finds flags shared between every compile command
+// Replaces all occurrences with $CFLAGS var
+// Note: While shared flags are determined by regular "gcc/clang/etc" calls, any occurrences will be
+// replaced with var (like /bin/sh/ -c commands).
 void condenseFlags(vector<vector<string>>& command_args) {
   int num_commands = command_args.size();
   vector<string> flags;
@@ -148,7 +134,9 @@ void condenseFlags(vector<vector<string>>& command_args) {
     // iterate over each command
     vector<string> command(command_args[c_index]);
 
-    if (command[0].compare("gcc") == 0) {
+    if ((command[0].compare("gcc") == 0) || (command[0].compare("g++") == 0) ||
+        (command[0].compare("clang") == 0) || (command[0].compare("clang++") == 0) ||
+        (command[0].compare("cc") == 0) || (command[0].compare("c++") == 0)) {
       // Current Command can potentially be condensed
 
       num_compile_commands++;
@@ -162,9 +150,8 @@ void condenseFlags(vector<vector<string>>& command_args) {
         if (arg.compare("-o") == 0) {
           i++;
           continue;
-        } else if (!hasEnding(arg, ".c")) {
+        } else if (!(hasEnding(arg, ".c") || hasEnding(arg, ".cc") || hasEnding(arg, ".o"))) {
           // A potential flag has been found
-          cout << arg << " ";
           bool new_flag = true;
           if (!flags.empty()) {
             int flag_index;
@@ -179,6 +166,7 @@ void condenseFlags(vector<vector<string>>& command_args) {
             }
           }
           if (new_flag) {
+            // If flag is new, all prior commands lacked it
             flags.push_back(arg);
             for (int z = 0; z < num_compile_commands - 1; z++) {
               hasFlag[z].push_back(false);
@@ -187,7 +175,6 @@ void condenseFlags(vector<vector<string>>& command_args) {
           }
         }
       }
-      cout << endl;
     }
     /*
     // Handle compile commands run using "/bin/sh -c"
@@ -224,20 +211,7 @@ void condenseFlags(vector<vector<string>>& command_args) {
     }*/
   }
 
-  // Print out the array of booleans
-
-  fstream command_file("commands.txt", fstream::trunc | fstream::out);
-  for (string flag : flags) {
-    command_file << flag << " ";
-  }
-  command_file << endl;
-  for (vector<bool> results : hasFlag) {
-    for (bool f : results) {
-      command_file << f << " ";
-    }
-    command_file << endl;
-  }
-
+  // Find flags that every compile command uses
   vector<string> cflags;
   for (int i = 0; i < flags.size(); i++) {
     // Iterate over each flag found
@@ -255,13 +229,42 @@ void condenseFlags(vector<vector<string>>& command_args) {
       cflags.push_back(flags[i]);
     }
   }
-  cout << endl;
-  for (string flag : cflags) {
-    cout << flag << " ";
+
+  if (cflags.size() >= 2) {
+    // Replace common flags with CFLAGS var
+    string cflags_str;
+    for (int i = 0; i < cflags.size() - 1; i++) {
+      cflags_str += cflags[i] + " ";
+    }
+    cflags_str += cflags[cflags.size() - 1];
+
+    string temp_name = "temp.txt";
+    fstream original_file(rikerfile_name.c_str(), fstream::in);
+    fstream new_file(temp_name, fstream::trunc | fstream::out);
+
+    string line, token, delimiter = " ";
+
+    // Modify header to include CFLAGS var
+    getline(original_file, line);
+    new_file << "#!/bin/sh" << endl << endl;
+    new_file << "CFLAGS=\"" << cflags_str << "\"" << endl;
+
+    // Check each line for cflags_str, and replace with $CFLAGS
+    // Note: Assumes shared flags occur in a continuous string in the order they first appeared.
+    // If flags are separated/in a different order, it won't be replaced
+    while (getline(original_file, line)) {
+      string line_copy(line);
+
+      replaceToken(line_copy, cflags_str, "$CFLAGS");
+
+      new_file << line_copy << endl;
+    }
+    remove(rikerfile_name.c_str());
+    rename(temp_name.c_str(), rikerfile_name.c_str());
   }
-  cout << endl;
 }
 
+// Helper function to execute a shell command in a new thread
 void executeCommand(string path, vector<string> args, bool has_own_thread = true) {
   vector<char*> vc;
   transform(args.begin(), args.end(), back_inserter(vc), convert_helper);
@@ -283,60 +286,13 @@ void executeCommand(string path, vector<string> args, bool has_own_thread = true
   }
 }
 
-// Functions dictating the 3 main steps for Rikerfile generation (and the main function):
-//   1. Create a new Rikerfile with #!/bin/sh header and pipe make commands to it
-//   2. Process the make commands by removing unnecessary lines and simplifying commands
-//   3. Finalize the Rikerfile by making it executable
-//   4. Main function to call these helper functions in order
-
-fstream createRikerfile() {
-  // Create empty Rikerfile
-  fstream write_file(rikerfile_name.c_str(), fstream::trunc | fstream::out);
-
-  // Write shell header to Rikerfile
-  write_file << "#!/bin/sh" << endl << endl;
-  // write_file.close();
-
-  // Pipe make commands into Rikerfile
-  // string command = "make -n --always-make >> " + rikerfile_name;
-  // pclose(popen(command.c_str(), "w"));
-  return write_file;
-}
-
-void processRikerfile() {
-  // Filter out non-command messages
-  // removeComments();
-
-  vector<vector<string>> command_args;
-  getCommandArgs(command_args);
-
-  // fstream command_file("commands.txt", fstream::trunc | fstream::out);
-  // for (vector<string> command : command_args) {
-  //   for (string arg : command) {
-  //     if (arg.compare("\\\\n") != 0) {
-  //       command_file << arg << " ";
-  //     }
-  //   }
-  //   command_file << endl;
-  // }
-
-  // Still a work in progress for condensing flags
-  condenseFlags(command_args);
-
-  formatShellCommands();
-}
-
-void finalizeRikerfile() {
-  // Make the Rikerfile executable by calling "chmod u+x Rikerfile".
-  vector<string> vs = {"chmod", "u+x", rikerfile_name};
-  executeCommand("chmod", vs);
-}
-
+// Helper function to check a command (by its first arg)
 bool doesStrStartWithToken(string str, string token, const char* delimiter = " ") {
   string first_token = str.substr(0, str.find(delimiter));
   return first_token.compare(token) == 0;
 }
 
+// Recursively scans trace and extracts first layer of Make commands
 void extractMakeCommands(shared_ptr<Command> root_cmd,
                          fstream& output,
                          bool child_of_make = false) {
@@ -360,6 +316,42 @@ void extractMakeCommands(shared_ptr<Command> root_cmd,
   }
 }
 
+// Functions dictating the 3 main steps for Rikerfile generation (and the main function):
+//   1. Create a new Rikerfile with #!/bin/sh header and pipe make commands to it
+//   2. Process the make commands by removing unnecessary lines and simplifying commands
+//   3. Finalize the Rikerfile by making it executable
+//   4. Main function to call these helper functions in order
+
+fstream createRikerfile() {
+  // Create empty Rikerfile
+  fstream write_file(rikerfile_name.c_str(), fstream::trunc | fstream::out);
+
+  // Write shell header to Rikerfile
+  write_file << "#!/bin/sh" << endl << endl;
+
+  return write_file;
+}
+
+// Processes and modifies Rikerfile for improved readability
+void processRikerfile() {
+  // Get commands from Rikerfile in accessible format
+  vector<vector<string>> command_args;
+  getCommandArgs(command_args);
+
+  // Check for common flags and replace them with $CFLAGS var
+  condenseFlags(command_args);
+
+  // Format /bin/sh -c commands
+  formatShellCommands();
+}
+
+// Make the Rikerfile executable by calling "chmod u+x Rikerfile".
+void finalizeRikerfile() {
+  vector<string> vs = {"chmod", "u+x", rikerfile_name};
+  executeCommand("chmod", vs);
+}
+
+// This function runs when rkr generate is invoked
 void do_generate(vector<string> args) noexcept {
   // Turn on input/output tracking
   options::track_inputs_outputs = true;
@@ -373,13 +365,16 @@ void do_generate(vector<string> args) noexcept {
   // Emulate the trace
   trace->sendTo(Build());
 
+  // Create new Rikerfile
   fstream rikerfile = createRikerfile();
-  // fstream write_file(rikerfile_name.c_str(), fstream::trunc | fstream::out);
-  // write_file << "#!/bin/sh" << endl << endl;
 
+  // Extract build commands from rkr trace
   extractMakeCommands(root_cmd, rikerfile, false);
   rikerfile.close();
+
+  // Format Rikerfile for improved readability
   processRikerfile();
 
+  // Make Rikerfile Executable
   finalizeRikerfile();
 }
