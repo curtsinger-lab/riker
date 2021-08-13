@@ -1,0 +1,29 @@
+{
+  "checkout": [
+    "wget http://ftp.gnu.org/gnu/make/make-4.3.tar.gz",
+    "tar xzf make-4.3.tar.gz",
+    "mv make-4.3 checkout",
+    "rm make-4.3.tar.gz"
+  ],
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean"
+    ],
+    "build": "make --quiet"
+  },
+  "rkr": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean",
+      "rm -rf .rkr"
+    ],
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "build": "rkr"
+  }
+}

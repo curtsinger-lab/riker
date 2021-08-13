@@ -1,17 +1,16 @@
 {
-  "git": "https://github.com/xz-mirror/xz",
-  "commit": "2327a461e1afce862c22269b80d3517801103c1b",
-  "reps": 5,
+  "git": "https://github.com/protocolbuffers/protobuf.git",
+  "commit": "909a0f36a10075c4b4bc70fdee2c7e32dd612a72",
   "experiments": [
-    "full-build",
-    "case-study"
+    "full-build"
   ],
   "default": {
     "copy": {
       "files/Rikerfile-make": "Rikerfile"
     },
     "setup": [
-      "CC=gcc cmake -G \"Unix Makefiles\" .",
+      "./autogen.sh",
+      "test -f Makefile || ./configure",
       "make clean"
     ],
     "build": "make --quiet",
@@ -26,7 +25,9 @@
       "files/Rikerfile": "Rikerfile"
     },
     "setup": [
-      "rm -rf .rkr"
+      "rm -rf .rkr",
+      "./autogen.sh",
+      "test -f Makefile || ./configure"
     ],
     "build": "rkr"
   }

@@ -9,7 +9,7 @@ import time
 RKR_DIR = path.abspath(path.dirname(__file__))
 BENCH_DIR = path.join(RKR_DIR, 'benchmarks')
 BENCHMARKS = {}
-REPS = 1
+DEFAULT_REPS = 1
 
 # Get information about all of the available benchmarks
 for entry in os.listdir(BENCH_DIR):
@@ -106,7 +106,14 @@ def full_build(name, build_tool):
   print('Full {} build of {}'.format(build_tool, name))
   checkout(name)
 
-  for i in range(0, REPS):
+  reps = DEFAULT_REPS
+  if 'reps' in BENCHMARKS[name]:
+    reps = int(BENCHMARKS[name]['reps'])
+
+  full_time = open(path.join(bench_path, 'full-build-{}.csv'.format(build_tool)), 'w')
+  nop_time = open(path.join(bench_path, 'nop-build-{}.csv'.format(build_tool)), 'w')
+
+  for i in range(0, reps):
     setup(name, build_tool)
     print('  Running build {}'.format(i+1))
 
@@ -117,6 +124,15 @@ def full_build(name, build_tool):
     rc = os.system('cd {}; {} 2>&1 > {}'.format(checkout_path, build_cmd, path.join(bench_path, log_path)))
     end_time = time.perf_counter()
 
+    print('{:.4f}'.format(end_time - start_time), file=full_time)
+    print('    Finished in {:.2f}s with exit code {}'.format(end_time - start_time, rc))
+
+    print('  Running no-op build {}'.format(i+1))
+    start_time = time.perf_counter()
+    rc = os.system('cd {}; {} 2>&1 > {}'.format(checkout_path, build_cmd, path.join(bench_path, log_path)))
+    end_time = time.perf_counter()
+    
+    print('{:.4f}'.format(end_time - start_time), file=nop_time)
     print('    Finished in {:.2f}s with exit code {}'.format(end_time - start_time, rc))
 
 def case_study(name, build_tool):

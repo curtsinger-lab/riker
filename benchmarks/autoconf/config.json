@@ -1,0 +1,29 @@
+{
+  "checkout": [
+    "wget https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz",
+    "tar xzvf autoconf-2.69.tar.gz",
+    "mv autoconf-2.69 checkout",
+    "rm autoconf-2.69.tar.gz"
+  ],
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean"
+    ],
+    "build": "make --quiet"
+  },
+  "rkr": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean",
+      "rm -rf .rkr"
+    ],
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "build": "rkr"
+  }
+}
