@@ -10,7 +10,7 @@ import time
 RKR_DIR = path.abspath(path.dirname(__file__))
 BENCH_DIR = path.join(RKR_DIR, 'benchmarks')
 BENCHMARKS = {}
-DEFAULT_REPS = 1
+DEFAULT_REPS = 5
 COMMIT_COUNT = 5
 
 # Get information about all of the available benchmarks
@@ -206,11 +206,11 @@ def rkr_case_study(name):
     commit_distance = COMMIT_COUNT - i
     commit = '{}~{}'.format(end_commit, commit_distance)
     checkout_rev(name, commit)
-    copy_files(name, build_tool)
+    copy_files(name, 'rkr')
 
     # Run the incremental build
     print('  Running incremental build at commit {}'.format(i))
-    cmds_path = os.path.join(rkr_commands, '{:0>3}'.format(i))
+    cmds_path = os.path.join(default_commands, '{:0>3}'.format(i))
 
     start_time = time.perf_counter()
     rc = os.system('cd {}; rkr --show-full -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmds_path))
@@ -224,7 +224,7 @@ def rkr_case_study(name):
 
     # Compute the size of the riker cache
     cache_size = 0
-    cache_count = 0;
+    cache_count = 0
     for (dirname, subdirs, files) in os.walk('{}/.rkr/cache'.format(checkout_path)):
       for f in files:
         cache_count += 1
@@ -234,7 +234,95 @@ def rkr_case_study(name):
     print('{},{},{},{},{},{}'.format(i, commands, runtime, db_size, cache_size, cache_count), file=csv)
 
 def default_case_study(name):
-  pass
+  bench_path = path.join(BENCH_DIR, name)
+  checkout_path = path.join(bench_path, 'checkout')
+
+  cmd_filter = []
+  if 'filter' in BENCHMARKS[name]['default']:
+    cmd_filter = BENCHMARKS[name]['default']
+
+  # Set up the repository for our first build
+  end_commit = BENCHMARKS[name]['commit']
+  commit = '{}~{}'.format(end_commit, COMMIT_COUNT)
+  checkout_rev(name, commit)
+
+  # Save the old default-commands directory and create a new one
+  default_commands = path.join(bench_path, 'default-commands')
+  old_default_commands = path.join(bench_path, '.old-default-commands')
+  if path.isdir(default_commands):
+    if path.isdir(old_default_commands):
+      shutil.rmtree(old_default_commands)
+    os.rename(default_commands, old_default_commands)
+  os.mkdir(default_commands)
+
+  audit_times = []
+  command_counts = []
+  filtered_command_counts = []
+
+  for i in range(0, COMMIT_COUNT + 1):
+    # Check out the next revision
+    commit_distance = COMMIT_COUNT - i
+    commit = '{}~{}'.format(end_commit, commit_distance)
+    checkout_rev(name, commit)
+    copy_files(name, 'default')
+
+    # Run the incremental build
+    print('  Running audit build at commit {}'.format(commit))
+    cmds_path = path.join(default_commands, '{:0>3}'.format(i))
+
+    start_time = time.perf_counter()
+    rc = os.system('cd {}; rkr audit -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmds_path))
+    audit_time = time.perf_counter() - start_time
+    print('    Finished in {:.2f}s with exit code {}'.format(audit_time, rc))
+    if rc != 0:
+      raise Exception('audit build failed')
+    
+    commands = count_lines(cmds_path)
+    filtered_commands = count_lines(cmds_path, cmd_filter)
+
+    audit_times.append(audit_time)
+    command_counts.append(commands)
+    filtered_command_counts.append(filtered_commands)
+  
+  # Reverse the lists of results from the first phase so we can pop each item
+  audit_times.reverse()
+  command_counts.reverse()
+  filtered_command_counts.reverse()
+
+  default_csv = path.join(bench_path, 'case-study-default.csv')
+  old_default_csv = path.join(bench_path, '.old-case-study-default.csv')
+  # Save the old data file if it exists
+  if path.isfile(default_csv):
+    os.rename(default_csv, old_default_csv)
+
+  # Open a csv file to write data to
+  csv = open(default_csv, 'w')
+  print('build,commands,filtered_commands,runtime,audit_runtime', file=csv)
+
+  for i in range(0, COMMIT_COUNT + 1):
+    # Check out the next revision
+    commit_distance = COMMIT_COUNT - i
+    commit = '{}~{}'.format(end_commit, commit_distance)
+    checkout_rev(name, commit)
+    copy_files(name, 'default')
+
+    # Run the incremental build
+    print('  Running incremental build at commit {}'.format(i))
+    cmds_path = os.path.join(default_commands, '{:0>3}'.format(i))
+
+    build_cmd = BENCHMARKS[name]['default']['build']
+
+    start_time = time.perf_counter()
+    rc = os.system('cd {}; {} 2> /dev/null 1> /dev/null'.format(checkout_path, build_cmd, cmds_path))
+    runtime = time.perf_counter() - start_time
+    print('    Finished in {:.2f}s with exit code {}'.format(runtime, rc))
+    if rc != 0:
+      raise Exception('Build failed')
+
+    commands = command_counts.pop()
+    filtered_commands = filtered_command_counts.pop()
+    audit_time = audit_times.pop()
+    print('{},{},{},{},{}'.format(i, commands, filtered_commands, runtime, audit_time), file=csv)
 
 def case_study(name, build_tool):
   print('Case study of {} with {}'.format(name, build_tool))
