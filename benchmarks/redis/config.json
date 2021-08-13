@@ -11,8 +11,8 @@
     },
     "setup": [
       "test -f Makefile || ./configure",
-      "make clean",
-      "make .make-prerequisites"
+      "make .make-prerequisites",
+      "make clean"
     ],
     "build": "make --quiet",
     "filter": [

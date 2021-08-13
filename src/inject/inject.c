@@ -19,7 +19,7 @@
 #include <unistd.h>
 
 // How many times should a thread spin on a contended lock before backing off?
-#define SPIN_BACKOFF_COUNT 16
+#define SPIN_BACKOFF_COUNT 32
 
 // These symbols are provided by the assembly implementation of the safe syscall function
 extern void safe_syscall_start;
@@ -53,6 +53,7 @@ static int fast_lxstat(int ver, const char* pathname, struct stat* statbuf);
 static int fast_fxstat(int ver, int fd, struct stat* statbuf);
 static int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags);
 static int fast_execve(const char* pathname, char* const* argv, char* const* envp);
+static int fast_getdents(unsigned int fd, void* dirp, unsigned int count);
 
 typedef struct jump {
   volatile uint16_t farjmp;
@@ -170,6 +171,8 @@ void rkr_inject_init() {
   rkr_detour("__fxstat", fast_fxstat);
   rkr_detour("__fxstatat", fast_fxstatat);
   rkr_detour("execve", fast_execve);
+  rkr_detour("getdents", fast_getdents);
+  rkr_detour("getdents64", fast_getdents);
 }
 
 size_t channel_acquire(pid_t tid) {
@@ -194,7 +197,6 @@ size_t channel_acquire(pid_t tid) {
     }
 
     i = (i + 1) % TRACING_CHANNEL_COUNT;
-    _mm_pause();
   }
 }
 
@@ -631,4 +633,17 @@ int fast_execve(const char* pathname, char* const* argv, char* const* envp) {
   // Finish the system call and return. Unblock the channel before issuing the syscall.
   return channel_proceed(c, __NR_execve, (uint64_t)pathname, (uint64_t)argv, (uint64_t)envp, 0, 0,
                          0, true);
+}
+
+int fast_getdents(unsigned int fd, void* dirp, unsigned int count) {
+  pid_t tid = gettid();
+
+  // Find an available channel
+  size_t c = channel_acquire(tid);
+
+  // Inform the tracer that this command is entering a system call
+  channel_enter(c, __NR_getdents64, fd, (uint64_t)dirp, count, 0, 0, 0);
+
+  // Finish the system call and return.
+  return channel_proceed(c, __NR_getdents64, fd, (uint64_t)dirp, count, 0, 0, 0, false);
 }

@@ -1,0 +1,22 @@
+{
+  "git": "git@github.com:dbarowy/riker-paper",
+  "commit": "a2c82eff990b8f83877cc9c56b795039960018db",
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "make clean"
+    ],
+    "build": "make --quiet"
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}
