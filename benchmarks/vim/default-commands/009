@@ -1,0 +1,10 @@
+rkr-launch
+Rikerfile
+make --quiet
+/bin/sh -c if test ! -f src/auto/config.mk; then \\n	cp src/config.mk.dist src/auto/config.mk; \\nfi
+/bin/sh -c echo "Starting make in the src directory."
+/bin/sh -c echo "If there are problems, cd to the src directory and run make there"
+/bin/sh -c cd src && make first
+make first
+/bin/sh -c if test -n "" -a -f po/Makefile; then \\n	cd po; \\n	  CC="gcc" make prefix=/usr/local; \\nfi
+/bin/sh -c if test -n "" -a -f po/Makefile; then \\n	cd po; \\n	  CC="gcc" make prefix=/usr/local converted; \\nfi

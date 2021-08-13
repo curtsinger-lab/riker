@@ -210,7 +210,7 @@ def rkr_case_study(name):
 
     # Run the incremental build
     print('  Running incremental build at commit {}'.format(i))
-    cmds_path = os.path.join(default_commands, '{:0>3}'.format(i))
+    cmds_path = os.path.join(rkr_commands, '{:0>3}'.format(i))
 
     start_time = time.perf_counter()
     rc = os.system('cd {}; rkr --show-full -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmds_path))

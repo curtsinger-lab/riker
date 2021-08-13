@@ -1,0 +1,376 @@
+rkr-launch
+Rikerfile
+make --quiet
+/bin/bash -c for dep in Makefile.am; do \\n  case './version.m4 ./m4/c99-backport.m4 ./configure.ac  ./aclocal.m4' in \\n    *$dep*) \\n      echo ' cd . && /bin/bash /home/curtsinger/Projects/riker/benchmarks/memcached/checkout/missing automake-1.16 --foreign'; \\n      CDPATH="${ZSH_VERSION+.}:" && cd . && /bin/bash /home/curtsinger/Projects/riker/benchmarks/memcached/checkout/missing automake-1.16 --foreign \\n	&& exit 0; \\n      exit 1;; \\n  esac; \\ndone; \\necho ' cd . && /bin/bash /home/curtsinger/Projects/riker/benchmarks/memcached/checkout/missing automake-1.16 --foreign Makefile'; \\nCDPATH="${ZSH_VERSION+.}:" && cd . && \\n  /bin/bash /home/curtsinger/Projects/riker/benchmarks/memcached/checkout/missing automake-1.16 --foreign Makefile
+/bin/bash /home/curtsinger/Projects/riker/benchmarks/memcached/checkout/missing automake-1.16 --foreign Makefile
+automake-1.16 --foreign Makefile
+sh -c autoconf --trace=m4_sinclude:\$f:\$l::\$d::\$n::\${::}% --trace=AC_INIT:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CONFIG_LINKS:\$f:\$l::\$d::\$n::\${::}% --trace=_AM_COND_IF:\$f:\$l::\$d::\$n::\${::}% --trace=sinclude:\$f:\$l::\$d::\$n::\${::}% --trace=_AM_SUBST_NOTMAKE:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CONFIG_FILES:\$f:\$l::\$d::\$n::\${::}% --trace=_LT_AC_TAGCONFIG:\$f:\$l::\$d::\$n::\${::}% --trace=m4_include:\$f:\$l::\$d::\$n::\${::}% --trace=AM_EXTRA_RECURSIVE_TARGETS:\$f:\$l::\$d::\$n::\${::}% --trace=AM_MAINTAINER_MODE:\$f:\$l::\$d::\$n::\${::}% --trace=AC_SUBST_TRACE:\$f:\$l::\$d::\$n::\${::}% --trace=AC_REQUIRE_AUX_FILE:\$f:\$l::\$d::\$n::\${::}% --trace=LT_SUPPORTED_TAG:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CANONICAL_TARGET:\$f:\$l::\$d::\$n::\${::}% --trace=AC_FC_SRCEXT:\$f:\$l::\$d::\$n::\${::}% --trace=AM_CONDITIONAL:\$f:\$l::\$d::\$n::\${::}% --trace=_AM_COND_ELSE:\$f:\$l::\$d::\$n::\${::}% --trace=AM_GNU_GETTEXT:\$f:\$l::\$d::\$n::\${::}% --trace=AM_PROG_AR:\$f:\$l::\$d::\$n::\${::}% --trace=AM_PROG_MKDIR_P:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CONFIG_LIBOBJ_DIR:\$f:\$l::\$d::\$n::\${::}% --trace=AM_AUTOMAKE_VERSION:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CANONICAL_BUILD:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CONFIG_AUX_DIR:\$f:\$l::\$d::\$n::\${::}% --trace=AM_GNU_GETTEXT_INTL_SUBDIR:\$f:\$l::\$d::\$n::\${::}% --trace=AM_INIT_AUTOMAKE:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CONFIG_HEADERS:\$f:\$l::\$d::\$n::\${::}% --trace=AC_LIBSOURCE:\$f:\$l::\$d::\$n::\${::}% --trace=AC_CANONICAL_HOST:\$f:\$l::\$d::\$n::\${::}% --trace=_AM_COND_ENDIF:\$f:\$l::\$d::\$n::\${::}% configure.ac
+autoconf --trace=m4_sinclude:$f:$l::$d::$n::${::}% --trace=AC_INIT:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% --trace=_AM_COND_IF:$f:$l::$d::$n::${::}% --trace=sinclude:$f:$l::$d::$n::${::}% --trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% --trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% --trace=m4_include:$f:$l::$d::$n::${::}% --trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% --trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% --trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% --trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% --trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% --trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% --trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% --trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% --trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% --trace=AM_PROG_AR:$f:$l::$d::$n::${::}% --trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% --trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% --trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% --trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% --trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% --trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% configure.ac
+print -r -- \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+which file
+file -b --mime-type -e tokens -L -z -r
+which file
+file -b --mime-type -e tokens -L -z \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+expr a : \(a\)
+expr 00001 : .*\(...\)
+basename -- /
+basename -- /
+basename -- /usr/bin/autoconf
+expr x--trace=m4_sinclude:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=m4_sinclude:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=m4_sinclude:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=m4_sinclude:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_INIT:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_INIT:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_INIT:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_INIT:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=_AM_COND_IF:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=_AM_COND_IF:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=_AM_COND_IF:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=_AM_COND_IF:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=sinclude:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=sinclude:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=sinclude:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=sinclude:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=m4_include:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=m4_include:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=m4_include:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=m4_include:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_PROG_AR:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_PROG_AR:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_PROG_AR:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_PROG_AR:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr x--trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% : x\(--[^=]*\) | x--trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% : x\(-.\)
+expr x--trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% : x--[^=]*=\(.*\) | x--trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% : x-.\(.*\)
+sed s/'/'\\''/g
+expr xconfigure.ac : x\(--[^=]*\) | xconfigure.ac : x\(-.\)
+expr xconfigure.ac : x--[^=]*=\(.*\) | xconfigure.ac : x-.\(.*\)
+/usr/bin/autom4te --language=autoconf --output=- --trace=m4_sinclude:$f:$l::$d::$n::${::}% --trace=AC_INIT:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_LINKS:$f:$l::$d::$n::${::}% --trace=_AM_COND_IF:$f:$l::$d::$n::${::}% --trace=sinclude:$f:$l::$d::$n::${::}% --trace=_AM_SUBST_NOTMAKE:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_FILES:$f:$l::$d::$n::${::}% --trace=_LT_AC_TAGCONFIG:$f:$l::$d::$n::${::}% --trace=m4_include:$f:$l::$d::$n::${::}% --trace=AM_EXTRA_RECURSIVE_TARGETS:$f:$l::$d::$n::${::}% --trace=AM_MAINTAINER_MODE:$f:$l::$d::$n::${::}% --trace=AC_SUBST_TRACE:$f:$l::$d::$n::${::}% --trace=AC_REQUIRE_AUX_FILE:$f:$l::$d::$n::${::}% --trace=LT_SUPPORTED_TAG:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_TARGET:$f:$l::$d::$n::${::}% --trace=AC_FC_SRCEXT:$f:$l::$d::$n::${::}% --trace=AM_CONDITIONAL:$f:$l::$d::$n::${::}% --trace=_AM_COND_ELSE:$f:$l::$d::$n::${::}% --trace=AM_GNU_GETTEXT:$f:$l::$d::$n::${::}% --trace=AM_PROG_AR:$f:$l::$d::$n::${::}% --trace=AM_PROG_MKDIR_P:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_LIBOBJ_DIR:$f:$l::$d::$n::${::}% --trace=AM_AUTOMAKE_VERSION:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_BUILD:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_AUX_DIR:$f:$l::$d::$n::${::}% --trace=AM_GNU_GETTEXT_INTL_SUBDIR:$f:$l::$d::$n::${::}% --trace=AM_INIT_AUTOMAKE:$f:$l::$d::$n::${::}% --trace=AC_CONFIG_HEADERS:$f:$l::$d::$n::${::}% --trace=AC_LIBSOURCE:$f:$l::$d::$n::${::}% --trace=AC_CANONICAL_HOST:$f:$l::$d::$n::${::}% --trace=_AM_COND_ENDIF:$f:$l::$d::$n::${::}% configure.ac
+sh -c /usr/bin/m4 --help </dev/null 2>&1 | grep reload-state >/dev/null
+/usr/bin/m4 --help
+grep reload-state
+sh -c echo dumpdef | /usr/bin/m4 --nesting-limit=1024 2>&1 >/dev/null
+/usr/bin/m4 --nesting-limit=1024
+sh -c (umask 077 &&\n	   mktemp -d /tmp/"am4tXXXXXX") 2>/dev/null
+mktemp -d /tmp/am4tXXXXXX
+/usr/bin/m4 --nesting-limit=1024 /tmp/am4tuPuLDN/traces.m4
+/usr/bin/m4 --nesting-limit=1024 /tmp/am4tuPuLDN/traces.m4
+/usr/bin/m4 --nesting-limit=1024 /tmp/am4tuPuLDN/traces.m4
+/bin/bash -c case 'Makefile.in' in \\n  *config.status*) \\n    echo ' /bin/bash ./config.status'; \\n    /bin/bash ./config.status;; \\n  *) \\n    echo ' cd . && /bin/bash ./config.status Makefile depfiles'; \\n    cd . && /bin/bash ./config.status Makefile depfiles;; \\nesac;
+/bin/bash ./config.status Makefile depfiles
+expr a : \(a\)
+expr 00001 : .*\(...\)
+basename -- /
+basename -- /
+dirname -- /
+basename -- ./config.status
+rm -f conf441891 conf441891.exe conf441891.file
+rm -f conf441891.dir
+mkdir conf441891.dir
+ln -s conf441891.file conf441891
+ln -s conf441891.file conf441891.dir
+rm -f conf441891 conf441891.exe conf441891.dir/conf441891.file conf441891.file
+rmdir conf441891.dir
+mkdir -p .
+sed 1q
+hostname
+sed h;s/./-/g;s/^.../## /;s/...$/ ##/;p;x;p;x
+mktemp -d ./confXXXXXX
+tr X \015
+gawk BEGIN { print "a\rb" }
+cat
+cat
+sed s///
+sed s/$//; s//\\r/g
+sed s|^[^:]*/||;s|:[^:]*/|, |g
+dirname -- Makefile
+sed -n \n/datarootdir/ {\n  p\n  q\n}\n/@datadir@/p\n/@docdir@/p\n/@infodir@/p\n/@localedir@/p\n/@mandir@/p Makefile.in
+sed /^[	 ]*VPATH[	 ]*=[	 ]*/{\nh\ns///\ns/^/:/\ns/[	 ]*$/:/\ns/:$(srcdir):/:/g\ns/:${srcdir}:/:/g\ns/:@srcdir@:/:/g\ns/^:*//\ns/:*$//\nx\ns/\(=[	 ]*\).*/\1/\nG\ns/\n//\ns/^[^=]*=[	 ]*$//\n}\n\n:t\n/@[a-zA-Z_][a-zA-Z_0-9]*@/!b\ns|@configure_input@|Makefile.  Generated from Makefile.in by configure.|;t t\ns&@top_builddir@&.&;t t\ns&@top_build_prefix@&&;t t\ns&@srcdir@&.&;t t\ns&@abs_srcdir@&/home/curtsinger/Projects/riker/benchmarks/memcached/checkout&;t t\ns&@top_srcdir@&.&;t t\ns&@abs_top_srcdir@&/home/curtsinger/Projects/riker/benchmarks/memcached/checkout&;t t\ns&@builddir@&.&;t t\ns&@abs_builddir@&/home/curtsinger/Projects/riker/benchmarks/memcached/checkout&;t t\ns&@abs_top_builddir@&/home/curtsinger/Projects/riker/benchmarks/memcached/checkout&;t t\ns&@INSTALL@&/usr/bin/install -c&;t t\ns&@MKDIR_P@&/bin/mkdir -p&;t t\n\n Makefile.in
+gawk -f ./confya5VXZ/subs.awk
+rm -f ./confya5VXZ/stdin
+rm -f Makefile
+mv ./confya5VXZ/out Makefile
+dirname -- depfiles
+sed -e s/:.*$//
+sed -n s,^am--depfiles:.*,X,p Makefile
+grep X
+dirname -- Makefile
+basename -- Makefile
+sed -e /# am--include-marker/d Makefile
+make -f - am--depfiles
+rm -f conftest-deps.mk
+rm -fr ./confya5VXZ
+make --quiet
+/bin/bash -c test -f config.h || rm -f stamp-h1
+/bin/bash -c test -f config.h || make  stamp-h1
+/bin/bash -c make  all-recursive
+make all-recursive
+/bin/bash -c fail=; \\nif (target_option=k; case ${target_option-} in ?) ;; *) echo "am__make_running_with_option: internal error: invalid" "target option '${target_option-}' specified" >&2; exit 1;; esac; has_opt=no; sane_makeflags=$MAKEFLAGS; if { if test -z '1'; then false; elif test -n 'x86_64-pc-linux-gnu'; then true; elif test -n '4.2.1' && test -n '/home/curtsinger/Projects/riker/benchmarks/memcached/checkout'; then true; else false; fi; }; then sane_makeflags=$MFLAGS; else case $MAKEFLAGS in *\\[\ \	]*) bs=\\; sane_makeflags=`printf '%s\n' "$MAKEFLAGS" | sed "s/$bs$bs[$bs $bs	]*//g"`;; esac; fi; skip_next=no; strip_trailopt () { flg=`printf '%s\n' "$flg" | sed "s/$1.*$//"`; }; for flg in $sane_makeflags; do test $skip_next = yes && { skip_next=no; continue; }; case $flg in *=*|--*) continue;; -*I) strip_trailopt 'I'; skip_next=yes;; -*I?*) strip_trailopt 'I';; -*O) strip_trailopt 'O'; skip_next=yes;; -*O?*) strip_trailopt 'O';; -*l) strip_trailopt 'l'; skip_next=yes;; -*l?*) strip_trailopt 'l';; -[dEDm]) skip_next=yes;; -[JT]) skip_next=yes;; esac; case $flg in *$target_option*) has_opt=yes; break;; esac; done; test $has_opt = yes); then \\n  failcom='fail=yes'; \\nelse \\n  failcom='exit 1'; \\nfi; \\ndot_seen=no; \\ntarget=`echo all-recursive | sed s/-recursive//`; \\ncase "all-recursive" in \\n  distclean-* | maintainer-clean-*) list='doc' ;; \\n  *) list='doc' ;; \\nesac; \\nfor subdir in $list; do \\n  echo "Making $target in $subdir"; \\n  if test "$subdir" = "."; then \\n    dot_seen=yes; \\n    local_target="$target-am"; \\n  else \\n    local_target="$target"; \\n  fi; \\n  (CDPATH="${ZSH_VERSION+.}:" && cd $subdir && make  $local_target) \\n  || eval $failcom; \\ndone; \\nif test "$dot_seen" = "no"; then \\n  make  "$target-am" || exit 1; \\nfi; test -z "$fail"
+sed s/-recursive//
+make all
+/bin/bash -c make  all-am
+make all-am
+make all-am
+/bin/bash -c test -f config.h || rm -f stamp-h1
+/bin/bash -c test -f config.h || make  stamp-h1
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-memcached.o -MD -MP -MF .deps/memcached-memcached.Tpo -c -o memcached-memcached.o `test -f 'memcached.c' || echo './'`memcached.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-memcached.o -MD -MP -MF .deps/memcached-memcached.Tpo -c -o memcached-memcached.o memcached.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-memcached.d -MF .deps/memcached-memcached.Tpo -MP -MT memcached-memcached.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG memcached.c -quiet -dumpbase memcached.c -mtune=generic -march=x86-64 -auxbase-strip memcached-memcached.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc2UyqqJ.s
+as -I . --64 -o memcached-memcached.o /tmp/cc2UyqqJ.s
+/bin/bash -c mv -f .deps/memcached-memcached.Tpo .deps/memcached-memcached.Po
+mv -f .deps/memcached-memcached.Tpo .deps/memcached-memcached.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-hash.o -MD -MP -MF .deps/memcached-hash.Tpo -c -o memcached-hash.o `test -f 'hash.c' || echo './'`hash.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-hash.o -MD -MP -MF .deps/memcached-hash.Tpo -c -o memcached-hash.o hash.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-hash.d -MF .deps/memcached-hash.Tpo -MP -MT memcached-hash.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG hash.c -quiet -dumpbase hash.c -mtune=generic -march=x86-64 -auxbase-strip memcached-hash.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cclOcBhp.s
+as -I . --64 -o memcached-hash.o /tmp/cclOcBhp.s
+/bin/bash -c mv -f .deps/memcached-hash.Tpo .deps/memcached-hash.Po
+mv -f .deps/memcached-hash.Tpo .deps/memcached-hash.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-jenkins_hash.o -MD -MP -MF .deps/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.o `test -f 'jenkins_hash.c' || echo './'`jenkins_hash.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-jenkins_hash.o -MD -MP -MF .deps/memcached-jenkins_hash.Tpo -c -o memcached-jenkins_hash.o jenkins_hash.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-jenkins_hash.d -MF .deps/memcached-jenkins_hash.Tpo -MP -MT memcached-jenkins_hash.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG jenkins_hash.c -quiet -dumpbase jenkins_hash.c -mtune=generic -march=x86-64 -auxbase-strip memcached-jenkins_hash.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccpbrnUM.s
+as -I . --64 -o memcached-jenkins_hash.o /tmp/ccpbrnUM.s
+/bin/bash -c mv -f .deps/memcached-jenkins_hash.Tpo .deps/memcached-jenkins_hash.Po
+mv -f .deps/memcached-jenkins_hash.Tpo .deps/memcached-jenkins_hash.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slabs.o -MD -MP -MF .deps/memcached-slabs.Tpo -c -o memcached-slabs.o `test -f 'slabs.c' || echo './'`slabs.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slabs.o -MD -MP -MF .deps/memcached-slabs.Tpo -c -o memcached-slabs.o slabs.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-slabs.d -MF .deps/memcached-slabs.Tpo -MP -MT memcached-slabs.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG slabs.c -quiet -dumpbase slabs.c -mtune=generic -march=x86-64 -auxbase-strip memcached-slabs.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccZ2211a.s
+as -I . --64 -o memcached-slabs.o /tmp/ccZ2211a.s
+/bin/bash -c mv -f .deps/memcached-slabs.Tpo .deps/memcached-slabs.Po
+mv -f .deps/memcached-slabs.Tpo .deps/memcached-slabs.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-items.o -MD -MP -MF .deps/memcached-items.Tpo -c -o memcached-items.o `test -f 'items.c' || echo './'`items.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-items.o -MD -MP -MF .deps/memcached-items.Tpo -c -o memcached-items.o items.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-items.d -MF .deps/memcached-items.Tpo -MP -MT memcached-items.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG items.c -quiet -dumpbase items.c -mtune=generic -march=x86-64 -auxbase-strip memcached-items.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccpizRTI.s
+as -I . --64 -o memcached-items.o /tmp/ccpizRTI.s
+/bin/bash -c mv -f .deps/memcached-items.Tpo .deps/memcached-items.Po
+mv -f .deps/memcached-items.Tpo .deps/memcached-items.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-assoc.o -MD -MP -MF .deps/memcached-assoc.Tpo -c -o memcached-assoc.o `test -f 'assoc.c' || echo './'`assoc.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-assoc.o -MD -MP -MF .deps/memcached-assoc.Tpo -c -o memcached-assoc.o assoc.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-assoc.d -MF .deps/memcached-assoc.Tpo -MP -MT memcached-assoc.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG assoc.c -quiet -dumpbase assoc.c -mtune=generic -march=x86-64 -auxbase-strip memcached-assoc.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccGT77g5.s
+as -I . --64 -o memcached-assoc.o /tmp/ccGT77g5.s
+/bin/bash -c mv -f .deps/memcached-assoc.Tpo .deps/memcached-assoc.Po
+mv -f .deps/memcached-assoc.Tpo .deps/memcached-assoc.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-thread.o -MD -MP -MF .deps/memcached-thread.Tpo -c -o memcached-thread.o `test -f 'thread.c' || echo './'`thread.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-thread.o -MD -MP -MF .deps/memcached-thread.Tpo -c -o memcached-thread.o thread.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-thread.d -MF .deps/memcached-thread.Tpo -MP -MT memcached-thread.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG thread.c -quiet -dumpbase thread.c -mtune=generic -march=x86-64 -auxbase-strip memcached-thread.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccYuA5yv.s
+as -I . --64 -o memcached-thread.o /tmp/ccYuA5yv.s
+/bin/bash -c mv -f .deps/memcached-thread.Tpo .deps/memcached-thread.Po
+mv -f .deps/memcached-thread.Tpo .deps/memcached-thread.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-daemon.o -MD -MP -MF .deps/memcached-daemon.Tpo -c -o memcached-daemon.o `test -f 'daemon.c' || echo './'`daemon.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-daemon.o -MD -MP -MF .deps/memcached-daemon.Tpo -c -o memcached-daemon.o daemon.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-daemon.d -MF .deps/memcached-daemon.Tpo -MP -MT memcached-daemon.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG daemon.c -quiet -dumpbase daemon.c -mtune=generic -march=x86-64 -auxbase-strip memcached-daemon.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccRANpDX.s
+as -I . --64 -o memcached-daemon.o /tmp/ccRANpDX.s
+/bin/bash -c mv -f .deps/memcached-daemon.Tpo .deps/memcached-daemon.Po
+mv -f .deps/memcached-daemon.Tpo .deps/memcached-daemon.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-stats_prefix.o -MD -MP -MF .deps/memcached-stats_prefix.Tpo -c -o memcached-stats_prefix.o `test -f 'stats_prefix.c' || echo './'`stats_prefix.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-stats_prefix.o -MD -MP -MF .deps/memcached-stats_prefix.Tpo -c -o memcached-stats_prefix.o stats_prefix.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-stats_prefix.d -MF .deps/memcached-stats_prefix.Tpo -MP -MT memcached-stats_prefix.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG stats_prefix.c -quiet -dumpbase stats_prefix.c -mtune=generic -march=x86-64 -auxbase-strip memcached-stats_prefix.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cclC877j.s
+as -I . --64 -o memcached-stats_prefix.o /tmp/cclC877j.s
+/bin/bash -c mv -f .deps/memcached-stats_prefix.Tpo .deps/memcached-stats_prefix.Po
+mv -f .deps/memcached-stats_prefix.Tpo .deps/memcached-stats_prefix.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-util.o -MD -MP -MF .deps/memcached-util.Tpo -c -o memcached-util.o `test -f 'util.c' || echo './'`util.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-util.o -MD -MP -MF .deps/memcached-util.Tpo -c -o memcached-util.o util.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-util.d -MF .deps/memcached-util.Tpo -MP -MT memcached-util.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG util.c -quiet -dumpbase util.c -mtune=generic -march=x86-64 -auxbase-strip memcached-util.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc2YAMSG.s
+as -I . --64 -o memcached-util.o /tmp/cc2YAMSG.s
+/bin/bash -c mv -f .deps/memcached-util.Tpo .deps/memcached-util.Po
+mv -f .deps/memcached-util.Tpo .deps/memcached-util.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-logger.o -MD -MP -MF .deps/memcached-logger.Tpo -c -o memcached-logger.o `test -f 'logger.c' || echo './'`logger.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-logger.o -MD -MP -MF .deps/memcached-logger.Tpo -c -o memcached-logger.o logger.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-logger.d -MF .deps/memcached-logger.Tpo -MP -MT memcached-logger.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG logger.c -quiet -dumpbase logger.c -mtune=generic -march=x86-64 -auxbase-strip memcached-logger.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccaIdiJ5.s
+as -I . --64 -o memcached-logger.o /tmp/ccaIdiJ5.s
+/bin/bash -c mv -f .deps/memcached-logger.Tpo .deps/memcached-logger.Po
+mv -f .deps/memcached-logger.Tpo .deps/memcached-logger.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-crawler.o -MD -MP -MF .deps/memcached-crawler.Tpo -c -o memcached-crawler.o `test -f 'crawler.c' || echo './'`crawler.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-crawler.o -MD -MP -MF .deps/memcached-crawler.Tpo -c -o memcached-crawler.o crawler.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-crawler.d -MF .deps/memcached-crawler.Tpo -MP -MT memcached-crawler.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG crawler.c -quiet -dumpbase crawler.c -mtune=generic -march=x86-64 -auxbase-strip memcached-crawler.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccrnWadp.s
+as -I . --64 -o memcached-crawler.o /tmp/ccrnWadp.s
+/bin/bash -c mv -f .deps/memcached-crawler.Tpo .deps/memcached-crawler.Po
+mv -f .deps/memcached-crawler.Tpo .deps/memcached-crawler.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slab_automove.o -MD -MP -MF .deps/memcached-slab_automove.Tpo -c -o memcached-slab_automove.o `test -f 'slab_automove.c' || echo './'`slab_automove.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slab_automove.o -MD -MP -MF .deps/memcached-slab_automove.Tpo -c -o memcached-slab_automove.o slab_automove.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-slab_automove.d -MF .deps/memcached-slab_automove.Tpo -MP -MT memcached-slab_automove.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG slab_automove.c -quiet -dumpbase slab_automove.c -mtune=generic -march=x86-64 -auxbase-strip memcached-slab_automove.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccpWBNwN.s
+as -I . --64 -o memcached-slab_automove.o /tmp/ccpWBNwN.s
+/bin/bash -c mv -f .deps/memcached-slab_automove.Tpo .deps/memcached-slab_automove.Po
+mv -f .deps/memcached-slab_automove.Tpo .deps/memcached-slab_automove.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-restart.o -MD -MP -MF .deps/memcached-restart.Tpo -c -o memcached-restart.o `test -f 'restart.c' || echo './'`restart.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-restart.o -MD -MP -MF .deps/memcached-restart.Tpo -c -o memcached-restart.o restart.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-restart.d -MF .deps/memcached-restart.Tpo -MP -MT memcached-restart.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG restart.c -quiet -dumpbase restart.c -mtune=generic -march=x86-64 -auxbase-strip memcached-restart.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cctEBrEb.s
+as -I . --64 -o memcached-restart.o /tmp/cctEBrEb.s
+/bin/bash -c mv -f .deps/memcached-restart.Tpo .deps/memcached-restart.Po
+mv -f .deps/memcached-restart.Tpo .deps/memcached-restart.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-proto_text.o -MD -MP -MF .deps/memcached-proto_text.Tpo -c -o memcached-proto_text.o `test -f 'proto_text.c' || echo './'`proto_text.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-proto_text.o -MD -MP -MF .deps/memcached-proto_text.Tpo -c -o memcached-proto_text.o proto_text.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-proto_text.d -MF .deps/memcached-proto_text.Tpo -MP -MT memcached-proto_text.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG proto_text.c -quiet -dumpbase proto_text.c -mtune=generic -march=x86-64 -auxbase-strip memcached-proto_text.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc2NE63L.s
+as -I . --64 -o memcached-proto_text.o /tmp/cc2NE63L.s
+/bin/bash -c mv -f .deps/memcached-proto_text.Tpo .deps/memcached-proto_text.Po
+mv -f .deps/memcached-proto_text.Tpo .deps/memcached-proto_text.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-storage.o -MD -MP -MF .deps/memcached-storage.Tpo -c -o memcached-storage.o `test -f 'storage.c' || echo './'`storage.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-storage.o -MD -MP -MF .deps/memcached-storage.Tpo -c -o memcached-storage.o storage.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-storage.d -MF .deps/memcached-storage.Tpo -MP -MT memcached-storage.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG storage.c -quiet -dumpbase storage.c -mtune=generic -march=x86-64 -auxbase-strip memcached-storage.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccoXFWkb.s
+as -I . --64 -o memcached-storage.o /tmp/ccoXFWkb.s
+/bin/bash -c mv -f .deps/memcached-storage.Tpo .deps/memcached-storage.Po
+mv -f .deps/memcached-storage.Tpo .deps/memcached-storage.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.  -DNDEBUG   -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slab_automove_extstore.o -MD -MP -MF .deps/memcached-slab_automove_extstore.Tpo -c -o memcached-slab_automove_extstore.o `test -f 'slab_automove_extstore.c' || echo './'`slab_automove_extstore.c
+gcc -DHAVE_CONFIG_H -I. -DNDEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached-slab_automove_extstore.o -MD -MP -MF .deps/memcached-slab_automove_extstore.Tpo -c -o memcached-slab_automove_extstore.o slab_automove_extstore.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached-slab_automove_extstore.d -MF .deps/memcached-slab_automove_extstore.Tpo -MP -MT memcached-slab_automove_extstore.o -D_REENTRANT -D HAVE_CONFIG_H -D NDEBUG slab_automove_extstore.c -quiet -dumpbase slab_automove_extstore.c -mtune=generic -march=x86-64 -auxbase-strip memcached-slab_automove_extstore.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccyHxsBw.s
+as -I . --64 -o memcached-slab_automove_extstore.o /tmp/ccyHxsBw.s
+/bin/bash -c mv -f .deps/memcached-slab_automove_extstore.Tpo .deps/memcached-slab_automove_extstore.Po
+mv -f .deps/memcached-slab_automove_extstore.Tpo .deps/memcached-slab_automove_extstore.Po
+/bin/bash -c rm -f memcached
+rm -f memcached
+/bin/bash -c gcc  -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls   -o memcached memcached-memcached.o memcached-hash.o memcached-jenkins_hash.o memcached-murmur3_hash.o memcached-slabs.o memcached-items.o memcached-assoc.o memcached-thread.o memcached-daemon.o memcached-stats_prefix.o memcached-util.o memcached-cache.o memcached-bipbuffer.o memcached-logger.o memcached-crawler.o memcached-itoa_ljust.o memcached-slab_automove.o memcached-authfile.o memcached-restart.o memcached-proto_text.o      memcached-extstore.o memcached-crc32c.o memcached-storage.o memcached-slab_automove_extstore.o    -levent 
+gcc -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -o memcached memcached-memcached.o memcached-hash.o memcached-jenkins_hash.o memcached-murmur3_hash.o memcached-slabs.o memcached-items.o memcached-assoc.o memcached-thread.o memcached-daemon.o memcached-stats_prefix.o memcached-util.o memcached-cache.o memcached-bipbuffer.o memcached-logger.o memcached-crawler.o memcached-itoa_ljust.o memcached-slab_automove.o memcached-authfile.o memcached-restart.o memcached-proto_text.o memcached-extstore.o memcached-crc32c.o memcached-storage.o memcached-slab_automove_extstore.o -levent
+/usr/lib/gcc/x86_64-linux-gnu/9/collect2 -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccKUUTQZ.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lpthread -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o memcached /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. memcached-memcached.o memcached-hash.o memcached-jenkins_hash.o memcached-murmur3_hash.o memcached-slabs.o memcached-items.o memcached-assoc.o memcached-thread.o memcached-daemon.o memcached-stats_prefix.o memcached-util.o memcached-cache.o memcached-bipbuffer.o memcached-logger.o memcached-crawler.o memcached-itoa_ljust.o memcached-slab_automove.o memcached-authfile.o memcached-restart.o memcached-proto_text.o memcached-extstore.o memcached-crc32c.o memcached-storage.o memcached-slab_automove_extstore.o -levent -lgcc --push-state --as-needed -lgcc_s --pop-state -lpthread -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+/usr/bin/ld -plugin /usr/lib/gcc/x86_64-linux-gnu/9/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-linux-gnu/9/lto-wrapper -plugin-opt=-fresolution=/tmp/ccKUUTQZ.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lpthread -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr -m elf_x86_64 --hash-style=gnu --as-needed -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -z now -z relro -o memcached /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. memcached-memcached.o memcached-hash.o memcached-jenkins_hash.o memcached-murmur3_hash.o memcached-slabs.o memcached-items.o memcached-assoc.o memcached-thread.o memcached-daemon.o memcached-stats_prefix.o memcached-util.o memcached-cache.o memcached-bipbuffer.o memcached-logger.o memcached-crawler.o memcached-itoa_ljust.o memcached-slab_automove.o memcached-authfile.o memcached-restart.o memcached-proto_text.o memcached-extstore.o memcached-crc32c.o memcached-storage.o memcached-slab_automove_extstore.o -levent -lgcc --push-state --as-needed -lgcc_s --pop-state -lpthread -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-memcached.o -MD -MP -MF .deps/memcached_debug-memcached.Tpo -c -o memcached_debug-memcached.o `test -f 'memcached.c' || echo './'`memcached.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-memcached.o -MD -MP -MF .deps/memcached_debug-memcached.Tpo -c -o memcached_debug-memcached.o memcached.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-memcached.d -MF .deps/memcached_debug-memcached.Tpo -MP -MT memcached_debug-memcached.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG memcached.c -quiet -dumpbase memcached.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-memcached.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccT4ZC7i.s
+as -I . --64 -o memcached_debug-memcached.o /tmp/ccT4ZC7i.s
+/bin/bash -c mv -f .deps/memcached_debug-memcached.Tpo .deps/memcached_debug-memcached.Po
+mv -f .deps/memcached_debug-memcached.Tpo .deps/memcached_debug-memcached.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-hash.o -MD -MP -MF .deps/memcached_debug-hash.Tpo -c -o memcached_debug-hash.o `test -f 'hash.c' || echo './'`hash.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-hash.o -MD -MP -MF .deps/memcached_debug-hash.Tpo -c -o memcached_debug-hash.o hash.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-hash.d -MF .deps/memcached_debug-hash.Tpo -MP -MT memcached_debug-hash.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG hash.c -quiet -dumpbase hash.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-hash.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc7ABcWx.s
+as -I . --64 -o memcached_debug-hash.o /tmp/cc7ABcWx.s
+/bin/bash -c mv -f .deps/memcached_debug-hash.Tpo .deps/memcached_debug-hash.Po
+mv -f .deps/memcached_debug-hash.Tpo .deps/memcached_debug-hash.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-jenkins_hash.o -MD -MP -MF .deps/memcached_debug-jenkins_hash.Tpo -c -o memcached_debug-jenkins_hash.o `test -f 'jenkins_hash.c' || echo './'`jenkins_hash.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-jenkins_hash.o -MD -MP -MF .deps/memcached_debug-jenkins_hash.Tpo -c -o memcached_debug-jenkins_hash.o jenkins_hash.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-jenkins_hash.d -MF .deps/memcached_debug-jenkins_hash.Tpo -MP -MT memcached_debug-jenkins_hash.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG jenkins_hash.c -quiet -dumpbase jenkins_hash.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-jenkins_hash.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccatwIMV.s
+as -I . --64 -o memcached_debug-jenkins_hash.o /tmp/ccatwIMV.s
+/bin/bash -c mv -f .deps/memcached_debug-jenkins_hash.Tpo .deps/memcached_debug-jenkins_hash.Po
+mv -f .deps/memcached_debug-jenkins_hash.Tpo .deps/memcached_debug-jenkins_hash.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-slabs.o -MD -MP -MF .deps/memcached_debug-slabs.Tpo -c -o memcached_debug-slabs.o `test -f 'slabs.c' || echo './'`slabs.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-slabs.o -MD -MP -MF .deps/memcached_debug-slabs.Tpo -c -o memcached_debug-slabs.o slabs.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-slabs.d -MF .deps/memcached_debug-slabs.Tpo -MP -MT memcached_debug-slabs.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG slabs.c -quiet -dumpbase slabs.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-slabs.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccxC2MLg.s
+as -I . --64 -o memcached_debug-slabs.o /tmp/ccxC2MLg.s
+/bin/bash -c mv -f .deps/memcached_debug-slabs.Tpo .deps/memcached_debug-slabs.Po
+mv -f .deps/memcached_debug-slabs.Tpo .deps/memcached_debug-slabs.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-items.o -MD -MP -MF .deps/memcached_debug-items.Tpo -c -o memcached_debug-items.o `test -f 'items.c' || echo './'`items.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-items.o -MD -MP -MF .deps/memcached_debug-items.Tpo -c -o memcached_debug-items.o items.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-items.d -MF .deps/memcached_debug-items.Tpo -MP -MT memcached_debug-items.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG items.c -quiet -dumpbase items.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-items.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc4aybmM.s
+as -I . --64 -o memcached_debug-items.o /tmp/cc4aybmM.s
+/bin/bash -c mv -f .deps/memcached_debug-items.Tpo .deps/memcached_debug-items.Po
+mv -f .deps/memcached_debug-items.Tpo .deps/memcached_debug-items.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-assoc.o -MD -MP -MF .deps/memcached_debug-assoc.Tpo -c -o memcached_debug-assoc.o `test -f 'assoc.c' || echo './'`assoc.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-assoc.o -MD -MP -MF .deps/memcached_debug-assoc.Tpo -c -o memcached_debug-assoc.o assoc.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-assoc.d -MF .deps/memcached_debug-assoc.Tpo -MP -MT memcached_debug-assoc.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG assoc.c -quiet -dumpbase assoc.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-assoc.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccjzk5T8.s
+as -I . --64 -o memcached_debug-assoc.o /tmp/ccjzk5T8.s
+/bin/bash -c mv -f .deps/memcached_debug-assoc.Tpo .deps/memcached_debug-assoc.Po
+mv -f .deps/memcached_debug-assoc.Tpo .deps/memcached_debug-assoc.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-thread.o -MD -MP -MF .deps/memcached_debug-thread.Tpo -c -o memcached_debug-thread.o `test -f 'thread.c' || echo './'`thread.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-thread.o -MD -MP -MF .deps/memcached_debug-thread.Tpo -c -o memcached_debug-thread.o thread.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-thread.d -MF .deps/memcached_debug-thread.Tpo -MP -MT memcached_debug-thread.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG thread.c -quiet -dumpbase thread.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-thread.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccne1BLt.s
+as -I . --64 -o memcached_debug-thread.o /tmp/ccne1BLt.s
+/bin/bash -c mv -f .deps/memcached_debug-thread.Tpo .deps/memcached_debug-thread.Po
+mv -f .deps/memcached_debug-thread.Tpo .deps/memcached_debug-thread.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-daemon.o -MD -MP -MF .deps/memcached_debug-daemon.Tpo -c -o memcached_debug-daemon.o `test -f 'daemon.c' || echo './'`daemon.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-daemon.o -MD -MP -MF .deps/memcached_debug-daemon.Tpo -c -o memcached_debug-daemon.o daemon.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-daemon.d -MF .deps/memcached_debug-daemon.Tpo -MP -MT memcached_debug-daemon.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG daemon.c -quiet -dumpbase daemon.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-daemon.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccWcTa0R.s
+as -I . --64 -o memcached_debug-daemon.o /tmp/ccWcTa0R.s
+/bin/bash -c mv -f .deps/memcached_debug-daemon.Tpo .deps/memcached_debug-daemon.Po
+mv -f .deps/memcached_debug-daemon.Tpo .deps/memcached_debug-daemon.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-stats_prefix.o -MD -MP -MF .deps/memcached_debug-stats_prefix.Tpo -c -o memcached_debug-stats_prefix.o `test -f 'stats_prefix.c' || echo './'`stats_prefix.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-stats_prefix.o -MD -MP -MF .deps/memcached_debug-stats_prefix.Tpo -c -o memcached_debug-stats_prefix.o stats_prefix.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-stats_prefix.d -MF .deps/memcached_debug-stats_prefix.Tpo -MP -MT memcached_debug-stats_prefix.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG stats_prefix.c -quiet -dumpbase stats_prefix.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-stats_prefix.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cc7OESvt.s
+as -I . --64 -o memcached_debug-stats_prefix.o /tmp/cc7OESvt.s
+/bin/bash -c mv -f .deps/memcached_debug-stats_prefix.Tpo .deps/memcached_debug-stats_prefix.Po
+mv -f .deps/memcached_debug-stats_prefix.Tpo .deps/memcached_debug-stats_prefix.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-util.o -MD -MP -MF .deps/memcached_debug-util.Tpo -c -o memcached_debug-util.o `test -f 'util.c' || echo './'`util.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-util.o -MD -MP -MF .deps/memcached_debug-util.Tpo -c -o memcached_debug-util.o util.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-util.d -MF .deps/memcached_debug-util.Tpo -MP -MT memcached_debug-util.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG util.c -quiet -dumpbase util.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-util.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccw61lgP.s
+as -I . --64 -o memcached_debug-util.o /tmp/ccw61lgP.s
+/bin/bash -c mv -f .deps/memcached_debug-util.Tpo .deps/memcached_debug-util.Po
+mv -f .deps/memcached_debug-util.Tpo .deps/memcached_debug-util.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-logger.o -MD -MP -MF .deps/memcached_debug-logger.Tpo -c -o memcached_debug-logger.o `test -f 'logger.c' || echo './'`logger.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-logger.o -MD -MP -MF .deps/memcached_debug-logger.Tpo -c -o memcached_debug-logger.o logger.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-logger.d -MF .deps/memcached_debug-logger.Tpo -MP -MT memcached_debug-logger.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG logger.c -quiet -dumpbase logger.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-logger.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccjR9tjc.s
+as -I . --64 -o memcached_debug-logger.o /tmp/ccjR9tjc.s
+/bin/bash -c mv -f .deps/memcached_debug-logger.Tpo .deps/memcached_debug-logger.Po
+mv -f .deps/memcached_debug-logger.Tpo .deps/memcached_debug-logger.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-crawler.o -MD -MP -MF .deps/memcached_debug-crawler.Tpo -c -o memcached_debug-crawler.o `test -f 'crawler.c' || echo './'`crawler.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-crawler.o -MD -MP -MF .deps/memcached_debug-crawler.Tpo -c -o memcached_debug-crawler.o crawler.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-crawler.d -MF .deps/memcached_debug-crawler.Tpo -MP -MT memcached_debug-crawler.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG crawler.c -quiet -dumpbase crawler.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-crawler.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cczs1siA.s
+as -I . --64 -o memcached_debug-crawler.o /tmp/cczs1siA.s
+/bin/bash -c mv -f .deps/memcached_debug-crawler.Tpo .deps/memcached_debug-crawler.Po
+mv -f .deps/memcached_debug-crawler.Tpo .deps/memcached_debug-crawler.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-slab_automove.o -MD -MP -MF .deps/memcached_debug-slab_automove.Tpo -c -o memcached_debug-slab_automove.o `test -f 'slab_automove.c' || echo './'`slab_automove.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-slab_automove.o -MD -MP -MF .deps/memcached_debug-slab_automove.Tpo -c -o memcached_debug-slab_automove.o slab_automove.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-slab_automove.d -MF .deps/memcached_debug-slab_automove.Tpo -MP -MT memcached_debug-slab_automove.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG slab_automove.c -quiet -dumpbase slab_automove.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-slab_automove.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cca6skeX.s
+as -I . --64 -o memcached_debug-slab_automove.o /tmp/cca6skeX.s
+/bin/bash -c mv -f .deps/memcached_debug-slab_automove.Tpo .deps/memcached_debug-slab_automove.Po
+mv -f .deps/memcached_debug-slab_automove.Tpo .deps/memcached_debug-slab_automove.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-restart.o -MD -MP -MF .deps/memcached_debug-restart.Tpo -c -o memcached_debug-restart.o `test -f 'restart.c' || echo './'`restart.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-restart.o -MD -MP -MF .deps/memcached_debug-restart.Tpo -c -o memcached_debug-restart.o restart.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-restart.d -MF .deps/memcached_debug-restart.Tpo -MP -MT memcached_debug-restart.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG restart.c -quiet -dumpbase restart.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-restart.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/ccU2LF7n.s
+as -I . --64 -o memcached_debug-restart.o /tmp/ccU2LF7n.s
+/bin/bash -c mv -f .deps/memcached_debug-restart.Tpo .deps/memcached_debug-restart.Po
+mv -f .deps/memcached_debug-restart.Tpo .deps/memcached_debug-restart.Po
+/bin/bash -c gcc -DHAVE_CONFIG_H -I.    -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-proto_text.o -MD -MP -MF .deps/memcached_debug-proto_text.Tpo -c -o memcached_debug-proto_text.o `test -f 'proto_text.c' || echo './'`proto_text.c
+gcc -DHAVE_CONFIG_H -I. -fprofile-arcs -ftest-coverage -DMEMCACHED_DEBUG -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -MT memcached_debug-proto_text.o -MD -MP -MF .deps/memcached_debug-proto_text.Tpo -c -o memcached_debug-proto_text.o proto_text.c
+/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet -I . -imultiarch x86_64-linux-gnu -MD memcached_debug-proto_text.d -MF .deps/memcached_debug-proto_text.Tpo -MP -MT memcached_debug-proto_text.o -D_REENTRANT -D HAVE_CONFIG_H -D MEMCACHED_DEBUG proto_text.c -quiet -dumpbase proto_text.c -mtune=generic -march=x86-64 -auxbase-strip memcached_debug-proto_text.o -g -O2 -Wall -Werror -Wpedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -fprofile-arcs -ftest-coverage -fprofile-update=prefer-atomic -fasynchronous-unwind-tables -fstack-protector-strong -Wformat-security -fstack-clash-protection -fcf-protection -o /tmp/cctNDzaN.s
