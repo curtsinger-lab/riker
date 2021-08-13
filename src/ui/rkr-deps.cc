@@ -126,9 +126,6 @@ void gen_container() noexcept {
 
     dockerfile.close();
     settings.close();
-    // } else {
-    // cerr << "Error: " << strerror(errno) << endl;
-    // }
   } else {
     cout << "Please generate dependencies first" << endl;
   }
@@ -162,32 +159,19 @@ void* myThread(void* threadarg) {
   if (a->getTypeName() == "Dir") pthread_exit(NULL);
   // If a is special, skip
   if (a->getTypeName() == "Special") pthread_exit(NULL);
-  // Remove Symlink
-  // if (a->getTypeName() == "Symlink") pthread_exit(NULL);
 
   // Get the path of that artifact
   string path = a->getCommittedPath().value().string();
   // Remove all files in current directory
   if (path.rfind(get_current_dir_name()) == 0) pthread_exit(NULL);
   // Remove Riker related files
-  // if (path.find("riker") != string::npos) pthread_exit(NULL);
+  if (path.find("riker") != string::npos) pthread_exit(NULL);
   // Remove Rikerfile
   if (path == "Rikerfile") pthread_exit(NULL);
   // Remove /proc directory
   if (path.rfind("/proc/") == 0) pthread_exit(NULL);
   // Remove .gitconfig
   if (path.find(".gitconfig") != string::npos) pthread_exit(NULL);
-
-  // cout << path << endl;
-
-  // if (path.find("include") == string::npos) {
-  //   if (path.find("/usr/") != string::npos) {
-  //     path.erase(0, 4);
-  //   }
-  //   path = "'*" + path + "'";
-  // }
-  // file->write(a->getTypeName() + ": " + path);
-  // myfile << a->getTypeName() << ": " << path << endl;
 
   // Get the package for the artifact
   string result = getPackage(path);
@@ -209,16 +193,6 @@ void* myThread(void* threadarg) {
         alternative1 = path.substr(4, string::npos);
         alternative2 = "/usr/local" + alternative1;
       }
-      // fd_original = open(path.c_str(), O_RDONLY);
-      // fd_alt = open(alternative.c_str(), O_RDONLY);
-      // // Check if the alternative exists
-      // if (fd_original < 0) {
-      //   perror("Error opening the files");
-      // }
-      // if (fd_alt < 0) {
-      //   cout << alternative << " doesn't exist" << endl;
-      //   pthread_exit(NULL);
-      // }
       // Check the device and inode number to make sure alternative and path are the same file
       struct stat file_stat_original, file_stat_alt1, file_stat_alt2;
       int ret_original, ret_alt1, ret_alt2;
@@ -259,36 +233,27 @@ void* myThread(void* threadarg) {
       }
     }
     if (result.find("no path found") != string::npos) {
+      // Try to find if the file is in a git repository
       string dir = path.substr(0, path.rfind('/'));
-      // cout << dir << endl;
       string command = "git -C " + dir + " rev-parse 2>/dev/null";
       int i = system(command.c_str());
 
       lock_guard<mutex> lock(stdoutMutex);
       cout << "No pacakge found for " << path << endl;
-      // cout << a->getName() << endl;
       if (i == 0) {
         command = "cd " + dir + "; git config --get remote.origin.url";
         cout << "This file could come from a github repository: " << endl;
         system(command.c_str());
       }
-      // file->write("No path found for " + path);
+      file->write("No path found for " + path);
       cout << endl;
       pthread_exit(NULL);
     }
   }
-  // file->write(result);
-  // myfile << result << endl;
 
   // Clean up the package name and append it to the output file
   string package = result.substr(0, result.find(" "));
   package.pop_back();
-  // if (find(packages.begin(), packages.end(), package) == packages.end()) {
-  //   packages.push_back(package);
-  //   file->write(package);
-  // myfile << package << endl;
-  // }
-  // if (package == "dpkg-query") cout << path << endl;
   file->addPackage(package);
 
   pthread_exit(NULL);
@@ -298,9 +263,6 @@ void* myThread(void* threadarg) {
  * Run the 'gen_deps' subcommand
  */
 void do_gen_deps(vector<string> args, bool create_container) noexcept {
-  // Turn on input/output tracking
-  // options::track_inputs_outputs = true;
-
   struct stat buffer;
   if (stat(".rkr", &buffer) != 0) cout << "Please build the program with riker first" << endl;
 
@@ -311,12 +273,7 @@ void do_gen_deps(vector<string> args, bool create_container) noexcept {
   trace->sendTo(Build());
 
   {
-    // ofstream myfile;
-    // myfile.open(".rkr-deps");
     auto synchronizedFile = make_shared<SynchronizedFile>(".rkr-deps");
-
-    // list of packages needed
-    // vector<string> packages;
 
     int num_threads = env::getArtifacts().size();
     pthread_t threads[num_threads];
@@ -327,14 +284,9 @@ void do_gen_deps(vector<string> args, bool create_container) noexcept {
     for (const auto& weak_artifact : env::getArtifacts()) {
       auto a = weak_artifact.lock();
 
-      // cout << a->getTypeName() << ": " << a->getName() << endl;
-
-      // cout << "test" << endl;
       // Initilize thread arguments
       tds[i].path_ptr = a;
       tds[i].file_ptr = synchronizedFile;
-      // struct thread_data td = {a, synchronizedFile};
-      // pthread_t pid;
       rc = pthread_create(&threads[i], NULL, myThread, (void*)&tds[i]);
 
       if (rc) {
@@ -353,13 +305,9 @@ void do_gen_deps(vector<string> args, bool create_container) noexcept {
         cout << "Error: unable to join," << rc << endl;
         exit(-1);
       }
-      // cout << "Main: completed thread id:" << i;
-      // cout << " exiting with status:" << status << endl;
     }
   }
   if (create_container) gen_container();
-
-  // pthread_exit(NULL);
 }
 
 void do_install_deps(vector<string> args) noexcept {
@@ -370,13 +318,14 @@ void do_install_deps(vector<string> args) noexcept {
   if (myfile.is_open()) {
     while (getline(myfile, package)) {
       string result;
+      // Check if the package already exist
       string cmd = "dpkg-query -W " + package;
       unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
       if (!pipe) exit(EXIT_FAILURE);
       while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
       }
-      // cout << result.substr(12, 2) << endl;
+      // If the package does not exist, install it
       if (result.size() == 0) {
         cout << "Installing " << package << endl;
         cmd = "sudo apt-get install " + package;
