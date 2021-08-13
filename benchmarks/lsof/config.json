@@ -2,7 +2,6 @@
   "git": "https://github.com/lsof-org/lsof.git",
   "commit": "005e014e1abdadb2493d8b3ce87b37a2c0a2351d",
   "experiments": [
-    "case-study",
     "full-build"
   ],
   "default": {

@@ -12,3 +12,4 @@ __pycache__
 benchmarks/*/checkout
 log-default
 log-rkr
+.old-*

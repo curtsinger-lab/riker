@@ -3,6 +3,7 @@
 import json
 import os
 from os import path
+import shutil
 import sys
 import time
 
@@ -10,6 +11,7 @@ RKR_DIR = path.abspath(path.dirname(__file__))
 BENCH_DIR = path.join(RKR_DIR, 'benchmarks')
 BENCHMARKS = {}
 DEFAULT_REPS = 1
+COMMIT_COUNT = 5
 
 # Get information about all of the available benchmarks
 for entry in os.listdir(BENCH_DIR):
@@ -32,6 +34,15 @@ BENCHMARK_NAMES.sort()
 # Add the release version of rkr to the path
 os.environ['PATH'] = path.join(path.abspath(RKR_DIR), 'release', 'bin') + ':' + os.environ['PATH']
 
+def checkout_rev(name, rev):
+  print('  Checking out {} revision {}'.format(name, rev))
+
+  bench_path = path.join(BENCH_DIR, name)
+  checkout_path = path.join(bench_path, 'checkout')
+  rc = os.system('cd {}; git checkout -f -q {} > /dev/null'.format(checkout_path, rev))
+  if rc != 0:
+    raise Exception('Git checkout of revision {} for {} failed'.format(rev, name))
+
 def checkout(name):
   # Check to see if the benchmark is checked out
   bench_path = path.join(BENCH_DIR, name)
@@ -49,11 +60,9 @@ def checkout(name):
     # Was a specific commit requested?
     if 'commit' in BENCHMARKS[name]:
       rev = BENCHMARKS[name]['commit']
-      rc = os.system('cd {}; git checkout -f -q {} > /dev/null'.format(checkout_path, rev))
-      if rc != 0:
-        raise Exception('Git checkout of revision {} for {} failed'.format(rev, name))
+      checkout_rev(name, rev)
     else:
-      print('  WARNING: benchmark {} uses git but does not specify a commit. Using the repository as-is')
+      print('  WARNING: benchmark {} uses git but does not specify a commit. Using the repository as-is'.format(name))
     
     # Reset the repository just to be safe
     rc = os.system('cd {}; git reset --hard > /dev/null'.format(checkout_path))
@@ -74,9 +83,8 @@ def checkout(name):
   else:
     raise Exception('No method found to checkout a copy of {}'.format(name))
 
-
-def setup(name, build_tool):
-  print('  Setting up {} for {} build'.format(name, build_tool))
+def copy_files(name, build_tool):
+  print('  Copying files to {} for {} build'.format(name, build_tool))
 
   bench_path = path.join(BENCH_DIR, name)
   checkout_path = path.join(bench_path, 'checkout')
@@ -90,12 +98,18 @@ def setup(name, build_tool):
       rc = os.system('cp -R {} {}'.format(real_src, real_dest))
       if rc != 0:
         raise Exception('Copying {} for benchmark {} failed'.format(src, name))
+
+def setup(name, build_tool):
+  print('  Setting up {} for {} build'.format(name, build_tool))
+
+  bench_path = path.join(BENCH_DIR, name)
+  checkout_path = path.join(bench_path, 'checkout')
   
   # Are there setup commands to run?
   if 'setup' in BENCHMARKS[name][build_tool]:
     for cmd in BENCHMARKS[name][build_tool]['setup']:
       print('    Running {}'.format(cmd))
-      rc = os.system('cd {}; {} 2>&1 > /dev/null'.format(checkout_path, cmd))
+      rc = os.system('cd {}; {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmd))
       if rc != 0:
         raise Exception('Setup command {} in benchmark {} failed'.format(cmd, name))
 
@@ -115,13 +129,13 @@ def full_build(name, build_tool):
 
   for i in range(0, reps):
     setup(name, build_tool)
+    copy_files(name, build_tool)
     print('  Running build {}'.format(i+1))
 
     build_cmd = BENCHMARKS[name][build_tool]['build']
-    log_path = path.join(bench_path, 'log-{}'.format(build_tool))
 
     start_time = time.perf_counter()
-    rc = os.system('cd {}; {} 2>&1 > {}'.format(checkout_path, build_cmd, path.join(bench_path, log_path)))
+    rc = os.system('cd {}; {} 2> /dev/null 1> /dev/null'.format(checkout_path, build_cmd))
     end_time = time.perf_counter()
 
     print('{:.4f}'.format(end_time - start_time), file=full_time)
@@ -129,17 +143,107 @@ def full_build(name, build_tool):
 
     print('  Running no-op build {}'.format(i+1))
     start_time = time.perf_counter()
-    rc = os.system('cd {}; {} 2>&1 > {}'.format(checkout_path, build_cmd, path.join(bench_path, log_path)))
+    rc = os.system('cd {}; {} 2> /dev/null 1> /dev/null'.format(checkout_path, build_cmd))
     end_time = time.perf_counter()
     
     print('{:.4f}'.format(end_time - start_time), file=nop_time)
     print('    Finished in {:.2f}s with exit code {}'.format(end_time - start_time, rc))
 
+# Count lines in a file (a list of commands) but exclude lines with known prefixes
+def count_lines(filepath, filter=[]):
+  f = open(filepath, 'r')
+  count = 0
+  for line in f:
+    counted = True
+
+    # Make sure the line isn't empty
+    if len(line.strip()) == 0:
+      counted = False
+    
+    # Check to see if the line matches any of the filtered prefixes
+    for pattern in filter:
+      if line.startswith(pattern):
+        counted = False
+
+      parts = line.split(' ')
+      if path.basename(parts[0]) in filter:
+        counted = False
+    
+    if counted:
+      count += 1
+  return count
+
+def rkr_case_study(name):
+  bench_path = path.join(BENCH_DIR, name)
+  checkout_path = path.join(bench_path, 'checkout')
+
+  # Set up the repository for our first build
+  end_commit = BENCHMARKS[name]['commit']
+  commit = '{}~{}'.format(end_commit, COMMIT_COUNT)
+  checkout_rev(name, commit)
+
+  # Save the old rkr-commands directory and create a new one
+  rkr_commands = path.join(bench_path, 'rkr-commands')
+  old_rkr_commands = path.join(bench_path, '.old-rkr-commands')
+  if path.isdir(rkr_commands):
+    if path.isdir(old_rkr_commands):
+      shutil.rmtree(old_rkr_commands)
+    os.rename(rkr_commands, old_rkr_commands)
+  os.mkdir(rkr_commands)
+
+  rkr_csv = path.join(bench_path, 'rkr.csv')
+  old_rkr_csv = path.join(bench_path, '.old-rkr.csv')
+  # Save the old data file if it exists
+  if os.path.isfile(rkr_csv):
+    os.rename(rkr_csv, old_rkr_csv)
+  
+  # Open a csv file to write data to
+  csv = open(rkr_csv, 'w')
+  print('build,commands,runtime,db_size,cache_size,cache_count', file=csv)
+
+  for i in range(0, COMMIT_COUNT + 1):
+    # Check out the next revision
+    commit_distance = COMMIT_COUNT - i
+    commit = '{}~{}'.format(end_commit, commit_distance)
+    checkout_rev(name, commit)
+    copy_files(name, build_tool)
+
+    # Run the incremental build
+    print('  Running incremental build at commit {}'.format(i))
+    cmds_path = os.path.join(rkr_commands, '{:0>3}'.format(i))
+
+    start_time = time.perf_counter()
+    rc = os.system('cd {}; rkr --show-full -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmds_path))
+    runtime = time.perf_counter() - start_time
+    print('    Finished in {:.2f}s with exit code {}'.format(runtime, rc))
+    if rc != 0:
+      raise Exception('Build failed')
+
+    # Get the size of the riker database
+    db_size = os.path.getsize('{}/.rkr/db'.format(checkout_path))
+
+    # Compute the size of the riker cache
+    cache_size = 0
+    cache_count = 0;
+    for (dirname, subdirs, files) in os.walk('{}/.rkr/cache'.format(checkout_path)):
+      for f in files:
+        cache_count += 1
+        cache_size += os.path.getsize(os.path.join(dirname, f))
+
+    commands = count_lines(cmds_path)
+    print('{},{},{},{},{},{}'.format(i, commands, runtime, db_size, cache_size, cache_count), file=csv)
+
+def default_case_study(name):
+  pass
+
 def case_study(name, build_tool):
   print('Case study of {} with {}'.format(name, build_tool))
   checkout(name)
   setup(name, build_tool)
-  print('  Running case study')
+  if build_tool == 'rkr':
+    rkr_case_study(name)
+  else:
+    default_case_study(name)
 
 def show_usage():
   print('Usage: {} <experiment> <build tool> <benchmark>...'.format(sys.argv[0]))
