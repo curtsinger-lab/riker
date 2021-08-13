@@ -140,50 +140,126 @@ void getCommandArgs(vector<vector<string>>& command_args) {
 }
 
 void condenseFlags(vector<vector<string>>& command_args) {
-  const size_t num_commands = command_args.size();
+  int num_commands = command_args.size();
   vector<string> flags;
   vector<vector<bool>> hasFlag;  // bool in nested vector corresponds to flag in flags
+  int num_compile_commands = 0;
+  for (int c_index = 0; c_index < num_commands; c_index++) {
+    // iterate over each command
+    vector<string> command(command_args[c_index]);
 
-  // iterate over each command
-  for (vector<string> command : command_args) {
     if (command[0].compare("gcc") == 0) {
-      // iterate over each argument
+      // Current Command can potentially be condensed
+
+      num_compile_commands++;
+      vector<bool> command_flags(flags.size());
+      hasFlag.push_back(command_flags);
+
       for (int i = 1; i < command.size(); i++) {
+        // Iterate over each argument of the command
         string arg = command[i];
+
+        if (arg.compare("-o") == 0) {
+          i++;
+          continue;
+        } else if (!hasEnding(arg, ".c")) {
+          // A potential flag has been found
+          cout << arg << " ";
+          bool new_flag = true;
+          if (!flags.empty()) {
+            int flag_index;
+            for (flag_index = 0; flag_index < flags.size(); flag_index++) {
+              // Iterate over each flag found so far
+              string flag = flags[flag_index];
+              if (flag.compare(arg) == 0) {
+                new_flag = false;
+                hasFlag[num_compile_commands - 1][flag_index] = true;
+                break;
+              }
+            }
+          }
+          if (new_flag) {
+            flags.push_back(arg);
+            for (int z = 0; z < num_compile_commands - 1; z++) {
+              hasFlag[z].push_back(false);
+            }
+            hasFlag[num_compile_commands - 1].push_back(true);
+          }
+        }
       }
+      cout << endl;
+    }
+    /*
+    // Handle compile commands run using "/bin/sh -c"
     } else if (command[0].compare("/bin/sh")) {
       int i = 2;
       string arg = command[i];
       bool isCompileCommand = true;
       while (arg.compare("gcc") != 0) {
         i++;
-        if (i > command.size()) {
+        if (i >= command.size()) {
           isCompileCommand = false;
           break;
         }
         arg = command[i];
       }
-      if (!isCompileCommand) {
-        break;
-      }
-      for (; i < command.size(); i++) {
-        arg = command[i];
-        int j;
-        for (j = 0; j < flags.size(); j++) {
-          if (flags[j].compare(arg) == 0) {
+      if (isCompileCommand) {
+        for (; i < command.size(); i++) {
+          arg = command[i];
+          int j;
+          for (j = 0; j < flags.size(); j++) {
+            if (flags[j].compare(arg) == 0) {
+              hasFlag[i][j] = true;
+              break;
+            } else {
+              hasFlag[i][j] = false;
+            }
+          }
+          if (j == flags.size()) {
+            flags.push_back(arg);
             hasFlag[i][j] = true;
-            break;
-          } else {
-            hasFlag[i][j] = false;
           }
         }
-        if (j == flags.size()) {
-          flags.push_back(arg);
-          hasFlag[i][j] = true;
-        }
+      }
+    }*/
+  }
+
+  // Print out the array of booleans
+
+  fstream command_file("commands.txt", fstream::trunc | fstream::out);
+  for (string flag : flags) {
+    command_file << flag << " ";
+  }
+  command_file << endl;
+  for (vector<bool> results : hasFlag) {
+    for (bool f : results) {
+      command_file << f << " ";
+    }
+    command_file << endl;
+  }
+
+  vector<string> cflags;
+  for (int i = 0; i < flags.size(); i++) {
+    // Iterate over each flag found
+
+    bool pervasive_flag = true;
+    for (int j = 0; j < num_compile_commands; j++) {
+      // Iterate over each command to check for flag
+      if (!hasFlag[j][i]) {
+        pervasive_flag = false;
+        break;
       }
     }
+    // If all commands have the flag, add it to cflags var
+    if (pervasive_flag) {
+      cflags.push_back(flags[i]);
+    }
   }
+  cout << endl;
+  for (string flag : cflags) {
+    cout << flag << " ";
+  }
+  cout << endl;
 }
 
 void executeCommand(string path, vector<string> args, bool has_own_thread = true) {
@@ -231,20 +307,21 @@ void processRikerfile() {
   // Filter out non-command messages
   // removeComments();
 
-  fstream command_file("commands.txt", fstream::trunc | fstream::out);
   vector<vector<string>> command_args;
   getCommandArgs(command_args);
-  for (vector<string> command : command_args) {
-    for (string arg : command) {
-      if (arg.compare("\\\\n") != 0) {
-        command_file << arg << " ";
-      }
-    }
-    command_file << endl;
-  }
+
+  // fstream command_file("commands.txt", fstream::trunc | fstream::out);
+  // for (vector<string> command : command_args) {
+  //   for (string arg : command) {
+  //     if (arg.compare("\\\\n") != 0) {
+  //       command_file << arg << " ";
+  //     }
+  //   }
+  //   command_file << endl;
+  // }
 
   // Still a work in progress for condensing flags
-  // condenseFlags(command_args);
+  condenseFlags(command_args);
 
   formatShellCommands();
 }
