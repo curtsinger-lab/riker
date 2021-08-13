@@ -191,8 +191,8 @@ def rkr_case_study(name):
     os.rename(rkr_commands, old_rkr_commands)
   os.mkdir(rkr_commands)
 
-  rkr_csv = path.join(bench_path, 'rkr.csv')
-  old_rkr_csv = path.join(bench_path, '.old-rkr.csv')
+  rkr_csv = path.join(bench_path, 'case-study-rkr.csv')
+  old_rkr_csv = path.join(bench_path, '.old-case-study-rkr.csv')
   # Save the old data file if it exists
   if os.path.isfile(rkr_csv):
     os.rename(rkr_csv, old_rkr_csv)
