@@ -1,0 +1,24 @@
+Overhead for full-build
+  Max: 2.903
+  Min: 0.922
+  Average: 1.381
+  Median: 1.184
+
+Absolute Difference in runtime for full-build
+  Max: 382.290
+  Min: -0.360
+  Average: 33.454
+  Median: 1.594
+
+Overhead for nop-build
+  Max: 298.733
+  Min: 1.154
+  Average: 33.872
+  Median: 5.201
+
+Absolute Difference in runtime for nop-build
+  Max: 7.947
+  Min: 0.007
+  Average: 1.196
+  Median: 0.183
+
