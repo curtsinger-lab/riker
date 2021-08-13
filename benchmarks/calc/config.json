@@ -1,0 +1,23 @@
+{
+  "git": "https://github.com/lcn2/calc.git",
+  "commit": "3d33c6c6f498d4d391918d34c55fe37191db53d8",
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "make clean"
+    ],
+    "build": "make --quiet"
+  },
+  "rkr": {
+    "setup": [
+      "rm -rf .rkr",
+      "make clean"
+    ],
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "build": "rkr"
+  }
+}
