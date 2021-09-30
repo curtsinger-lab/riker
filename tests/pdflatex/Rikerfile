@@ -1,4 +1,4 @@
 #!/bin/sh
 
-pdflatex main.tex > /dev/null
-pdflatex main.tex > /dev/null
+pdflatex main.tex 2>&1 > /dev/null
+pdflatex main.tex 2>&1 > /dev/null
