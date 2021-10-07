@@ -14,6 +14,7 @@
 #include <CLI/CLI.hpp>
 
 #include "ui/commands.hh"
+#include "util/constants.hh"
 #include "util/log.hh"
 #include "util/options.hh"
 
@@ -42,8 +43,8 @@ int main(int argc, char* argv[]) noexcept {
   // Set up a CLI app for command line parsing
   CLI::App app;
 
-  // We require at least one subcommand
-  app.require_subcommand();
+  // We require exactly one subcommand
+  app.require_subcommand(1);
 
   // Option fallthrough allows users to specify global options after a subcommand
   app.fallthrough();
@@ -159,9 +160,11 @@ int main(int argc, char* argv[]) noexcept {
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
   /************* Trace Subcommand *************/
+  string trace_input = constants::DatabaseFilename;
   string trace_output = "-";
 
   auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
+  trace->add_option("input", trace_input, "The trace file to print");
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
 
   /************* Graph Subcommand *************/
@@ -183,6 +186,18 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
+  /************* Emit Subcommand *************/
+  string emit_output = "trace";
+
+  auto emit = app.add_subcommand("emit", "Emit TraceIR to a file");
+  emit->add_option("-o,--output", emit_output, "The output file where TraceIR will be written");
+
+  /************* Emit Subcommand *************/
+  string run_input = "trace";
+
+  auto run = app.add_subcommand("run", "Run TraceIR from a file");
+  run->add_option("input", emit_output, "The file containing the TraceIR to run");
+
   /************* Rikerfile Arguments ***********/
   vector<string> args;
   app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
@@ -200,11 +215,15 @@ int main(int argc, char* argv[]) noexcept {
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output); });
+  trace->final_callback([&] { do_trace(args, trace_input, trace_output); });
   // graph subcommand
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand
   stats->final_callback([&] { do_stats(args, list_artifacts); });
+  // emit subcommand
+  emit->final_callback([&] { do_emit(emit_output); });
+  // run subcommand
+  run->final_callback([&] { do_run(run_input); });
 
   /************* Argument Parsing *************/
 

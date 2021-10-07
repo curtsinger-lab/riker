@@ -15,7 +15,7 @@ void do_audit(std::vector<std::string> args, std::string command_output) noexcep
 
 void do_check(std::vector<std::string> args) noexcept;
 
-void do_trace(std::vector<std::string> args, std::string output) noexcept;
+void do_trace(std::vector<std::string> args, std::string input, std::string output) noexcept;
 
 void do_graph(std::vector<std::string> args,
               std::string output,
@@ -24,3 +24,7 @@ void do_graph(std::vector<std::string> args,
               bool no_render) noexcept;
 
 void do_stats(std::vector<std::string> args, bool list_artifacts) noexcept;
+
+void do_emit(std::string output) noexcept;
+
+void do_run(std::string input) noexcept;
