@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) noexcept {
   string run_input = "trace";
 
   auto run = app.add_subcommand("run", "Run TraceIR from a file");
-  run->add_option("input", emit_output, "The file containing the TraceIR to run");
+  run->add_option("input", run_input, "The file containing the TraceIR to run");
 
   /************* Rikerfile Arguments ***********/
   vector<string> args;
