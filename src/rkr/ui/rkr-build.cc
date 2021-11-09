@@ -123,6 +123,8 @@ void do_build(vector<string> args,
     // Plan the next iteration
     root_cmd->planBuild();
 
+    //LOGF(phase, "Before finishing phase, deferred commands: ", _deferred_commands.size());
+
     LOGF(phase, "Finished build phase {}", iteration);
 
     // Write stats out to CSV & reset counters

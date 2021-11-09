@@ -752,6 +752,10 @@ const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
 }
 
+const list<shared_ptr<Command>>& Command::getTempChildren() noexcept {
+  return _current_run._children;
+}
+
 // Get the set of commands that produce inputs to this command
 const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
   return _previous_run._uses_output_from;
