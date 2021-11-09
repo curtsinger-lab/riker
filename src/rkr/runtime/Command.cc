@@ -777,6 +777,7 @@ const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
 }
 
+<<<<<<< HEAD
 /// Get this command's list of children
 const list<shared_ptr<Command>>& Command::getMaxChildren() noexcept {
   return _previous_run._max_children;
@@ -787,6 +788,8 @@ const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& Command::getRefLists()
   return _previous_run._ref_lists;
 }
 
+=======
+>>>>>>> print orphan
 const list<shared_ptr<Command>>& Command::getTempChildren() noexcept {
   return _current_run._children;
 }

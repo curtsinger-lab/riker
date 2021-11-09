@@ -920,12 +920,16 @@ void Build::launch(const shared_ptr<Command>& parent,
 void Build::orphan(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
+<<<<<<< HEAD
   _deferred_commands.emplace(child);
   if(!parent->mustRun()){
     child->setOrphaned();
   }
   _output.orphan(parent, child, refs);
   cout << "in orphan" << "\n";
+=======
+
+>>>>>>> print orphan
   cout << "parent: " << parent << "  orphan: " << child << "\n";
 }
 
@@ -1004,6 +1008,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
   }
   
+<<<<<<< HEAD
   auto it = c->getRefLists().begin();
   if(c->mustRun()){
     runDeferredSteps();
@@ -1016,6 +1021,14 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     }
     std::advance(it, 1);
   }
+=======
+  list<tuple<Ref::ID, Ref::ID>> test;
+  for(const auto& candidate : c->getChildren()){
+    if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
+      //auto temp = std::make_tuple (c->getRef(),candidate->getRef());
+      _output.orphan(c, candidate, test);
+    }
+>>>>>>> print orphan
   }
   
 

@@ -209,11 +209,14 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _children;
 
+<<<<<<< HEAD
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _max_children;
     
     /// The list of refIDs of children launched by this command
     std::list<std::list<std::tuple<Ref::ID, Ref::ID>>> _ref_lists;
+=======
+>>>>>>> print orphan
 
     /// Has this command run been launched by its parent yet? This is set to true whether the launch
     /// is emulated or traced.
@@ -369,8 +372,11 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
+<<<<<<< HEAD
   const std::list<std::shared_ptr<Command>>& getMaxChildren() noexcept;
   const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& getRefLists() noexcept;
+=======
+>>>>>>> print orphan
   const std::list<std::shared_ptr<Command>>& getTempChildren() noexcept;
 
   /// Get the set of commands that produce inputs to this command
