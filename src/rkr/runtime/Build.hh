@@ -142,6 +142,11 @@ class Build : public IRSink {
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override;
 
+  /// A parent command displays its orphans
+  virtual void orphan(const std::shared_ptr<Command>& parent,
+                      const std::shared_ptr<Command>& child,
+                      std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override;                    
+
   /// A command is joining with a child command
   virtual void join(const std::shared_ptr<Command>& c,
                     const std::shared_ptr<Command>& child,

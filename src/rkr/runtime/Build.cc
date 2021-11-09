@@ -58,6 +58,7 @@ void Build::runDeferredSteps() noexcept {
 
   // Feed all deferred IR steps back through for emulation
   input.sendTo(*this);
+
 }
 
 /// Start a build with the given root command
@@ -74,18 +75,19 @@ void Build::start(const shared_ptr<Command>& c) noexcept {
 void Build::finish() noexcept {
   // Wait for all remaining processes to exit
   _tracer.wait(*this);
-
+  
   // Compare the final state of all artifacts to the actual filesystem
   env::getRootDir()->checkFinalState("/");
-
+  
   // Finish the run of the root command and all descendants (recursively)
   _root_command->finishRun();
-
+  
   // Inform the output trace that it is finished
   _output.finish();
-
+  
   // This build no longer has a root command
   _root_command.reset();
+  
 }
 
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
@@ -823,6 +825,8 @@ void Build::launch(const shared_ptr<Command>& parent,
   // Create an IR step and add it to the output trace
   _output.launch(parent, child, refs);
 
+  
+
   // Is the parent command being emulated?
   if (parent->canEmulate()) {
     // Yes. We need to launch the child if it is supposed to run
@@ -844,6 +848,14 @@ void Build::launch(const shared_ptr<Command>& parent,
       _print_to << child->getShortName(options::command_length) << endl;
     }
   }
+}
+
+// A parent command displays its orphans
+void Build::orphan(const shared_ptr<Command>& parent,
+                   const shared_ptr<Command>& child,
+                   list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
+
+  cout << "parent: " << parent << "  orphan: " << child << "\n";
 }
 
 // Command c waits for a child command to exit
@@ -909,6 +921,16 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
       return;
     }
   }
+  
+  list<tuple<Ref::ID, Ref::ID>> test;
+  for(const auto& candidate : c->getChildren()){
+    if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
+      //auto temp = std::make_tuple (c->getRef(),candidate->getRef());
+      _output.orphan(c, candidate, test);
+    }
+  }
+  
+
 
   // Create an IR step and add it to the output trace
   _output.exit(c, exit_status);
@@ -924,6 +946,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
   // Cache and fingerprint everything in the environment at the end of this command's run
   if (c->mustRun()) env::cacheAll();
+
 }
 
 // Look for a known command that matches one being launched
@@ -949,7 +972,6 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
 
     // Try to match the candidate to the given arguments
     auto substitutions = candidate->tryToMatch(args, fds);
-
     // If there was no match, continue
     if (!substitutions.has_value()) continue;
 
@@ -957,24 +979,22 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
     child = candidate;
     child_substitutions = std::move(substitutions.value());
   }
-
   // Did we find a matching command?
   if (child) {
     // Remove the child from the deferred command set
     _deferred_commands.erase(child);
-
     // We found a matching child command. Apply the required substitutions
     child->applySubstitutions(child_substitutions);
 
     LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {
+    
     // Create a child and mark it as running
     child = make_shared<Command>(args);
     child->setMarking(RebuildMarking::MustRun);
 
     LOG(exec) << "New command " << child << " did not match any previous command.";
-
     // Set initial file descriptors for the new child
     // Set the reference for each FD using the parent's references
     for (const auto& [fd, parent_ref] : fds) {
@@ -982,6 +1002,6 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
       child->addInitialFD(fd, child_ref);
     }
   }
-
+  
   return child;
 }

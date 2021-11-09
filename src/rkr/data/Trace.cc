@@ -228,6 +228,7 @@ enum class RecordType : uint8_t {
   String = 22,
   NewStrtab = 23,
   End = 24,
+  Orphan = 25,
 
   // Content version subtypes
   FileVersion = 32,
@@ -1031,6 +1032,46 @@ void TraceWriter::launch(const shared_ptr<Command>& parent,
   }
 }
 
+/********** Orphan Record **********/
+
+template <>
+struct Record<RecordType::Orphan> {
+  RecordType type;
+  Command::ID parent;
+  Command::ID child;
+  uint16_t refs_length;
+} __attribute__((packed));
+
+// Read a Orphan record from the input trace
+template <>
+void TraceReader::handleRecord<RecordType::Orphan>(IRSink& sink) noexcept {
+  const auto& data = takeRecord<RecordType::Orphan>();
+  const RefMapping* refs = takeArray<RefMapping>(data.refs_length);
+
+  list<tuple<Ref::ID, Ref::ID>> refs_list;
+  for (size_t i = 0; i < data.refs_length; i++) {
+    refs_list.push_back(tuple{refs[i].in_parent, refs[i].in_child});
+  }
+
+  sink.orphan(getCommand(data.parent), getCommand(data.child), refs_list);
+}
+
+// Write a Orphan record to the output trace
+void TraceWriter::orphan(const shared_ptr<Command>& parent,
+                         const shared_ptr<Command>& child,
+                         list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
+  // Compute the length of the ref mapping list, which should fit in a 16-bit integer
+  uint16_t refs_length = refs.size();
+
+  // Emit the fixed-length portion of the record
+  emitRecord<RecordType::Orphan>(getCommandID(parent), getCommandID(child), refs_length);
+
+  // Now emit the ref mappings
+  for (auto [a, b] : refs) {
+    emitValue<RefMapping>(a, b);
+  }
+}
+
 /********** Join Record **********/
 
 template <>
@@ -1471,6 +1512,10 @@ void TraceReader::sendTo(IRSink& sink) noexcept {
 
       case RecordType::Launch:
         handleRecord<RecordType::Launch>(sink);
+        break;
+
+      case RecordType::Orphan:
+        handleRecord<RecordType::Orphan>(sink);
         break;
 
       case RecordType::Join:

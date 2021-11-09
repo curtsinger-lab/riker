@@ -141,6 +141,13 @@ class EmulateOnly : public IRSink {
     if (command->canEmulate()) _next.launch(command, child, refs);
   }
 
+  /// Handle orphan
+  virtual void orphan(const std::shared_ptr<Command>& command,
+                      const std::shared_ptr<Command>& child,
+                      std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept {
+     _next.orphan(command, child, refs);
+  }
+
   /// Handle a Join IR step
   virtual void join(const std::shared_ptr<Command>& command,
                     const std::shared_ptr<Command>& child,

@@ -119,6 +119,11 @@ class IRSink {
   virtual void launch(const std::shared_ptr<Command>& command,
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept {}
+  
+  /// Handle orphans
+  virtual void orphan(const std::shared_ptr<Command>& command,
+                      const std::shared_ptr<Command>& child,
+                      std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept {}
 
   /// Handle a Join IR step
   virtual void join(const std::shared_ptr<Command>& command,
