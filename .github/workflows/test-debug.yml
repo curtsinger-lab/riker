@@ -1,0 +1,11 @@
+name: Test Debug Build
+on: push
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: make debug
+      - run: make test-debug

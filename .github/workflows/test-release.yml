@@ -1,7 +1,5 @@
-name: Run Tests
-
+name: Test Release Build
 on: push
-
 jobs:
   build:
     runs-on: [self-hosted, linux, x64]
@@ -9,5 +7,5 @@ jobs:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - run: make test-debug
+      - run: make release
       - run: make test-release
