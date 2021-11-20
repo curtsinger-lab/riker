@@ -1,4 +1,4 @@
 #!/bin/sh
 
-pdflatex main.tex 1> /dev/null 2> /dev/null
-pdflatex main.tex 1> /dev/null 2> /dev/null
+pdflatex --interaction=batchmode main.tex 2>&1 > /dev/null
+pdflatex --interaction=batchmode main.tex 2>&1 > /dev/null
