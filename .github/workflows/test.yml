@@ -7,10 +7,9 @@ on:
 jobs:
   build:
     runs-on: self-hosted
-
     steps:
-    - uses: actions/checkout@v2
-    - name: make
-      run: make
-    - name: make test
-      run: make test
+      - uses: actions/checkout@v2
+      - run: git submodule init
+      - run: git submodule update
+      - run: make
+      - run: make test
