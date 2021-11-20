@@ -1,13 +1,33 @@
-name: Run Tests
-
+name: test
 on: push
-
 jobs:
-  build:
+  checkout:
     runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
-      - run: make
-      - run: make test
+
+  build-debug:
+    runs-on: [self-hosted, linux, x64]
+    needs: checkout
+    steps:
+      - run: make debug
+  
+  test-debug:
+    runs-on: [self-hosted, linux, x64]
+    needs: build-debug
+    steps:
+      - run: make test-debug
+
+  build-release:
+    runs-on: [self-hosted, linux, x64]
+    needs: checkout
+    steps:
+      - run: make release
+      
+  test-release:
+    runs-on: [self-hosted, linux, x64]
+    needs: build-release
+    steps:
+      - run: make test-release
