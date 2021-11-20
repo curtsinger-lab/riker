@@ -19,7 +19,7 @@
 #include <unistd.h>
 
 // How many times should a thread spin on a contended lock before backing off?
-#define SPIN_BACKOFF_COUNT 31
+#define SPIN_BACKOFF_COUNT X
 
 // These symbols are provided by the assembly implementation of the safe syscall function
 extern void safe_syscall_start;
