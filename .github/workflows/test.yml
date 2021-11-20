@@ -2,29 +2,32 @@ name: Test Debug Build
 on: push
 jobs:
   checkout:
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: true
 
   build-debug:
+    runs-on: [self-hosted, linux, x64]
     needs: checkout
     steps:
       - run: make debug
   
   test-debug:
-    needs: build-debug
     runs-on: [self-hosted, linux, x64]
+    needs: build-debug
     steps:
       - run: make test-debug
 
   build-release:
+    runs-on: [self-hosted, linux, x64]
     needs: checkout
     steps:
       - run: make release
       
   test-release:
-    needs: build-release
     runs-on: [self-hosted, linux, x64]
+    needs: build-release
     steps:
       - run: make test-release
