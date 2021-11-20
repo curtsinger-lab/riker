@@ -10,8 +10,8 @@ Run the build
   $ rkr --show
   rkr-launch
   Rikerfile
-  pdflatex main.tex
-  pdflatex main.tex
+  pdflatex --interaction=batchmode main.tex
+  pdflatex --interaction=batchmode main.tex
 
 Check for the output pdf
   $ file main.pdf
@@ -22,8 +22,8 @@ Copy in a version with edited text (no reference changes)
 
 Run a rebuild. Both pdflatexs must run because references changed.
   $ rkr --show
-  pdflatex main.tex
-  pdflatex main.tex
+  pdflatex --interaction=batchmode main.tex
+  pdflatex --interaction=batchmode main.tex
 
 Clean up
   $ rm -rf .rkr

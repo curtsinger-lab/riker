@@ -10,8 +10,8 @@ Run the build
   $ rkr --fingerprint all --show
   rkr-launch
   Rikerfile
-  pdflatex main.tex
-  pdflatex main.tex
+  pdflatex --interaction=batchmode main.tex
+  pdflatex --interaction=batchmode main.tex
 
 Check for the output pdf
   $ file main.pdf
