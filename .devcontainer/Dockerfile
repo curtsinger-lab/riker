@@ -11,14 +11,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update
 RUN apt-get -y install --no-install-recommends apt-utils dialog 2>&1
 
-# Install development dependencies
-RUN apt-get -y install clang libfmt-dev gdb git
-
-# Install test dependencies
-RUN apt-get -y install python3-cram graphviz texlive-latex-base
-
-# Install benchmark dependencies
-RUN apt-get -y install cmake wget m4
+# Install packages
+RUN apt-get -y install --no-install-recommends \
+    # dev dependencies
+    make clang libfmt-dev gdb git \
+    # test dependencies
+    gcc python3-cram file graphviz texlive-latex-base \
+    # bench dependencies
+    cmake wget m4
 
 # Link cram3 as cram
 RUN update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100
