@@ -1,6 +1,7 @@
+name: test
 on: push
 jobs:
-  test:
+  run:
     runs-on: [self-hosted, linux, x64]
     strategy:
       matrix:
