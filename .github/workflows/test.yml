@@ -8,7 +8,7 @@ jobs:
         mode: [debug, release]
     steps:
       - uses: actions/checkout@v2
-          with:
-            submodules: true
+        with:
+          submodules: true
       - run: make ${{ matrix.mode }}
       - run: make test-${{ matrix.mode }}
