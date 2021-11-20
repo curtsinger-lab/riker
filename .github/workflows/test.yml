@@ -1,33 +1,14 @@
 name: test
 on: push
 jobs:
-  checkout:
+  runtests:
     runs-on: [self-hosted, linux, x64]
+    strategy:
+      matrix:
+        mode: [debug, release]
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: true
-
-  build-debug:
-    runs-on: [self-hosted, linux, x64]
-    needs: checkout
-    steps:
-      - run: make debug
-  
-  test-debug:
-    runs-on: [self-hosted, linux, x64]
-    needs: build-debug
-    steps:
-      - run: make test-debug
-
-  build-release:
-    runs-on: [self-hosted, linux, x64]
-    needs: checkout
-    steps:
-      - run: make release
-      
-  test-release:
-    runs-on: [self-hosted, linux, x64]
-    needs: build-release
-    steps:
-      - run: make test-release
+          with:
+            submodules: true
+      - run: make ${{ matrix.mode }}
+      - run: make test-${{ matrix.mode }}
