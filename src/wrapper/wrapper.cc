@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 
+#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,28 +34,6 @@ char* convert_helper(const string& s) {
 vector<string> pop_front(vector<string> vec) {
   vec.erase(vec.begin());
   return vec;
-}
-
-// Remove the wrappers folder from the PATH environment variable
-void path_update(char* pathC) {
-  vector<string> path_arr;
-  string paths = string(pathC);
-
-  // split path into vector using delimiter ':'
-  string tmp;
-  stringstream ss(paths);
-  while (getline(ss, tmp, ':')) path_arr.push_back(tmp);
-  for (vector<string>::iterator it = path_arr.begin(); it != path_arr.end();) {
-    if ((*it).find("wrappers") != string::npos) {
-      it = path_arr.erase(it);
-    } else
-      ++it;
-  }
-  paths.clear();
-
-  // combine vector of strings back into a single path string
-  for (const auto& path : path_arr) paths += path + ":";
-  setenv("PATH", paths.c_str(), 1);
 }
 
 // This function transforms the command arguments from a vector<string> to vector<char*> then calls
@@ -281,15 +260,82 @@ int clang_wrapper(vector<string> args) {
   return 1;
 }
 
-int main(int argc, char* argv[]) {
-  std::cout << "Using our CLANG" << endl;
+const vector<string>& get_path() {
+  static vector<string> _path;
 
-  // Remove wrappers from the PATH
-  char* pathC = getenv("PATH");
-  if (pathC != NULL) {
-    path_update(pathC);
+  // Fill in the path parts if it isn't initialized
+  if (_path.size() == 0) {
+    string newpath = "";
+
+    if (char* path_str = getenv("PATH"); path_str != NULL) {
+      string old_path(path_str);
+
+      // Split the path at colon characters until no separators remain
+      size_t start = 0;
+      while (start < old_path.size()) {
+        // Look for a colon separator
+        size_t sep = old_path.find(':', start);
+
+        // If we didn't find a colon, put the separtor at the end of the string
+        if (sep == string::npos) sep = old_path.size();
+
+        // Grab the next part of the path variable
+        const auto part = old_path.substr(start, sep - start);
+
+        // If the part is not a path to the wrappers directory, include it
+        if (part.find("share/rkr/wrappers") == string::npos) {
+          // Add the part to the path vector
+          _path.push_back(part);
+          if (newpath.size() > 0) newpath += ':';
+          newpath += part;
+        }
+
+        // Move past the colon separator
+        start = sep + 1;
+      }
+    }
+
+    setenv("PATH", newpath.c_str(), 1);
   }
 
-  vector<string> args(argv, argv + argc);
-  return clang_wrapper(args);
+  return _path;
+}
+
+using ExecFn = int (*)(const char*, char* const*, char* const*);
+
+int execvpe_untraced(const char* pathname, char* const* argv, char* const* envp) {
+  ExecFn _fn = reinterpret_cast<ExecFn>(dlsym(RTLD_NEXT, "execve_untraced"));
+
+  // Does pathname contain a slash character?
+  if (strchr(pathname, '/') != NULL) {
+    // Yes. Do not search PATH
+    _fn(argv[0], argv, envp);
+
+  } else {
+    // No. Search through PATH
+    for (const auto& part : get_path()) {
+      string path = part + "/" + pathname;
+      _fn(path.c_str(), argv, envp);
+    }
+  }
+
+  return -1;
+}
+
+int main(int argc, char* argv[], char* envp[]) {
+  // vector<string> args(argv, argv + argc);
+  // return clang_wrapper(args);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    int rc = execvpe_untraced(argv[0], argv, envp);
+    if (rc) {
+      perror("execvp failed");
+      return EXIT_FAILURE;
+    }
+  } else {
+    int status;
+    waitpid(pid, &status, 0);
+    return WEXITSTATUS(status);
+  }
 }

@@ -111,7 +111,7 @@ $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(R
 
 $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrapper/wrapper.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc
+	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
 
 $(DEBUG_WRAPPERS): $(DEBUG_DIR)/share/rkr/rkr-wrapper
 	@mkdir -p `dirname $@`

@@ -50,7 +50,7 @@ class Thread {
   void syscallExitChannel(Build& build, ssize_t channel) noexcept;
 
   /// Traced exit from a system call using ptrace
-  void syscallExitPtrace(Build& build) noexcept;
+  void syscallExitPtrace(Build& build, bool skippable = false) noexcept;
 
   /// Check if a ptrace stop can be skipped because a shared memory channel is in use
   bool canSkipTrace(user_regs_struct& regs) const noexcept;

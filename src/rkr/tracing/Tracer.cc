@@ -196,7 +196,7 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes. The process that called exec must have set a
         // post-syscall handler
-        thread.syscallExitPtrace(build);
+        thread.syscallExitPtrace(build, true);
 
       } else if (status == (PTRACE_EVENT_STOP << 8)) {
         // Is this delivering a stopping signal?
