@@ -81,7 +81,12 @@ void Thread::syscallExitChannel(Build& build, ssize_t channel) noexcept {
   _channel = -1;
 }
 
-void Thread::syscallExitPtrace(Build& build) noexcept {
+void Thread::syscallExitPtrace(Build& build, bool skippable) noexcept {
+  if (skippable && _post_syscall_handlers.empty()) {
+    resume();
+    return;
+  }
+
   ASSERT(!_post_syscall_handlers.empty()) << "Thread does not have a post-syscall handler";
 
   // Clear errno so we can check for errors
