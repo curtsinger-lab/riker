@@ -301,10 +301,10 @@ const vector<string>& get_path() {
   return _path;
 }
 
-using ExecFn = int (*)(const char*, char* const*, char* const*);
+using ExecveFn = int (*)(const char*, char* const*, char* const*);
 
 int execvpe_untraced(const char* pathname, char* const* argv, char* const* envp) {
-  ExecFn _fn = reinterpret_cast<ExecFn>(dlsym(RTLD_NEXT, "execve_untraced"));
+  ExecveFn _fn = reinterpret_cast<ExecveFn>(dlsym(RTLD_NEXT, "execve_untraced"));
 
   // Does pathname contain a slash character?
   if (strchr(pathname, '/') != NULL) {
