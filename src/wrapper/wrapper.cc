@@ -303,19 +303,26 @@ const vector<string>& get_path() {
 
 using ExecveFn = int (*)(const char*, char* const*, char* const*);
 
-int execvpe_untraced(const char* pathname, char* const* argv, char* const* envp) {
-  ExecveFn _fn = reinterpret_cast<ExecveFn>(dlsym(RTLD_NEXT, "execve_untraced"));
+int execve_untraced(const char* pathname, char* const* argv, char* const* envp) {
+  static ExecveFn _fn = reinterpret_cast<ExecveFn>(dlsym(RTLD_NEXT, "execve_untraced"));
+  if (_fn) {
+    return _fn(pathname, argv, envp);
+  } else {
+    return execve(pathname, argv, envp);
+  }
+}
 
+int execvpe_untraced(const char* pathname, char* const* argv, char* const* envp) {
   // Does pathname contain a slash character?
   if (strchr(pathname, '/') != NULL) {
     // Yes. Do not search PATH
-    _fn(argv[0], argv, envp);
+    execve_untraced(argv[0], argv, envp);
 
   } else {
     // No. Search through PATH
     for (const auto& part : get_path()) {
       string path = part + "/" + pathname;
-      _fn(path.c_str(), argv, envp);
+      execve_untraced(path.c_str(), argv, envp);
     }
   }
 
