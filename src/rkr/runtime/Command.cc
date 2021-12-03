@@ -778,6 +778,9 @@ const list<shared_ptr<Command>>& Command::getChildren() noexcept {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Adopt orphan with frozen bug
 /// Get this command's list of children
 const list<shared_ptr<Command>>& Command::getMaxChildren() noexcept {
   return _previous_run._max_children;
@@ -788,8 +791,11 @@ const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& Command::getRefLists()
   return _previous_run._ref_lists;
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> print orphan
+=======
+>>>>>>> Adopt orphan with frozen bug
 const list<shared_ptr<Command>>& Command::getTempChildren() noexcept {
   return _current_run._children;
 }

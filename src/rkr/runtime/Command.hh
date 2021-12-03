@@ -210,13 +210,19 @@ class Command : public std::enable_shared_from_this<Command> {
     std::list<std::shared_ptr<Command>> _children;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Adopt orphan with frozen bug
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _max_children;
     
     /// The list of refIDs of children launched by this command
     std::list<std::list<std::tuple<Ref::ID, Ref::ID>>> _ref_lists;
+<<<<<<< HEAD
 =======
 >>>>>>> print orphan
+=======
+>>>>>>> Adopt orphan with frozen bug
 
     /// Has this command run been launched by its parent yet? This is set to true whether the launch
     /// is emulated or traced.
@@ -373,10 +379,15 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
 <<<<<<< HEAD
+<<<<<<< HEAD
   const std::list<std::shared_ptr<Command>>& getMaxChildren() noexcept;
   const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& getRefLists() noexcept;
 =======
 >>>>>>> print orphan
+=======
+  const std::list<std::shared_ptr<Command>>& getMaxChildren() noexcept;
+  const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& getRefLists() noexcept;
+>>>>>>> Adopt orphan with frozen bug
   const std::list<std::shared_ptr<Command>>& getTempChildren() noexcept;
 
   /// Get the set of commands that produce inputs to this command
