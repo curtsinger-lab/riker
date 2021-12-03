@@ -209,6 +209,11 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _children;
 
+    /// The children launched by this command
+    std::list<std::shared_ptr<Command>> _max_children;
+    
+    /// The list of refIDs of children launched by this command
+    std::list<std::list<std::tuple<Ref::ID, Ref::ID>>> _ref_lists;
 
     /// Has this command run been launched by its parent yet? This is set to true whether the launch
     /// is emulated or traced.
@@ -258,7 +263,7 @@ class Command : public std::enable_shared_from_this<Command> {
   void createLaunchDependencies() noexcept;
 
   /// This command launched a child command
-  void addChild(std::shared_ptr<Command> child) noexcept;
+  void addChild(std::shared_ptr<Command> child, std::list<std::tuple<Ref::ID, Ref::ID>>) noexcept;
 
   /// Check if the latest run of this command has been launched yet
   bool isLaunched() noexcept;
@@ -351,6 +356,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get this command's list of children
   const std::list<std::shared_ptr<Command>>& getChildren() noexcept;
+  const std::list<std::shared_ptr<Command>>& getMaxChildren() noexcept;
+  const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& getRefLists() noexcept;
   const std::list<std::shared_ptr<Command>>& getTempChildren() noexcept;
 
   /// Get the set of commands that produce inputs to this command

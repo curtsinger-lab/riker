@@ -184,6 +184,7 @@ void Thread::finishSyscall(function<void(Build&, long)> handler) noexcept {
 }
 
 void Thread::forceExit(int exit_status) noexcept {
+  LOG(exec) << "Forceing exit of " << this;
   // Is the thread blocked on a shared memory channel?
   if (_channel >= 0) {
     Tracer::channelExit(_channel, exit_status);

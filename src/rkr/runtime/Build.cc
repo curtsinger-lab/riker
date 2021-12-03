@@ -162,16 +162,16 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
     LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.pipeRef(c, read_end, write_end);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
   }
 
   // Create an IR step and add it to the output trace
@@ -192,16 +192,16 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
     LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.fileRef(c, mode, output);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::FileRefPrinter{c, mode, output};
   }
 
   // Create an IR step and add it to the output trace
@@ -220,16 +220,16 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
     LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.symlinkRef(c, target, output);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::SymlinkRefPrinter{c, target, output};
   }
 
   // Create an IR step and add it to the output trace
@@ -249,16 +249,16 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
     LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.dirRef(c, mode, output);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::DirRefPrinter{c, mode, output};
   }
 
   // Create an IR step and add it to the output trace
@@ -281,16 +281,16 @@ void Build::pathRef(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.pathRef(c, base, path, flags, output);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
   }
 
   // Get the directory where resolution should begin
@@ -334,16 +334,16 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
     LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.usingRef(c, ref);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UsingRefPrinter{c, ref};
   }
 
   // Command c is now using ref
@@ -362,16 +362,16 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
     LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref_id};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.doneWithRef(c, ref_id);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::DoneWithRefPrinter{c, ref_id};
   }
 
   // Command c is no longer using ref
@@ -402,16 +402,16 @@ void Build::compareRefs(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.compareRefs(c, ref1_id, ref2_id, type);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type}; 
   }
 
   // Create an IR step and add it to the output trace
@@ -453,16 +453,16 @@ void Build::expectResult(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.expectResult(c, scenario, ref_id, expected);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
   }
 
   // Create an IR step and add it to the output trace
@@ -498,16 +498,16 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.matchMetadata(c, scenario, ref_id, expected);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
   }
 
   // Create an IR step and add it to the output trace
@@ -543,16 +543,16 @@ void Build::matchContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.matchContent(c, scenario, ref_id, expected);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
   }
 
   // Create an IR step and add it to the output trace
@@ -581,16 +581,16 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.updateMetadata(c, ref_id, written);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
   }
 
   // Create an IR step and add it to the output trace
@@ -628,16 +628,16 @@ void Build::updateContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.updateContent(c, ref_id, written);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
   }
 
   // Create an IR step and add it to the output trace
@@ -676,16 +676,16 @@ void Build::addEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.addEntry(c, dir_id, name, target_id);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
   }
 
   // Create an IR step and add it to the output trace
@@ -726,16 +726,16 @@ void Build::removeEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.removeEntry(c, dir_id, name, target_id);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
   }
 
   // Create an IR step and add it to the output trace
@@ -775,16 +775,16 @@ void Build::launch(const shared_ptr<Command>& parent,
     LOG(ir) << "traced " << TracePrinter::LaunchPrinter{parent, child, refs};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{parent, child, refs};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!parent->isLaunched()) {
       _deferred_commands.emplace(parent);
       _deferred_steps.launch(parent, child, refs);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::LaunchPrinter{parent, child, refs};
   }
 
   // Assign references in the child command
@@ -793,7 +793,7 @@ void Build::launch(const shared_ptr<Command>& parent,
   }
 
   // Add the child to the parent's list of children
-  parent->addChild(child);
+  parent->addChild(child, refs);
 
   // Is the child going to run?
   if (child->mustRun()) {
@@ -854,7 +854,9 @@ void Build::launch(const shared_ptr<Command>& parent,
 void Build::orphan(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-
+  _deferred_commands.emplace(child);
+  _output.orphan(parent, child, refs);
+  cout << "in orphan" << "\n";
   cout << "parent: " << parent << "  orphan: " << child << "\n";
 }
 
@@ -869,16 +871,16 @@ void Build::join(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.join(c, child, exit_status);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::JoinPrinter{c, child, exit_status};
   }
 
   // If we're emulating the parent command but the child is running, wait for it now
@@ -910,24 +912,27 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 
   } else {
-    stats::emulated_steps++;
-    // Log the emulated step
-    LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
-
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
       _deferred_steps.exit(c, exit_status);
       return;
     }
+
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
   }
   
-  list<tuple<Ref::ID, Ref::ID>> test;
-  for(const auto& candidate : c->getChildren()){
+  auto it = c->getRefLists().begin();
+  if(c->mustRun()){
+  for(const auto& candidate : c->getMaxChildren()){
     if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
-      //auto temp = std::make_tuple (c->getRef(),candidate->getRef());
-      _output.orphan(c, candidate, test);
+    cout << "in exit" << "\n";
+     _output.orphan(c, candidate, *it);
     }
+    std::advance(it, 1);
+  }
   }
   
 
@@ -958,10 +963,13 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
 
   // Matches may require path substitutions for temporary files. Remember those.
   map<string, string> child_substitutions;
-
+  
   // TODO: Should tempfile substitutions be global? Probably. For now they are unique to each
   // command, which could cause problems in strange cases.
 
+for (const auto& candidate : _deferred_commands) {
+  cout<<"FINDCOMMAND--------deferred_command: " << candidate << "\n";
+}
   // Loop over the set of deferred commands
   for (const auto& candidate : _deferred_commands) {
     // Has the candidate been launched already? If so we cannot match it
@@ -986,6 +994,7 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
     // We found a matching child command. Apply the required substitutions
     child->applySubstitutions(child_substitutions);
 
+    cout << "try to match parent: " << parent  << "   matched child: " << child << "\n";
     LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {

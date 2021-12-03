@@ -232,6 +232,12 @@ void Command::finishRun() noexcept {
   _previous_run = std::move(_current_run);
   _current_run = Command::Run();
 
+  if(_previous_run._max_children.size() < _previous_run._children.size()){
+    _current_run._max_children = _previous_run._children;
+  } else{
+    _current_run._max_children = _previous_run._max_children;
+  }
+
   // At the end of a build phase, all commands return to the Emulate marking
   _marking = RebuildMarking::Emulate;
 
@@ -449,9 +455,11 @@ void Command::createLaunchDependencies() noexcept {
 }
 
 // Record that this command launched a child command
-void Command::addChild(shared_ptr<Command> child) noexcept {
+void Command::addChild(shared_ptr<Command> child, std::list<std::tuple<Ref::ID, Ref::ID>> ref_list) noexcept {
   _current_run._children.push_back(child);
   child->_current_run._parent = shared_from_this();
+
+  _current_run._ref_lists.push_back(ref_list);
 }
 
 // Check if the latest run of this command has been launched yet
@@ -750,6 +758,16 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 /// Get this command's list of children
 const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
+}
+
+/// Get this command's list of children
+const list<shared_ptr<Command>>& Command::getMaxChildren() noexcept {
+  return _previous_run._max_children;
+}
+
+/// Get this command's list of children
+const std::list<std::list<std::tuple<Ref::ID, Ref::ID>>>& Command::getRefLists() noexcept {
+  return _previous_run._ref_lists;
 }
 
 const list<shared_ptr<Command>>& Command::getTempChildren() noexcept {
