@@ -27,6 +27,10 @@ class PostBuildChecker : public Next {
                             Scenario scenario,
                             Ref::ID ref,
                             int8_t expected) noexcept override {
+    if(!command->isLaunched()){
+      Next::expectResult(command, scenario, ref, expected);
+      return;
+    }                         
     if (scenario & Scenario::Build) {
       auto post_build = command->getRef(ref)->getResultCode();
       if (post_build == expected) {
@@ -43,6 +47,10 @@ class PostBuildChecker : public Next {
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
+    if(!command->isLaunched()){
+      Next::matchMetadata(command, scenario, ref, expected);
+      return;
+    } 
     if (scenario & Scenario::Build) {
       // Did the reference resolve in the post-build state?
       if (command->getRef(ref)->isResolved()) {
@@ -70,6 +78,10 @@ class PostBuildChecker : public Next {
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
+    if(!command->isLaunched()){
+      Next::matchContent(command, scenario, ref, expected);
+      return;
+    } 
     if (scenario & Scenario::Build) {
       // Did the reference resolve in the post-build state?
       if (command->getRef(ref)->isResolved()) {

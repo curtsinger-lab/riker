@@ -219,6 +219,10 @@ class Command : public std::enable_shared_from_this<Command> {
     /// is emulated or traced.
     bool _launched = false;
 
+    /// Has this command run become orphan yet? This is set to true whether the launch
+    /// is emulated or traced.
+    bool _orphaned = false;
+
     /// The process this command's run was launched in, or nullptr if there is no process
     std::shared_ptr<Process> _process;
 
@@ -268,8 +272,17 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Check if the latest run of this command has been launched yet
   bool isLaunched() noexcept;
 
+  /// Check if the latest run of this command has been orphaned yet
+  bool isOrphaned() noexcept;
+
   /// Mark the latest run of this command as launched
   void setLaunched(std::shared_ptr<Process> p = nullptr) noexcept;
+
+  /// Mark the latest run of this command as orphaned
+  void setOrphaned(std::shared_ptr<Process> p = nullptr) noexcept;
+
+  /// Mark the latest run of this command as not orphaned
+  void setNotOrphaned(std::shared_ptr<Process> p = nullptr) noexcept;
 
   /// Get the process this command is running in
   const std::shared_ptr<Process>& getProcess() noexcept;

@@ -468,10 +468,27 @@ bool Command::isLaunched() noexcept {
   return _current_run._launched;
 }
 
+// Check if the latest run of this command has been orphaned yet
+bool Command::isOrphaned() noexcept {
+  // The empty command is launched by default
+  return _current_run._orphaned;
+}
+
 // Mark the latest run of this command as launched
 void Command::setLaunched(shared_ptr<Process> p) noexcept {
   _current_run._launched = true;
   _current_run._process = p;
+}
+
+// Mark the latest run of this command as orphaned
+void Command::setOrphaned(shared_ptr<Process> p) noexcept {
+  LOG(exec) << "command " << this << " is set orphaned.";
+  _current_run._orphaned = true;
+}
+
+// Mark the latest run of this command as not orphaned
+void Command::setNotOrphaned(shared_ptr<Process> p) noexcept {
+  _current_run._orphaned = false;
 }
 
 const shared_ptr<Process>& Command::getProcess() noexcept {
