@@ -146,6 +146,12 @@ class TracePrinter : public IRSink {
     _out << LaunchPrinter{c, child, refs} << std::endl;
   }
 
+  virtual void orphan(const std::shared_ptr<Command>& c,
+                      const std::shared_ptr<Command>& child,
+                      std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override {
+    _out << OrphanPrinter{c, child, refs} << std::endl;
+  }
+
   virtual void join(const std::shared_ptr<Command>& c,
                     const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override {
@@ -387,6 +393,24 @@ class TracePrinter : public IRSink {
 
     friend std::ostream& operator<<(std::ostream& o, const LaunchPrinter& p) noexcept {
       o << p.c << ": Launch(" << p.child << ", [";
+      bool first = true;
+      for (const auto& [parent_ref_id, child_ref_id] : p.refs) {
+        if (!first) o << ", ";
+        first = false;
+        o << "r" << child_ref_id << "=r" << parent_ref_id;
+      }
+      return o << "])";
+    }
+  };
+
+  /// A wrapper struct used to print orphan IR steps
+  struct OrphanPrinter {
+    std::shared_ptr<Command> c;
+    std::shared_ptr<Command> child;
+    std::list<std::tuple<Ref::ID, Ref::ID>> refs;
+
+    friend std::ostream& operator<<(std::ostream& o, const OrphanPrinter& p) noexcept {
+      o << p.c << ": Orphan(" << p.child << ", [";
       bool first = true;
       for (const auto& [parent_ref_id, child_ref_id] : p.refs) {
         if (!first) o << ", ";

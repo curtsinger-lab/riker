@@ -56,6 +56,7 @@ void Build::runDeferredSteps() noexcept {
   // Create a new buffer to hold new deferred steps
   _deferred_steps = TraceWriter();
 
+  LOG(exec) << "runDeferredSteps";
   // Feed all deferred IR steps back through for emulation
   input.sendTo(*this);
 
@@ -93,7 +94,12 @@ void Build::finish() noexcept {
 void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
-
+  
+  if (c->isOrphaned()) {
+    _output.specialRef(c, entity, output);
+    return;
+  }
+  
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
     _deferred_commands.emplace(c);
@@ -162,6 +168,10 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
     LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.pipeRef(c, read_end, write_end);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -192,6 +202,10 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
     LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.fileRef(c, mode, output);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -220,6 +234,10 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
     LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.symlinkRef(c, target, output);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -249,6 +267,10 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
     LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.dirRef(c, mode, output);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -281,6 +303,10 @@ void Build::pathRef(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.pathRef(c, base, path, flags, output);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -334,6 +360,10 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
     LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.usingRef(c, ref);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -362,6 +392,10 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
     LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.doneWithRef(c, ref_id);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -402,6 +436,10 @@ void Build::compareRefs(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.compareRefs(c, ref1_id, ref2_id, type);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -453,6 +491,10 @@ void Build::expectResult(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.expectResult(c, scenario, ref_id, expected);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -498,6 +540,10 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.matchMetadata(c, scenario, ref_id, expected);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -543,6 +589,10 @@ void Build::matchContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
   } else {
+    if (c->isOrphaned()) {
+   _output.matchContent(c, scenario, ref_id, expected);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -581,6 +631,10 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.updateMetadata(c, ref_id, written);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -628,6 +682,10 @@ void Build::updateContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.updateContent(c, ref_id, written);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -676,6 +734,10 @@ void Build::addEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.addEntry(c, dir_id, name, target_id);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -726,6 +788,10 @@ void Build::removeEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.removeEntry(c, dir_id, name, target_id);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -855,6 +921,9 @@ void Build::orphan(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   _deferred_commands.emplace(child);
+  if(!parent->mustRun()){
+    child->setOrphaned();
+  }
   _output.orphan(parent, child, refs);
   cout << "in orphan" << "\n";
   cout << "parent: " << parent << "  orphan: " << child << "\n";
@@ -871,6 +940,10 @@ void Build::join(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   } else {
+    if (c->isOrphaned()) {
+    _output.join(c, child, exit_status);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -909,16 +982,23 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   if (c->mustRun()) {
     stats::traced_steps++;
     // Log the traced step
+    LOG(exec) << c << " traced exits.";;
     LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 
   } else {
+    if (c->isOrphaned()) {
+     LOG(exec) << c << " orphaned exits.";;
+    _output.exit(c, exit_status);
+    return;
+  }
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
+      LOG(exec) << c << " deferred exits.";
       _deferred_commands.emplace(c);
       _deferred_steps.exit(c, exit_status);
       return;
     }
-
+    LOG(exec) << c << " emulated exits.";
     stats::emulated_steps++;
     // Log the emulated step
     LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
@@ -926,10 +1006,13 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
   
   auto it = c->getRefLists().begin();
   if(c->mustRun()){
+    runDeferredSteps();
   for(const auto& candidate : c->getMaxChildren()){
     if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
     cout << "in exit" << "\n";
-     _output.orphan(c, candidate, *it);
+    candidate->setOrphaned();
+    _output.orphan(c, candidate, *it);
+    runDeferredSteps();
     }
     std::advance(it, 1);
   }
