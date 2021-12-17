@@ -11,7 +11,7 @@ Clean up any leftover state
   $ cp versions/goodbye-original.c goodbye.c
 
 Run the build
-  $ rkr --show
+  $ rkr --show --no-wrapper
   rkr-launch
   Rikerfile
   gcc -o hello hello.c goodbye.c
@@ -40,7 +40,7 @@ Now modify both .c files
   $ cp versions/goodbye-modified.c goodbye.c
 
 Now run a rebuild, which should rerun both cc1 commands, both as commands, and the linker
-  $ rkr --show
+  $ rkr --show --no-wrapper
   [^ ]*cc1 .* (re)
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
