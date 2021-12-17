@@ -95,10 +95,32 @@ int execvp_untraced(const char* pathname, char* const* argv) {
 int execvp_untraced(const vector<string>& args) {
   char* argv[args.size() + 1];
   for (size_t i = 0; i < args.size(); i++) {
+    printf("%s ", args[i].c_str());
     argv[i] = const_cast<char*>(args[i].data());
   }
+  printf("\n");
   argv[args.size()] = NULL;
   return execvp_untraced(argv[0], argv);
+}
+
+bool one_of(const string& str, const std::initializer_list<string>& options) {
+  for (const auto& option : options) {
+    if (str == option) return true;
+  }
+  return false;
+}
+
+bool has_prefix(const string& str, const std::initializer_list<string>& prefixes) {
+  for (const auto& prefix : prefixes) {
+    // If the argument is shorter than the prefix, do not check
+    if (str.size() < prefix.size()) continue;
+
+    // Does the argument start with the prefix?
+    if (str.substr(0, prefix.size()) == prefix) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool has_suffix(const string& str, const std::initializer_list<string>& suffixes) {
@@ -139,7 +161,14 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
       // Skip over -o and the following entry
       arg_iter++;
 
-    } else if (has_suffix(arg, {".c", ".cc", ".cpp", ".c++", ".s"})) {
+    } else if (has_prefix(arg, {"-l", "-L"}) || one_of(arg, {"-shared", "-fstandalone-debug"})) {
+      // Skip linker arguments
+
+    } else if (has_suffix(arg, {".o", ".a", ".so"})) {
+      // Skip linkable files
+
+    } else if (has_suffix(arg, {".c", ".cc", ".cpp", ".c++", ".s", ".S"})) {
+      // Capture source files
       source_files.push_back(arg);
 
       // Create a temporary .o file path
@@ -160,8 +189,6 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
     } else {
       compile_args.push_back(arg);
     }
-
-    // TODO: omit .o, .a, .so, and linker arguments
 
     // Move to the next argument
     arg_iter++;
