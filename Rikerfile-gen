@@ -1,93 +1,50 @@
 #!/bin/sh
 
-/bin/sh -c "ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l"
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/SpecialArtifact.o`"
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/DirArtifact.o`"
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/Artifact.o`"
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/SymlinkArtifact.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/SpecialArtifact.o -c src/artifacts/SpecialArtifact.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/DirArtifact.o -c src/artifacts/DirArtifact.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/Artifact.o -c src/artifacts/Artifact.cc
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/FileArtifact.o`"
-/bin/sh -c "mkdir -p `dirname .obj/artifacts/PipeArtifact.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/SymlinkArtifact.o -c src/artifacts/SymlinkArtifact.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-graph.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/FileArtifact.o -c src/artifacts/FileArtifact.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/artifacts/PipeArtifact.o -c src/artifacts/PipeArtifact.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-audit.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-graph.o -c src/ui/rkr-graph.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-build.o`"
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-stats.o`"
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-generate.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-audit.o -c src/ui/rkr-audit.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-build.o -c src/ui/rkr-build.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-stats.o -c src/ui/rkr-stats.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-generate.o -c src/ui/rkr-generate.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-check.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-check.o -c src/ui/rkr-check.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr.o -c src/ui/rkr.cc
-/bin/sh -c "mkdir -p `dirname .obj/ui/rkr-trace.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/ui/rkr-trace.o -c src/ui/rkr-trace.cc
-/bin/sh -c "mkdir -p `dirname .obj/versions/PipeVersion.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/versions/PipeVersion.o -c src/versions/PipeVersion.cc
-/bin/sh -c "mkdir -p `dirname .obj/versions/SymlinkVersion.o`"
-/bin/sh -c "mkdir -p `dirname .obj/versions/MetadataVersion.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/versions/SymlinkVersion.o -c src/versions/SymlinkVersion.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/versions/MetadataVersion.o -c src/versions/MetadataVersion.cc
-/bin/sh -c "mkdir -p `dirname .obj/versions/DirVersion.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/versions/DirVersion.o -c src/versions/DirVersion.cc
-/bin/sh -c "mkdir -p `dirname .obj/versions/FileVersion.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/versions/FileVersion.o -c src/versions/FileVersion.cc
-/bin/sh -c "mkdir -p `dirname .obj/util/terminate.o`"
-/bin/sh -c "mkdir -p `dirname .obj/util/Graph.o`"
-/bin/sh -c "mkdir -p `dirname .obj/util/stats.o`"
-/bin/sh -c "mkdir -p `dirname .obj/runtime/Ref.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/util/terminate.o -c src/util/terminate.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/util/Graph.o -c src/util/Graph.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/util/stats.o -c src/util/stats.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/runtime/Ref.o -c src/runtime/Ref.cc
-/bin/sh -c "mkdir -p `dirname .obj/runtime/Build.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/runtime/Build.o -c src/runtime/Build.cc
-/bin/sh -c "mkdir -p `dirname .obj/runtime/policy.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/runtime/policy.o -c src/runtime/policy.cc
-/bin/sh -c "mkdir -p `dirname .obj/runtime/Command.o`"
-/bin/sh -c "mkdir -p `dirname .obj/runtime/env.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/runtime/Command.o -c src/runtime/Command.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/runtime/env.o -c src/runtime/env.cc
-/bin/sh -c "mkdir -p `dirname .obj/tracing/SyscallTable.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/tracing/SyscallTable.o -c src/tracing/SyscallTable.cc
-/bin/sh -c "mkdir -p `dirname .obj/tracing/Process.o`"
-/bin/sh -c "mkdir -p `dirname .obj/tracing/Thread.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/tracing/Process.o -c src/tracing/Process.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/tracing/Thread.o -c src/tracing/Thread.cc
-/bin/sh -c "mkdir -p `dirname .obj/tracing/Tracer.o`"
-/bin/sh -c "mkdir -p `dirname .obj/data/OutputTrace.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/tracing/Tracer.o -c src/tracing/Tracer.cc
-/bin/sh -c "mkdir -p `dirname .obj/data/DefaultTrace.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/data/OutputTrace.o -c src/data/OutputTrace.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/data/DefaultTrace.o -c src/data/DefaultTrace.cc
-/bin/sh -c "mkdir -p `dirname .obj/data/Record.o`"
-/bin/sh -c "mkdir -p `dirname .obj/data/IRBuffer.o`"
-/bin/sh -c "mkdir -p `dirname .obj/data/InputTrace.o`"
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3.o`"
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/data/Record.o -c src/data/Record.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/data/IRBuffer.o -c src/data/IRBuffer.cc
-clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c --std=c++17 -Ideps/cereal/include -Ideps/CLI11/include -o .obj/data/InputTrace.o -c src/data/InputTrace.cc
-clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -o .obj/blake3/blake3.o -c deps/BLAKE3/c/blake3.c
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_dispatch.o`"
-clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -o .obj/blake3/blake3_dispatch.o -c deps/BLAKE3/c/blake3_dispatch.c
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_portable.o`"
-clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -o .obj/blake3/blake3_portable.o -c deps/BLAKE3/c/blake3_portable.c
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_sse2.o`"
+DIR1=".obj/artifacts/"
+SRC1="../../src/artifacts/DirArtifact.cc ../../src/artifacts/Artifact.cc ../../src/artifacts/SymlinkArtifact.cc ../../src/artifacts/PipeArtifact.cc ../../src/artifacts/SpecialArtifact.cc ../../src/artifacts/FileArtifact.cc"
+DIR2=".obj/ui/"
+SRC2="../../src/ui/rkr-graph.cc ../../src/ui/rkr-audit.cc ../../src/ui/rkr-build.cc ../../src/ui/rkr-stats.cc ../../src/ui/rkr-generate.cc ../../src/ui/rkr-check.cc ../../src/ui/rkr.cc ../../src/ui/rkr-trace.cc"
+DIR3=".obj/versions/"
+SRC3="../../src/versions/PipeVersion.cc ../../src/versions/SymlinkVersion.cc ../../src/versions/MetadataVersion.cc ../../src/versions/DirVersion.cc ../../src/versions/FileVersion.cc"
+DIR4=".obj/util/"
+SRC4="../../src/util/terminate.cc ../../src/util/Graph.cc ../../src/util/stats.cc"
+DIR5=".obj/runtime/"
+SRC5="../../src/runtime/Ref.cc ../../src/runtime/Build.cc ../../src/runtime/policy.cc ../../src/runtime/Command.cc ../../src/runtime/env.cc"
+DIR6=".obj/tracing/"
+SRC6="../../src/tracing/SyscallTable.cc ../../src/tracing/Process.cc ../../src/tracing/Thread.cc ../../src/tracing/Tracer.cc"
+DIR7=".obj/data/"
+SRC7="../../src/data/OutputTrace.cc ../../src/data/DefaultTrace.cc ../../src/data/Record.cc ../../src/data/IRBuffer.cc ../../src/data/InputTrace.cc"
+DIR8=".obj/blake3/"
+SRC8="../../deps/BLAKE3/c/blake3.c ../../deps/BLAKE3/c/blake3_dispatch.c ../../deps/BLAKE3/c/blake3_portable.c"
+
+cd .obj/artifacts/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC1
+cd -
+cd .obj/ui/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC2
+cd -
+cd .obj/versions/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC3
+cd -
+cd .obj/util/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC4
+cd -
+cd .obj/runtime/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC5
+cd -
+cd .obj/tracing/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC6
+cd -
+cd .obj/data/
+clang++ -MMD -MP -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c --std=c++17 -I../../deps/cereal/include -I../../deps/CLI11/include -I../../ -c $SRC7
+cd -
+cd .obj/blake3/
+clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -I../../src -I../../deps/BLAKE3/c -I../../ -c $SRC8
+cd -
 clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -msse2 -o .obj/blake3/blake3_sse2.o -c deps/BLAKE3/c/blake3_sse2.c
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_sse41.o`"
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_avx2.o`"
 clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -msse4.1 -o .obj/blake3/blake3_sse41.o -c deps/BLAKE3/c/blake3_sse41.c
-clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -mavx2 -o .obj/blake3/blake3_avx2.o -c deps/BLAKE3/c/blake3_avx2.c
-/bin/sh -c "mkdir -p `dirname .obj/blake3/blake3_avx512.o`"
-clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -mavx512f -mavx512vl -o .obj/blake3/blake3_avx512.o -c deps/BLAKE3/c/blake3_avx512.c
 clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -o rkr-launch launch/launch.c
+clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -mavx2 -o .obj/blake3/blake3_avx2.o -c deps/BLAKE3/c/blake3_avx2.c
+clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -mavx512f -mavx512vl -o .obj/blake3/blake3_avx512.o -c deps/BLAKE3/c/blake3_avx512.c
 clang -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc -Ideps/BLAKE3/c -fPIC -shared -Isrc/ -o rkr-inject.so inject/inject.c -ldl
-strip rkr-launch
 clang++ .obj/artifacts/SpecialArtifact.o .obj/artifacts/DirArtifact.o .obj/artifacts/Artifact.o .obj/artifacts/SymlinkArtifact.o .obj/artifacts/FileArtifact.o .obj/artifacts/PipeArtifact.o .obj/ui/rkr-graph.o .obj/ui/rkr-audit.o .obj/ui/rkr-build.o .obj/ui/rkr-stats.o .obj/ui/rkr-generate.o .obj/ui/rkr-check.o .obj/ui/rkr.o .obj/ui/rkr-trace.o .obj/versions/PipeVersion.o .obj/versions/SymlinkVersion.o .obj/versions/MetadataVersion.o .obj/versions/DirVersion.o .obj/versions/FileVersion.o .obj/util/terminate.o .obj/util/Graph.o .obj/util/stats.o .obj/runtime/Ref.o .obj/runtime/Build.o .obj/runtime/policy.o .obj/runtime/Command.o .obj/runtime/env.o .obj/tracing/SyscallTable.o .obj/tracing/Process.o .obj/tracing/Thread.o .obj/tracing/Tracer.o .obj/data/OutputTrace.o .obj/data/DefaultTrace.o .obj/data/Record.o .obj/data/IRBuffer.o .obj/data/InputTrace.o .obj/blake3/blake3.o .obj/blake3/blake3_dispatch.o .obj/blake3/blake3_portable.o .obj/blake3/blake3_sse2.o .obj/blake3/blake3_sse41.o .obj/blake3/blake3_avx2.o .obj/blake3/blake3_avx512.o -o rkr -O3 -g -fstandalone-debug -lstdc++fs -lfmt

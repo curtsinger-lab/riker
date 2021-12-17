@@ -180,9 +180,9 @@ int main(int argc, char* argv[]) noexcept {
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
   /************* Generate Subcommand *************/
-  bool no_condence = false;
+  bool no_condense = false;
   auto generate = app.add_subcommand("generate", "Generate a Rikerfile");
-  generate->add_flag("--skip-condencing", no_condence, "Skip condencing compile commands");
+  generate->add_flag("--skip-condensing", no_condense, "Skip condensing compile commands");
 
   /************* Rikerfile Arguments ***********/
   vector<string> args;
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) noexcept {
   // stats subcommand
   stats->final_callback([&] { do_stats(args, list_artifacts); });
   // generate subcommand
-  generate->final_callback([&] { do_generate(args, no_condence); });
+  generate->final_callback([&] { do_generate(args, no_condense); });
 
   /************* Argument Parsing *************/
 
