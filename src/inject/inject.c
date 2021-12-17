@@ -19,7 +19,7 @@
 #include <unistd.h>
 
 // How many times should a thread spin on a contended lock before backing off?
-#define SPIN_BACKOFF_COUNT 32
+#define SPIN_BACKOFF_COUNT 512
 
 // These symbols are provided by the assembly implementation of the safe syscall function
 extern void safe_syscall_start;
@@ -192,6 +192,7 @@ size_t channel_acquire(pid_t tid) {
                                     __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
       // Successfully acquired the channel
       shmem->channels[i].tid = tid;
+      shmem->channels[i].buffer_pos = 0;
 
       return i;
     }
