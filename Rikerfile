@@ -2,18 +2,20 @@
 
 # Set up compilation options
 PREFIX="self-build"
-BLAKE3="deps/BLAKE3/c"
+BLAKE3="$PWD/deps/BLAKE3/c"
 CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3"
 CXXFLAGS="$CFLAGS --std=c++17 --std=c++17 -Ideps/CLI11/include"
 
 # Create output directories
 mkdir -p $PREFIX/bin
-mkdir -p $PREFIX/lib
 mkdir -p $PREFIX/share/rkr/wrappers
 
-# Compile libblake3.so
+# Compile blake3 sources
 BLAKE3_SRC="$BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S"
-clang $CFLAGS -fPIC -shared -o $PREFIX/lib/libblake3.so $BLAKE3_SRC
+mkdir -p .blake3_obj
+cd .blake3_obj
+clang $CFLAGS -c $BLAKE3_SRC
+cd ..
 
 # Compile rkr-inject.so
 RKR_INJECT_SRC="src/inject/inject.c src/inject/syscall-amd64.s"
@@ -37,4 +39,7 @@ done
 
 # Compile rkr
 RKR_SRC="src/rkr/*/*.cc"
-clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC -L$PREFIX/lib -lblake3 -lstdc++fs -lfmt -lpthread
+clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC .blake3_obj/*.o -lstdc++fs -lfmt -lpthread
+
+# Clean up
+rm -rf .blake3_obj

@@ -20,6 +20,9 @@ using std::vector;
 /// Keep a vector of entries in the PATH environment variable
 vector<string> path;
 
+/// Is this a wrapper around clang?
+bool is_clang = false;
+
 void init_path() {
   string newpath = "";
 
@@ -63,7 +66,7 @@ int execv_untraced(const char* pathname, char* const* argv) {
   static execve_fn_t _fn = reinterpret_cast<execve_fn_t>(dlsym(RTLD_NEXT, "execve_untraced"));
 
   // Did we find the injected library function?
-  if (_fn) {
+  if (!is_clang && _fn) {
     // Yes. Use it.
     return _fn(pathname, argv, environ);
 
@@ -95,10 +98,8 @@ int execvp_untraced(const char* pathname, char* const* argv) {
 int execvp_untraced(const vector<string>& args) {
   char* argv[args.size() + 1];
   for (size_t i = 0; i < args.size(); i++) {
-    printf("%s ", args[i].c_str());
     argv[i] = const_cast<char*>(args[i].data());
   }
-  printf("\n");
   argv[args.size()] = NULL;
   return execvp_untraced(argv[0], argv);
 }
@@ -145,6 +146,12 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
   vector<string> source_files;
   vector<string> output_files;
 
+  // Was the -c flag passed in?
+  bool compile_flag = false;
+
+  // The path to the output file, if one was provided
+  optional<string> output_option;
+
   // Start processing arguments
   auto arg_iter = args.begin();
 
@@ -160,6 +167,13 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
     if (arg == "-o") {
       // Skip over -o and the following entry
       arg_iter++;
+
+      // Save the output file option for later
+      output_option = *arg_iter;
+
+    } else if (arg == "-c") {
+      // This is a compilation command, not a full linking command
+      compile_flag = true;
 
     } else if (has_prefix(arg, {"-l", "-L"}) || one_of(arg, {"-shared", "-fstandalone-debug"})) {
       // Skip linker arguments
@@ -192,6 +206,27 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
 
     // Move to the next argument
     arg_iter++;
+  }
+
+  // Handle compile commands
+  if (compile_flag) {
+    // Was an output filename provided?
+    if (output_option.has_value()) {
+      // Make sure there's only one source file
+      if (source_files.size() != 1) {
+        fprintf(stderr, "Invalid combination of -c and -o flags with multiple sources.\n");
+        return 1;
+      }
+
+      // Swap in the new output file name
+      output_files[0] = output_option.value();
+
+    } else {
+      // Replace the temporary output files with names based on the source file
+      for (size_t i = 0; i < source_files.size(); i++) {
+        output_files[i] = fs::path(source_files[i]).filename().stem().string() + ".o";
+      }
+    }
   }
 
   size_t launched = 0;
@@ -240,6 +275,11 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
     }
   }
 
+  // If the -c flag was passed in, exit with success unless there was some prior error
+  if (compile_flag && !exit_code.has_value()) {
+    exit_code = 0;
+  }
+
   return exit_code;
 }
 
@@ -277,6 +317,11 @@ int main(int argc, char* argv[]) {
 
   // Make a vector of args
   vector<string> args(argv, argv + argc);
+
+  // Is this a wrapper around clang?
+  is_clang = (args[0] == "clang" || args[0] == "clang++");
+
+  // TODO: if cc or c++ is a link to clang we'd want to detect that
 
   // Set up a container for temporary file paths we need to clean up
   vector<string> tempfiles;

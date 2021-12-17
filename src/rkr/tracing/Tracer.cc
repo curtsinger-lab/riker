@@ -85,7 +85,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
     }
   }
 
-  size_t spin_count = 0;
+  // size_t spin_count = 0;
 
   // Wait for an event from ptrace
   while (true) {

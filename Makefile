@@ -8,19 +8,19 @@ BLAKE3 := deps/BLAKE3/c
 # Flags shared by both debug and release builds
 COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3)
 COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/CLI11/include
-COMMON_LDFLAGS := -lblake3 -lstdc++fs -lfmt -lpthread
+COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread
 
 # Debug settings
 DEBUG_DIR := debug
 DEBUG_CFLAGS := -O3 -g -fstandalone-debug $(COMMON_CFLAGS)
 DEBUG_CXXFLAGS := -O3 -g -fstandalone-debug $(COMMON_CXXFLAGS)
-DEBUG_LDFLAGS := -L$(DEBUG_DIR)/lib $(COMMON_LDFLAGS)
+DEBUG_LDFLAGS := $(COMMON_LDFLAGS)
 
 # Release settings
 RELEASE_DIR := release
 RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS)
 RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS)
-RELEASE_LDFLAGS := -O3 -flto -L$(RELEASE_DIR)/lib $(COMMON_LDFLAGS)
+RELEASE_LDFLAGS := -O3 -flto $(COMMON_LDFLAGS)
 
 # Set up variables used for the build
 RKR_SRCS := $(wildcard src/rkr/*/*.cc)
@@ -37,13 +37,18 @@ RELEASE_WRAPPERS := $(addprefix $(RELEASE_DIR)/share/rkr/wrappers/, $(WRAPPER_NA
 # TODO: Don't hard-code the architecture-specific assembly file
 RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
 
-BLAKE_SRCS := $(BLAKE3)/blake3.c \
-						 	$(BLAKE3)/blake3_dispatch.c \
-						 	$(BLAKE3)/blake3_portable.c \
-						 	$(BLAKE3)/blake3_sse2_x86-64_unix.S \
-						 	$(BLAKE3)/blake3_sse41_x86-64_unix.S \
-						 	$(BLAKE3)/blake3_avx2_x86-64_unix.S \
-						 	$(BLAKE3)/blake3_avx512_x86-64_unix.S
+BLAKE_C_SRCS := $(BLAKE3)/blake3.c \
+						 	  $(BLAKE3)/blake3_dispatch.c \
+						 	  $(BLAKE3)/blake3_portable.c
+BLAKE_DEBUG_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+BLAKE_RELEASE_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+
+BLAKE_S_SRCS :=	$(BLAKE3)/blake3_sse2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_sse41_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx512_x86-64_unix.S
+BLAKE_DEBUG_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
+BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 
 ######## Begin Make Targets ########
 
@@ -54,7 +59,6 @@ debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
 debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/bin/rkr-launch \
-			 $(DEBUG_DIR)/lib/libblake3.so \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS)
 
@@ -63,7 +67,6 @@ release: CXXFLAGS = $(RELEASE_CXXFLAGS)
 release: LDFLAGS = $(RELEASE_LDFLAGS)
 release: $(RELEASE_DIR)/bin/rkr \
 				 $(RELEASE_DIR)/bin/rkr-launch \
-				 $(RELEASE_DIR)/lib/libblake3.so \
 				 $(RELEASE_DIR)/share/rkr/rkr-inject.so \
 				 $(RELEASE_WRAPPERS)
 
@@ -87,8 +90,8 @@ test-release: release
 		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib:$(LD_LIBRARY_PATH) \
 		./runtests.py
 
-$(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
-$(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_OBJS)
+$(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS)
+$(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS)
 $(DEBUG_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr:
 	@mkdir -p `dirname $@`
 	$(CXX) $^ -o $@ $(LDFLAGS)
@@ -121,9 +124,13 @@ $(RELEASE_WRAPPERS): $(RELEASE_DIR)/share/rkr/rkr-wrapper
 	@rm -f $@
 	ln $(RELEASE_DIR)/share/rkr/rkr-wrapper $@
 
-$(DEBUG_DIR)/lib/libblake3.so $(RELEASE_DIR)/lib/libblake3.so: $(BLAKE_SRCS) Makefile
+$(BLAKE_DEBUG_C_OBJS): $(DEBUG_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
+$(BLAKE_DEBUG_S_OBJS): $(DEBUG_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.S Makefile
+$(BLAKE_RELEASE_C_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
+$(BLAKE_RELEASE_S_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.S Makefile
+$(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS):
 	@mkdir -p `dirname $@`
-	$(CC) $(CFLAGS) -fPIC -shared -o $@ $(BLAKE_SRCS)
+	$(CC) $(CFLAGS) -o $@ -c $<
 
 -include $(RKR_DEBUG_DEPS)
 -include $(RKR_RELEASE_DEPS)
