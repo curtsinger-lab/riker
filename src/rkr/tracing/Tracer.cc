@@ -143,14 +143,14 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
         // No. The event is for a known process. Return it now.
         return tuple{child, wait_status};
       }
-    } else {
+    } /*else {
       // If there were no ptrace events, just pause briefly
-      if (++spin_count % 16 == 0) {
+      if (++spin_count % 1024 == 0) {
         sched_yield();
       } else {
         _mm_pause();
       }
-    }
+    }*/
   }
 }
 
