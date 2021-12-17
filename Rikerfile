@@ -1,18 +1,40 @@
 #!/bin/sh
 
-BLAKE3=deps/BLAKE3/c
+# Set up compilation options
+PREFIX="self-build"
+BLAKE3="deps/BLAKE3/c"
+CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3"
+CXXFLAGS="$CFLAGS --std=c++17 --std=c++17 -Ideps/CLI11/include"
 
-OPT="-O3"
-CFLAGS="$OPT -Isrc/rkr -Ideps/CLI11/include -I$BLAKE3 -Wall -Wfatal-errors"
-CXXFLAGS="$CFLAGS --std=c++17"
+# Create output directories
+mkdir -p $PREFIX/bin
+mkdir -p $PREFIX/lib
+mkdir -p $PREFIX/share/rkr/wrappers
 
-mkdir -p .blake3obj
-clang $CFLAGS -o .blake3obj/blake3.o -c $BLAKE3/blake3.c
-clang $CFLAGS -o .blake3obj/blake3_dispatch.o -c $BLAKE3/blake3_dispatch.c
-clang $CFLAGS -o .blake3obj/blake3_portable.o -c $BLAKE3/blake3_portable.c
-clang $CFLAGS -msse2 -o .blake3obj/blake3_sse2.o -c $BLAKE3/blake3_sse2.c
-clang $CFLAGS -msse4.1 -o .blake3obj/blake3_sse41.o -c $BLAKE3/blake3_sse41.c
-clang $CFLAGS -mavx2 -o .blake3obj/blake3_avx2.o -c $BLAKE3/blake3_avx2.c
-clang $CFLAGS -mavx512f -mavx512vl -o .blake3obj/blake3_avx512.o -c $BLAKE3/blake3_avx512.c
+# Compile libblake3.so
+BLAKE3_SRC="$BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S"
+clang $CFLAGS -fPIC -shared -o $PREFIX/lib/libblake3.so $BLAKE3_SRC
 
-clang++ $CXXFLAGS -o rkr src/rkr/*/*.cc .blake3obj/*.o -lstdc++fs -lfmt -lpthread
+# Compile rkr-inject.so
+RKR_INJECT_SRC="src/inject/inject.c src/inject/syscall-amd64.s"
+clang $CFLAGS -fPIC -shared -o $PREFIX/share/rkr/rkr-inject.so $RKR_INJECT_SRC -ldl -lpthread
+
+# Compile rkr-launch
+RKR_LAUNCH_SRC="src/rkr-launch/launch.c"
+clang $CFLAGS -o $PREFIX/bin/rkr-launch $RKR_LAUNCH_SRC
+
+# Compile rkr-wrapper
+RKR_WRAPPER_SRC="src/wrapper/wrapper.cc"
+clang++ $CXXFLAGS -o $PREFIX/share/rkr/rkr-wrapper $RKR_WRAPPER_SRC -ldl
+
+# Link wrappers
+WRAPPERS="c++ cc clang clang++ g++ gcc"
+for WRAPPER in $WRAPPERS
+do
+  rm -f $PREFIX/share/rkr/wrappers/$WRAPPER
+  ln $PREFIX/share/rkr/rkr-wrapper $PREFIX/share/rkr/wrappers/$WRAPPER
+done
+
+# Compile rkr
+RKR_SRC="src/rkr/*/*.cc"
+clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC -L$PREFIX/lib -lblake3 -lstdc++fs -lfmt -lpthread
