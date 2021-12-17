@@ -167,39 +167,49 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
     arg_iter++;
   }
 
-  // Now launch compilation commands
-  for (size_t i = 0; i < source_files.size(); i++) {
-    vector<string> new_args = compile_args;
-    new_args.push_back("-o");
-    new_args.push_back(output_files[i]);
-    new_args.push_back("-c");
-    new_args.push_back(source_files[i]);
-
-    pid_t child_id = fork();
-    if (child_id == -1) {
-      perror("fork failed");
-      return EXIT_FAILURE;
-
-    } else if (child_id == 0) {
-      // In the child
-      execvp_untraced(new_args);
-      exit(EXIT_FAILURE);
-    }
-  }
-
+  size_t launched = 0;
+  size_t finished = 0;
+  size_t jobs = 12;
   optional<int> exit_code = nullopt;
 
-  // Wait for all compilation commands
-  for (size_t i = 0; i < source_files.size(); i++) {
-    int status;
-    if (wait(&status) == -1) {
-      perror("wait failed");
-      return EXIT_FAILURE;
-    }
+  while (finished < source_files.size()) {
+    // Can we launch a job now?
+    if (launched < source_files.size() && launched - finished < jobs) {
+      vector<string> new_args = compile_args;
+      new_args.push_back("-o");
+      new_args.push_back(output_files[launched]);
+      new_args.push_back("-c");
+      new_args.push_back(source_files[launched]);
 
-    // If the child failed, the compiler wrapper should fail too
-    if (WEXITSTATUS(status) != 0) {
-      exit_code = WEXITSTATUS(status);
+      pid_t child_id = fork();
+      if (child_id == -1) {
+        perror("fork failed");
+        return EXIT_FAILURE;
+
+      } else if (child_id == 0) {
+        // In the child
+        execvp_untraced(new_args);
+        exit(EXIT_FAILURE);
+      }
+
+      // One more job is launched
+      launched++;
+
+    } else {
+      // We've hit the maximum number of simultaneous jobs. Wait for one
+      int status;
+      if (wait(&status) == -1) {
+        perror("wait failed");
+        return EXIT_FAILURE;
+      }
+
+      // If the child failed, the compiler wrapper should fail too
+      if (WEXITSTATUS(status) != 0) {
+        exit_code = WEXITSTATUS(status);
+      }
+
+      // One more job is finished
+      finished++;
     }
   }
 
