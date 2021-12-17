@@ -14,7 +14,7 @@ Set up the original source file
   $ cp file_versions/hello-original.c hello.c
 
 Run the build
-  $ rkr --show
+  $ rkr --show --no-wrapper
   rkr-launch
   Rikerfile
   gcc -c -o hello.o hello.c

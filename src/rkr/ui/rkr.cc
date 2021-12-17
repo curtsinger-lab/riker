@@ -138,12 +138,13 @@ int main(int argc, char* argv[]) noexcept {
 
   build->add_flag_callback(
       "--no-inject", []() { options::inject_tracing_lib = false; },
-      "Do not inject faster the shared memory tracing library");
+      "Do not inject the faster shared memory tracing library");
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
-  build->add_flag("--wrapper", options::parallel_wrapper,
-                  "Turn on the wrapper for parallel compilation");
+  build->add_flag_callback(
+      "--no-wrapper", []() { options::parallel_wrapper = false; },
+      "Do not wrap C/C++ compilers for parallel separate compilation");
 
   string command_output = "-";
   build->add_option("-o,--output", command_output,

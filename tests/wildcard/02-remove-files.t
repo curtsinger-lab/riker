@@ -10,7 +10,7 @@ Prepare for a clean run
   $ cp versions/c-original.c c.c
 
 Run the first build
-  $ rkr --show
+  $ rkr --show --no-wrapper
   rkr-launch
   Rikerfile
   gcc -o program a.c b.c c.c main.c
@@ -36,7 +36,7 @@ Remove c.c
   $ rm c.c
 
 Run a rebuild. This should rerun Rikerfile (because "." is changed), which launches a new gcc. We should match all of the cc1 and as commands and just rerun collect2 and ld. This test currently fails because gcc is a new command (with new arguments) so it has no children to match against. Matching against a global list of commands will fix this
-  $ rkr --show
+  $ rkr --show --no-wrapper
   Rikerfile
   gcc -o program a.c b.c main.c
   collect2 * (glob)
@@ -55,7 +55,7 @@ Remove a.c and b.c
   $ rm a.c b.c
 
 Run a rebuild. This should rerun Rikerfile again and relink without rerunning any compilation steps. This test should pass once commands are matched against a global list.
-  $ rkr --show
+  $ rkr --show --no-wrapper
   Rikerfile
   gcc -o program main.c
   collect2 * (glob)
