@@ -78,7 +78,8 @@
     "cfenv": "cpp",
     "charconv": "cpp",
     "cuchar": "cpp",
-    "scoped_allocator": "cpp"
+    "scoped_allocator": "cpp",
+    "*.ipp": "cpp"
   },
   "C_Cpp.default.cppStandard": "c++17",
   "C_Cpp.intelliSenseMemoryLimit": 512,
@@ -100,4 +101,5 @@
   ],
   "git.ignoreLimitWarning": true,
   "python.formatting.provider": "black",
+  "cmake.configureOnOpen": false,
 }

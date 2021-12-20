@@ -1,0 +1,77 @@
+name: riker
+base: core20
+version: '0.1'
+summary: N/A
+description: Smart incremental build software
+
+grade: stable
+confinement: strict
+
+# plugs:
+#   config-riker:
+#     interface: system-files
+#     read:
+#     - /etc
+#     - /dev
+#     - /usr
+#     - /proc
+#     - /sys
+
+apps:
+  rkr:
+    command: rkr
+    plugs:
+      # - config-riker
+      - home
+
+parts:
+  main:
+    source: .
+    plugin: nil
+    stage-packages:
+    # - libstdc++-9-dev
+    - linux-headers-5.4.0-91-generic
+    - clang
+    - libc6-dev
+    - libllvm10
+    - libpcre2-8-0
+    - libclang-cpp10
+    - libstdc++6
+    - libedit2
+    # - libgcc-9-dev
+    - cpio
+    - open-vm-tools
+    - libbsd0
+    - base-files
+    - libclang-common-10-dev
+    - locales
+    - linux-libc-dev
+    # - libctf0
+    - libbinutils
+    - binutils
+    - binutils-x86-64-linux-gnu
+    - libc6
+    - clang-10
+    - libfmt-dev
+    # - libffi7
+    # - libtinfo6
+    - libselinux1
+    # - libgcc-s1
+    - zlib1g
+    - coreutils
+    - dash
+    - ncurses-base
+    stage: 
+    - usr/lib/locale/locale-archive
+    - etc/ld.so.cache
+    override-build: |
+      make clean
+      make
+      for file in `find . -maxdepth 1 -executable -type f`
+      do
+        install -m 755 $file $SNAPCRAFT_PRIME
+      done
+      install -d -m 755 $SNAPCRAFT_PART_INSTALL/usr/lib/locale
+      install -m 755 /usr/lib/locale/locale-archive $SNAPCRAFT_PART_INSTALL/usr/lib/locale
+      install -d -m 755 $SNAPCRAFT_PART_INSTALL/etc
+      install -m 755 /etc/ld.so.cache $SNAPCRAFT_PART_INSTALL/etc

@@ -25,7 +25,7 @@ void do_graph(std::vector<std::string> args,
 
 void do_stats(std::vector<std::string> args, bool list_artifacts) noexcept;
 
-void do_gen_deps(std::vector<std::string> args, bool create_container) noexcept;
+void do_gen_deps(std::vector<std::string> args, bool create_container, bool create_snap_squashfs, bool create_snap_snapcraft) noexcept;
 
 void do_install_deps(std::vector<std::string> args) noexcept;
 

@@ -35,6 +35,9 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using std::begin;
+using std::find;
+using std::end;
 
 // class wrapper for output file for synchronized writing among threads
 class SynchronizedFile {
@@ -126,6 +129,109 @@ void gen_container() noexcept {
 
     dockerfile.close();
     settings.close();
+  } else {
+    cout << "Please generate dependencies first" << endl;
+  }
+  deps.close();
+}
+
+void gen_snap_squashfs() noexcept {
+  ifstream deps(".rkr-deps");
+  if (deps.is_open()) {
+    // format structure of root folder, install local libs & executable files
+    string command = "/bin/bash -c src/ui/build-snap.sh";
+    system(command.c_str());
+    // format snap.yaml file
+    ofstream snapyaml("squashfs-root/meta/snapcraft.yaml", std::ios_base::app);
+    snapyaml << "name: riker"
+             << "\nbase: core20"
+             << "\nversion: '0.1'"
+             << "\nsummary: N/A"
+             << "\ndescription: N/A"
+             << "\ngrade: stable"
+             << "\nconfinement: strict"
+             << "\napps:" 
+             << "\n  rkr:"
+             << "\n    command: rkr"
+             << "\n    command-chain:"
+             << "\n      - snap/command-chain/snapcraft-runner"
+             << "\narchitectures:"
+             << "\n- amd64"
+             << "\nassumes:"
+             << "\n- command-chain" << endl;
+    snapyaml.close();
+    // turn folder into a snap
+    system("mksquashfs squashfs-root/ riker.snap");
+    system("rm -rf squashfs-root");
+  } else {
+    cout << "Please generate dependencies first" << endl;
+  }
+  deps.close();
+}
+
+void gen_snap_snapcraft() noexcept {
+  ifstream deps(".rkr-deps");
+  if (deps.is_open()) {
+    system("rm -rf snap");
+    system("snapcraft init");
+    // format snap.yaml metadata
+    ofstream snapyaml("snap/snapcraft.yaml");
+    snapyaml << "name: riker" 
+             << "\nbase: core20" 
+             << "\nversion: '0.1'"
+             << "\nsummary: N/A"
+             << "\ndescription: N/A"
+             << "\ngrade: stable"
+             << "\nconfinement: strict"
+             << "\napps:"
+             << "\n  rkr:"
+             << "\n    command: rkr"
+             << "\n    plugs:"
+             << "\n      - home"
+             << "\nparts:" 
+             << "\n  rkr:"
+             << "\n    source: ."
+             << "\n    plugin: nil"
+             << "\n    stage-packages:";
+    // TODO: snap doesn't recognize these packages as valid in the system for both core18 and core20
+    vector<string> unresolved_packages = {"libstdc++-9-dev", "libgcc-9-dev", "libctf0", "libffi7", "libtinfo6", "libgcc-s1"};
+    // add stage packges
+    vector<string> local_packages; string package;
+    while (getline(deps, package)) {
+      if(package.find("No path") != string::npos){
+        local_packages.push_back(package.erase(0,package.find_first_of('/')));
+      } else {
+        if(package.find(":amd64") != string::npos){
+          package.erase(package.find(":amd64"));
+        }
+        if (find(begin(unresolved_packages), end(unresolved_packages), package) !=
+            end(unresolved_packages)) {
+          snapyaml << "\n      # - " << package;
+        } else {
+          snapyaml << "\n      - " << package;
+        }
+      }
+    }
+    snapyaml << "\n    stage:";
+    for(string package: local_packages){
+      snapyaml << "\n      - " << package.erase(0,1);
+    }
+    // specify build steps
+    snapyaml << "\n    override-build: |"
+             << "\n      make"
+             << "\n      for file in `find . -maxdepth 1 -executable -type f`"
+             << "\n      do"
+             << "\n        install -m 755 $file $SNAPCRAFT_PRIME"
+             << "\n      done";
+    for (string package : local_packages) {
+      string p = package;
+      string parent_dir = "$SNAPCRAFT_PART_INSTALL" + package.erase(package.find_last_of('/'));
+      snapyaml << "\n      install -d -m 755 " << parent_dir;
+      snapyaml << "\n      install -m 755 " << p << " " << parent_dir;
+    }
+    snapyaml.close();
+    // create the snap with snapcraft
+    system("snapcraft");
   } else {
     cout << "Please generate dependencies first" << endl;
   }
@@ -262,7 +368,7 @@ void* myThread(void* threadarg) {
 /**
  * Run the 'gen_deps' subcommand
  */
-void do_gen_deps(vector<string> args, bool create_container) noexcept {
+void do_gen_deps(vector<string> args, bool create_container, bool create_snap_squashfs, bool create_snap_snapcraft) noexcept {
   struct stat buffer;
   if (stat(".rkr", &buffer) != 0) cout << "Please build the program with riker first" << endl;
 
@@ -308,6 +414,8 @@ void do_gen_deps(vector<string> args, bool create_container) noexcept {
     }
   }
   if (create_container) gen_container();
+  if (create_snap_squashfs) gen_snap_squashfs();
+  if (create_snap_snapcraft) gen_snap_snapcraft();
 }
 
 void do_install_deps(vector<string> args) noexcept {
