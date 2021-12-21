@@ -6,6 +6,7 @@ from lib.ast_printer import astprinter
 from lib.substitution import substitutionvisitor
 import sys
 
+# to store variable bindings
 env = {}
 
 lines = []
@@ -22,29 +23,27 @@ for line in lines:
 
 for i in range(len(trees)):
     # init visitors
-    ap = astprinter()
+    # ap = astprinter()
     visitor = substitutionvisitor(env)
 
-    print("line: " + lines[i].strip())
+    # print("line: " + lines[i].strip())
 
-    # print before
-    print("before: ")
-    ap.visit(trees[i])
+    # DEBUG: print before
+    # print("before: ")
+    # ap.visit(trees[i])
 
-    # echo command
-    print("command: ")
-    prettyprinter.print(trees[i])
+    # DEBUG: echo command
+    # print("command: ")
+    # prettyprinter.print(trees[i])
 
     # do substitutions
     tree2 = visitor.visit(trees[i])
 
-    # print after
-    print("after: ")
-    ap.visit(tree2)
+    # DEBUG: print after
+    # print("after: ")
+    # ap.visit(tree2)
 
     # echo modified command
     prettyprinter.print(tree2)
 
-    print("-------")
-
-print(env)
+    # print("-------")
