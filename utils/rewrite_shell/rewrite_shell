@@ -34,6 +34,7 @@ for line in lines:
     # otherwise, it's an expression
     trees += parser.parse(input)
 
+print(shebang, end = "")
 for i in range(len(trees)):
     # init visitors
     # ap = astprinter()
@@ -57,5 +58,4 @@ for i in range(len(trees)):
     # ap.visit(tree2)
 
     # echo modified command
-    print(shebang, end = "")
     prettyprinter.print(tree2)
