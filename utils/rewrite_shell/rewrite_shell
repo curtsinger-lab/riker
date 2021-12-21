@@ -11,6 +11,8 @@ env = {}
 
 lines = []
 trees = []
+shebang = ""
+
 with open(sys.argv[1], "r") as f:
     lines = f.readlines()
 
@@ -19,6 +21,13 @@ for line in lines:
     # bashlex barfs on empty lines
     if len(input) == 0:
         continue
+
+    # bashlex mysteriously does not understand shebangs
+    if input[0] == "#" and input[1] == "!":
+        shebang = line
+        continue
+
+    # otherwise, it's an expression
     trees += parser.parse(input)
 
 for i in range(len(trees)):
@@ -44,6 +53,5 @@ for i in range(len(trees)):
     # ap.visit(tree2)
 
     # echo modified command
+    print(shebang, end = "")
     prettyprinter.print(tree2)
-
-    # print("-------")
