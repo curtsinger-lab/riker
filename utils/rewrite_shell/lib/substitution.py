@@ -75,7 +75,7 @@ class substitutionvisitor(ast.nodevisitor):
 
     def visitassignment(self, n, word):
         # add entry to env
-        [var, val] = word.split("=")
+        [var, val] = word.split("=", 1)
         self.env[var] = val
         return n
 
