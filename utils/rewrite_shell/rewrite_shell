@@ -27,6 +27,10 @@ for line in lines:
         shebang = line
         continue
 
+    # ignore comments for now
+    if input[0] == "#":
+        continue
+
     # otherwise, it's an expression
     trees += parser.parse(input)
 
