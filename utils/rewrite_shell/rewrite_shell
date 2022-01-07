@@ -5,9 +5,10 @@ from lib.pretty_printer import prettyprinter
 from lib.ast_printer import astprinter
 from lib.substitution import SubstitutionVistor
 import sys
+import os
 
-# to store variable bindings
-env: Dict[str,str] = {}
+# to store variable bindings; initialize with environment
+env: Dict[str,str] = dict(os.environ)
 
 # lines of the input file
 lines: list[str] = []
@@ -15,9 +16,11 @@ lines: list[str] = []
 # array of AST nodes
 trees: list[Optional[ast.node]] = []
 
+# read input file
 with open(sys.argv[1], "r") as f:
     lines = f.readlines()
 
+# determine which lines can be substituted
 for line in lines:
     input = line.strip()
     
@@ -39,6 +42,7 @@ for line in lines:
     # otherwise, it's an expression
     trees += parser.parse(input)
 
+# do substitutions & print results
 for i in range(len(trees)):
     if trees[i] is None:
         print(lines[i], end="")
