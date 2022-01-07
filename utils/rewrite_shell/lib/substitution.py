@@ -1,7 +1,9 @@
 from typing import TYPE_CHECKING
 from bashlex import ast # type: ignore
 from subprocess import check_output
+from lib.pretty_printer import PrettyPrinter
 import sys
+import re
 
 # see https://github.com/idank/bashlex/blob/815653c7208a578735e18558069443cb5f67a9a2/bashlex/ast.py
 # for original visitor implementation
@@ -68,8 +70,12 @@ class SubstitutionVistor(ast.nodevisitor):
     def visitword(self, n: ast.node, word) -> ast.node:
         # substitute the parameter from env
         if len(n.parts) == 1 and n.parts[0].kind == "parameter":
-            word = self.env[n.parts[0].value]
-            return ast.node(kind="word", parts=[], pos=n.pos, word=word)
+            # eval the parameter first
+            param = self.env[n.parts[0].value]
+            
+            # substitute the parameter in for the variable
+            word2 = word.replace("$" + n.parts[0].value, param)
+            return ast.node(kind="word", parts=[], pos=n.pos, word=word2)
         # not a substitution; evaluate subexpression
         elif len(n.parts) == 1:
             return ast.node(kind='word', parts=[self.visit(n.parts[0])], pos=n.pos, word="")
@@ -78,20 +84,34 @@ class SubstitutionVistor(ast.nodevisitor):
         return n
 
     def visitassignment(self, n: ast.node, word: str) -> ast.node:
-        # if the rhs is a command substitution, run the command now
+        # get lhs and rhs
+        [lhs, rhs] = word.split("=", 1)
+        
+        # if any part of the rhs is a command substitution, run the command now
         # and put the output into env for later use
-        if len(n.parts) == 1 and n.parts[0].kind == "commandsubstitution":
-            [var, val] = word.split("=", 1)
-            cmd = val[1:len(val)-1]
-            cmdargs = cmd.split(" ")
-            out = '"' + check_output(cmd, shell=True).decode("utf-8").strip() + '"'
-            self.env[var] = out
+        subeval = []
+        for part in n.parts:
+            if part.kind == "commandsubstitution":
+                # pretty print the command
+                pp = PrettyPrinter()
+                cmd = pp.visit(part).strip()
+                out = check_output(cmd, shell=True).decode("utf-8").strip()
+                subeval.append(out)
+
+        # do replacements for any command substitution
+        if len(subeval) != 0:
+            word2 = word
+            for i in range(len(subeval)):
+                # replace the subcommand with the evaluated output
+                word2 = re.sub(r"`.+?`", subeval[i], word2, 1)
+                
+            # update in env
+            self.env[lhs] = word2
             return None
             
-        # otherwise, add entry to env
-        [var, val] = word.split("=", 1)
-        self.env[var] = val
-        return n
+        # otherwise, add directly to env
+        self.env[lhs] = rhs
+        return None
 
     def visitreservedword(self, n: ast.node, word: str) -> ast.node:
         return n
@@ -131,6 +151,7 @@ class SubstitutionVistor(ast.nodevisitor):
     # This redefinition exists to push all the work
     # inside each visitor.
     def visit(self, n: ast.node) -> ast.node:
+        # print(str(n))
         k = n.kind
         if k == "operator":
             return self._visitnode(n, n.op)

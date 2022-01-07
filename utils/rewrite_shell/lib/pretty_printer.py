@@ -1,10 +1,13 @@
 from typing import TYPE_CHECKING
 from bashlex import ast # type: ignore
+import sys
 
-
-class prettyprinter(ast.nodevisitor):
+class PrettyPrinter(ast.nodevisitor):
     def __init__(self):
         self.indent = 0
+        
+    def printparts(self, parts: list[ast.node]) -> str:
+        return " ".join(map(lambda part: self.visit(part), parts)) + " "
 
     def visitoperator(self, n, op):
         return op + " "
@@ -16,10 +19,11 @@ class prettyprinter(ast.nodevisitor):
         return pipe + " "
 
     def visitpipeline(self, n, parts):
-        return "[TODO pipeline] "
+        pipeline = self.printparts(parts)
+        return pipeline
 
     def visitcompound(self, n, list, redirects):
-        return "[TODO compound] "
+        return self.printparts(list)
 
     def visitif(self, n, parts):
         return "[TODO if] "
@@ -34,7 +38,7 @@ class prettyprinter(ast.nodevisitor):
         return "[TODO until] "
 
     def visitcommand(self, n, parts):
-        return " ".join(map(lambda part: self.visit(part), parts)) + " "
+        return self.printparts(parts)
 
     def visitfunction(self, n, name, body, parts):
         return "[TODO function] "
@@ -62,7 +66,7 @@ class prettyprinter(ast.nodevisitor):
         elif input == None and output != None:
             return type + " " + self.visit(output) + " "
         else:
-            return "[TODO some other kind of redirect] "
+            return str(input) + type + self.visit(output) + " "
 
     def visitheredoc(self, n, value):
         return value + " "
@@ -103,5 +107,5 @@ class prettyprinter(ast.nodevisitor):
 
     @staticmethod
     def print(tree):
-        pp = prettyprinter()
+        pp = PrettyPrinter()
         print(pp.visit(tree))
