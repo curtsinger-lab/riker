@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-from typing import TYPE_CHECKING
-from bashlex import parser
+from typing import TYPE_CHECKING, Dict
+from bashlex import parser, ast # type: ignore
 from lib.pretty_printer import prettyprinter
 from lib.ast_printer import astprinter
-from lib.substitution import substitutionvisitor
+from lib.substitution import SubstitutionVistor
 import sys
 
 # to store variable bindings
-env = {}
+env: Dict[str,str] = {}
 
+# lines of the input file
 lines = []
-trees = []
+
+# array of AST nodes
+trees: list[ast.node] = []
 shebang = ""
 
 with open(sys.argv[1], "r") as f:
@@ -38,7 +41,8 @@ print(shebang, end = "")
 for i in range(len(trees)):
     # init visitors
     # ap = astprinter()
-    visitor = substitutionvisitor(env)
+    visitor = SubstitutionVistor(env)
+    print(type(visitor))
 
     # print("line: " + lines[i].strip())
 
