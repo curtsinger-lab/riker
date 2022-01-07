@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 from typing import TYPE_CHECKING, Dict, Optional
 from bashlex import parser, ast # type: ignore
-from lib.pretty_printer import prettyprinter
-from lib.ast_printer import astprinter
 from lib.substitution import SubstitutionVistor
+from lib.pretty_printer import PrettyPrinter
 import sys
 import os
 
@@ -47,4 +46,4 @@ for i in range(len(trees)):
     tree2 = visitor.visit(trees[i])
     
     # echo modified command
-    prettyprinter.print(tree2)
+    PrettyPrinter.print(tree2)
