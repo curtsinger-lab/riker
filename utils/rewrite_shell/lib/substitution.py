@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-from bashlex import ast
+from bashlex import ast # type: ignore
 import sys
 
 # see https://github.com/idank/bashlex/blob/815653c7208a578735e18558069443cb5f67a9a2/bashlex/ast.py
@@ -8,29 +8,29 @@ import sys
 # for additional examples
 
 
-class substitutionvisitor(ast.nodevisitor):
+class SubstitutionVistor(ast.nodevisitor):
     def __init__(self, env):
         self.env = env
 
-    def genericpartsvisitor(self, kind, n, parts):
+    def genericpartsvisitor(self, kind: str, n: ast.node, parts: list[ast.node]) -> ast.node:
         newparts = []
         for part in parts:
             newparts.append(self.visit(part))
         return ast.node(kind=kind, parts=newparts, pos=n.pos)
 
-    def visitoperator(self, n, op):
+    def visitoperator(self, n: ast.node, op: str) -> ast.node:
         return n
 
-    def visitlist(self, n, parts):
+    def visitlist(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("list", n, parts)
 
-    def visitpipe(self, n, pipe):
+    def visitpipe(self, n: ast.node, pipe: str):
         return n
 
-    def visitpipeline(self, n, parts):
+    def visitpipeline(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("pipeline", n, parts)
 
-    def visitcompound(self, n, list, redirects):
+    def visitcompound(self, n: ast.node, list: list[ast.node], redirects: list[ast.node]) -> ast.node:
         newlist = []
         newredirects = []
         for ls in list:
@@ -41,22 +41,22 @@ class substitutionvisitor(ast.nodevisitor):
             kind="compound", list=newlist, redirects=newredirects, pos=n.pos
         )
 
-    def visitif(self, n, parts):
+    def visitif(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("if", n, parts)
 
-    def visitfor(self, n, parts):
+    def visitfor(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("for", n, parts)
 
-    def visitwhile(self, n, parts):
+    def visitwhile(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("while", n, parts)
 
-    def visituntil(self, n, parts):
+    def visituntil(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("until", n, parts)
 
-    def visitcommand(self, n, parts):
+    def visitcommand(self, n: ast.node, parts: list[ast.node]) -> ast.node:
         return self.genericpartsvisitor("command", n, parts)
 
-    def visitfunction(self, n, name, body, parts):
+    def visitfunction(self, n: ast.node, name: str, body, parts: list[ast.node]) -> ast.node:
         newparts = []
         for part in parts:
             newparts.append(self.visit(part))
@@ -64,31 +64,31 @@ class substitutionvisitor(ast.nodevisitor):
             kind="function", name=name, body=body, parts=newparts, pos=n.pos
         )
 
-    def visitword(self, n, word):
+    def visitword(self, n: ast.node, word) -> ast.node:
         # substitute the parameter from env
         if len(n.parts) == 1 and n.parts[0].kind == "parameter":
             word = self.env[n.parts[0].value]
             return ast.node(kind="word", parts=[], pos=n.pos, word=word)
         if len(n.parts) > 1:
-            raise sys.Error("WordNode has more than 1 part.")
+            raise Exception("WordNode has more than 1 part.")
         return n
 
-    def visitassignment(self, n, word):
+    def visitassignment(self, n: ast.node, word: str) -> ast.node:
         # add entry to env
         [var, val] = word.split("=", 1)
         self.env[var] = val
         return n
 
-    def visitreservedword(self, n, word):
+    def visitreservedword(self, n: ast.node, word: str) -> ast.node:
         return n
 
-    def visitparameter(self, n, value):
+    def visitparameter(self, n: ast.node, value: ast.node) -> ast.node:
         return ast.node(kind="parameter", value=self.visit(value))
 
-    def visittilde(self, n, value):
+    def visittilde(self, n: ast.node, value) -> ast.node:
         return n
 
-    def visitredirect(self, n, input, type, output, heredoc):
+    def visitredirect(self, n: ast.node, input, type, output, heredoc) -> ast.node:
         newoutput = output
         newheredoc = heredoc
         if isinstance(n.output, ast.node):
@@ -103,20 +103,20 @@ class substitutionvisitor(ast.nodevisitor):
             heredoc=newheredoc,
         )
 
-    def visitheredoc(self, n, value):
+    def visitheredoc(self, n: ast.node, value: str) -> ast.node:
         return n
 
-    def visitprocesssubstitution(self, n, command):
+    def visitprocesssubstitution(self, n: ast.node, command: str) -> ast.node:
         newcommand = self.visit(command)
         return ast.node(kind="processsubstitution", command=newcommand)
 
-    def visitcommandsubstitution(self, n, command):
+    def visitcommandsubstitution(self, n: ast.node, command: str) -> ast.node:
         newcommand = self.visit(command)
         return ast.node(kind="commandsubstitution", command=newcommand)
 
     # This redefinition exists to push all the work
     # inside each visitor.
-    def visit(self, n):
+    def visit(self, n: ast.node) -> ast.node:
         k = n.kind
         if k == "operator":
             return self._visitnode(n, n.op)

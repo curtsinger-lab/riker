@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING
-from bashlex import ast
+from bashlex import ast # type: ignore
 
 
 class prettyprinter(ast.nodevisitor):
