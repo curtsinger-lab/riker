@@ -24,23 +24,15 @@ with open(sys.argv[1], "r") as f:
 for line in lines:
     input = line.strip()
     
-    # bashlex barfs on empty lines
-    if len(input) == 0:
+    try:
+        trees += parser.parse(input)
+    except:
+        # bashlex doesn't understand comments,
+        # shebangs, empty lines, etc.
+        # just skip parsing those things and
+        # echo later
         trees.append(None)
         continue
-
-    # bashlex mysteriously does not understand shebangs
-    if input[0] == "#" and input[1] == "!":
-        trees.append(None)
-        continue
-
-    # ignore comments for now
-    if input[0] == "#":
-        trees.append(None)
-        continue
-
-    # otherwise, it's an expression
-    trees += parser.parse(input)
 
 # do substitutions & print results
 for i in range(len(trees)):
