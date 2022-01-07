@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, Optional
 from bashlex import parser, ast # type: ignore
 from lib.pretty_printer import prettyprinter
 from lib.ast_printer import astprinter
@@ -10,56 +10,45 @@ import sys
 env: Dict[str,str] = {}
 
 # lines of the input file
-lines = []
+lines: list[str] = []
 
 # array of AST nodes
-trees: list[ast.node] = []
-shebang = ""
+trees: list[Optional[ast.node]] = []
 
 with open(sys.argv[1], "r") as f:
     lines = f.readlines()
 
 for line in lines:
     input = line.strip()
+    
     # bashlex barfs on empty lines
     if len(input) == 0:
+        trees.append(None)
         continue
 
     # bashlex mysteriously does not understand shebangs
     if input[0] == "#" and input[1] == "!":
-        shebang = line
+        trees.append(None)
         continue
 
     # ignore comments for now
     if input[0] == "#":
+        trees.append(None)
         continue
 
     # otherwise, it's an expression
     trees += parser.parse(input)
 
-print(shebang, end = "")
 for i in range(len(trees)):
+    if trees[i] is None:
+        print(lines[i], end="")
+        continue
+    
     # init visitors
-    # ap = astprinter()
     visitor = SubstitutionVistor(env)
-    print(type(visitor))
-
-    # print("line: " + lines[i].strip())
-
-    # DEBUG: print before
-    # print("before: ")
-    # ap.visit(trees[i])
-
-    # DEBUG: echo command
-    # print("command: ")
-    # prettyprinter.print(trees[i])
-
+    
     # do substitutions
     tree2 = visitor.visit(trees[i])
-
-    # DEBUG: print after
-    # print("after: ")
-    # ap.visit(tree2)
-
+    
     # echo modified command
     prettyprinter.print(tree2)
