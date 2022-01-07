@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 from bashlex import ast # type: ignore
+from subprocess import check_output
 import sys
 
 # see https://github.com/idank/bashlex/blob/815653c7208a578735e18558069443cb5f67a9a2/bashlex/ast.py
@@ -69,12 +70,25 @@ class SubstitutionVistor(ast.nodevisitor):
         if len(n.parts) == 1 and n.parts[0].kind == "parameter":
             word = self.env[n.parts[0].value]
             return ast.node(kind="word", parts=[], pos=n.pos, word=word)
-        if len(n.parts) > 1:
+        # not a substitution; evaluate subexpression
+        elif len(n.parts) == 1:
+            return ast.node(kind='word', parts=[self.visit(n.parts[0])], pos=n.pos, word="")
+        elif len(n.parts) > 1:
             raise Exception("WordNode has more than 1 part.")
         return n
 
     def visitassignment(self, n: ast.node, word: str) -> ast.node:
-        # add entry to env
+        # if the rhs is a command substitution, run the command now
+        # and put the output into env for later use
+        if len(n.parts) == 1 and n.parts[0].kind == "commandsubstitution":
+            [var, val] = word.split("=", 1)
+            cmd = val[1:len(val)-1]
+            cmdargs = cmd.split(" ")
+            out = '"' + check_output(cmd, shell=True).decode("utf-8").strip() + '"'
+            self.env[var] = out
+            return None
+            
+        # otherwise, add entry to env
         [var, val] = word.split("=", 1)
         self.env[var] = val
         return n

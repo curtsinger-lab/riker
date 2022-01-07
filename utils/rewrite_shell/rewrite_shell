@@ -39,7 +39,7 @@ for i in range(len(trees)):
     if trees[i] is None:
         print(lines[i], end="")
         continue
-    
+        
     # init visitors
     visitor = SubstitutionVistor(env)
     
