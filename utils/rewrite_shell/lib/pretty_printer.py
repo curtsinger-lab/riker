@@ -76,6 +76,9 @@ class prettyprinter(ast.nodevisitor):
     # This redefinition exists to push all the work
     # inside each visitor.
     def visit(self, n):
+        if n == None:
+            return ""
+        
         k = n.kind
         if k == "operator":
             return self._visitnode(n, n.op)
