@@ -87,29 +87,40 @@ class SubstitutionVistor(ast.nodevisitor):
         # get lhs and rhs
         [lhs, rhs] = word.split("=", 1)
         
+        # init pretty printer
+        pp = PrettyPrinter()
+        
+        # print(lhs + "=" + str(n.parts))
+        # print(rhs)
+        # input("PAUSED")
+        
+        # if any part of the rhs is a variable, substitute it now
+        for part in n.parts:
+            if part.kind == "parameter":
+                rhs = rhs.replace("$" + part.value, self.env[part.value])
+                
+        # print(rhs)
+        # input("PAUSED")
+        
         # if any part of the rhs is a command substitution, run the command now
         # and put the output into env for later use
         subeval = []
         for part in n.parts:
             if part.kind == "commandsubstitution":
                 # pretty print the command
-                pp = PrettyPrinter()
                 cmd = pp.visit(part).strip()
                 out = check_output(cmd, shell=True).decode("utf-8").strip()
                 subeval.append(out)
 
         # do replacements for any command substitution
-        if len(subeval) != 0:
-            word2 = word
-            for i in range(len(subeval)):
-                # replace the subcommand with the evaluated output
-                word2 = re.sub(r"`.+?`", subeval[i], word2, 1)
-                
-            # update in env
-            self.env[lhs] = word2
-            return None
+        for i in range(len(subeval)):
+            # replace the subcommand with the evaluated output
+            rhs = re.sub(r"`.+?`", subeval[i], rhs, 1)
             
-        # otherwise, add directly to env
+        # print(rhs)
+        # input("PAUSED")
+            
+        # update in env
         self.env[lhs] = rhs
         return None
 
