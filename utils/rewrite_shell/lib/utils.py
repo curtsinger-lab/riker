@@ -41,6 +41,9 @@ def join_long_lines(lines: list[str]) -> list[str]:
                 concatenating = False
                 output[j] += line_no_nl
                 break # another end
-        # input("Press Enter to continue to next line: ")
+
+    # put newlines back
+    for i in range(0,len(output)):
+        output[i] += "\n"
     
     return output
