@@ -103,7 +103,7 @@ SRC="\
   ./src/wherecode.c \
   ./src/whereexpr.c \
   ./src/whereInt.h \
-  ./src/window.c
+  ./src/window.c \
   ./ext/fts1/fts1.c \
   ./ext/fts1/fts1.h \
   ./ext/fts1/fts1_hash.c \
