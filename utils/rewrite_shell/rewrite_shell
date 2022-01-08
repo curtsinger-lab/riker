@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 from bashlex import parser, ast # type: ignore
 from lib.substitution import SubstitutionVistor
 from lib.pretty_printer import PrettyPrinter
+from lib.utils import join_long_lines
 import sys
 import os
 
@@ -18,6 +19,9 @@ trees: list[Optional[ast.node]] = []
 # read input file
 with open(sys.argv[1], "r") as f:
     lines = f.readlines()
+
+# preprocess long lines
+lines = join_long_lines(lines)
 
 # determine which lines can be substituted
 for line in lines:
