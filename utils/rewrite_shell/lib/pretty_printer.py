@@ -26,22 +26,22 @@ class PrettyPrinter(ast.nodevisitor):
         return self.printparts(list)
 
     def visitif(self, n, parts):
-        return "[TODO if] "
+        raise Exception("Conditionals not supported.")
 
     def visitfor(self, n, parts):
-        return "[TODO for] "
+        raise Exception("Loops (for) not supported.")
 
     def visitwhile(self, n, parts):
-        return "[TODO while] "
+        raise Exception("Loops (while) not supported.")
 
     def visituntil(self, n, parts):
-        return "[TODO until] "
+        raise Exception("Loops (until) not supported.")
 
     def visitcommand(self, n, parts):
         return self.printparts(parts)
 
     def visitfunction(self, n, name, body, parts):
-        return "[TODO function] "
+        raise Exception("Function definitions not supported.")
 
     def visitword(self, n, word):
         return word + " "
