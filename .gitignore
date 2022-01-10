@@ -3,6 +3,7 @@
 ._*
 debug
 release
+self-build
 .rkr
 core
 out.png

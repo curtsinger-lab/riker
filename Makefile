@@ -37,17 +37,18 @@ RELEASE_WRAPPERS := $(addprefix $(RELEASE_DIR)/share/rkr/wrappers/, $(WRAPPER_NA
 # TODO: Don't hard-code the architecture-specific assembly file
 RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
 
-BLAKE_SRCS := $(BLAKE3)/blake3.c \
-						 	$(BLAKE3)/blake3_dispatch.c \
-						 	$(BLAKE3)/blake3_portable.c \
-						 	$(BLAKE3)/blake3_sse2.c \
-						 	$(BLAKE3)/blake3_sse41.c \
-						 	$(BLAKE3)/blake3_avx2.c \
-						 	$(BLAKE3)/blake3_avx512.c
-BLAKE_DEBUG_OBJS := \
-	$(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_SRCS))
-BLAKE_RELEASE_OBJS := \
-	$(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_SRCS))
+BLAKE_C_SRCS := $(BLAKE3)/blake3.c \
+						 	  $(BLAKE3)/blake3_dispatch.c \
+						 	  $(BLAKE3)/blake3_portable.c
+BLAKE_DEBUG_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+BLAKE_RELEASE_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+
+BLAKE_S_SRCS :=	$(BLAKE3)/blake3_sse2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_sse41_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx512_x86-64_unix.S
+BLAKE_DEBUG_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
+BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 
 ######## Begin Make Targets ########
 
@@ -89,8 +90,8 @@ test-release: release
 		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib:$(LD_LIBRARY_PATH) \
 		./runtests.py
 
-$(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_OBJS)
-$(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_OBJS)
+$(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS)
+$(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS)
 $(DEBUG_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr:
 	@mkdir -p `dirname $@`
 	$(CXX) $^ -o $@ $(LDFLAGS)
@@ -111,7 +112,7 @@ $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(R
 
 $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrapper/wrapper.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc
+	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
 
 $(DEBUG_WRAPPERS): $(DEBUG_DIR)/share/rkr/rkr-wrapper
 	@mkdir -p `dirname $@`
@@ -123,15 +124,11 @@ $(RELEASE_WRAPPERS): $(RELEASE_DIR)/share/rkr/rkr-wrapper
 	@rm -f $@
 	ln $(RELEASE_DIR)/share/rkr/rkr-wrapper $@
 
-# Set file-specific flags for blake3 build
-%/.obj/blake3/blake3_sse2.o: CFLAGS += -msse2
-%/.obj/blake3/blake3_sse41.o: CFLAGS += -msse4.1
-%/.obj/blake3/blake3_avx2.o: CFLAGS += -mavx2
-%/.obj/blake3/blake3_avx512.o: CFLAGS += -mavx512f -mavx512vl
-
-$(BLAKE_DEBUG_OBJS): $(DEBUG_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
-$(BLAKE_RELEASE_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
-$(BLAKE_DEBUG_OBJS) $(BLAKE_RELEASE_OBJS):
+$(BLAKE_DEBUG_C_OBJS): $(DEBUG_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
+$(BLAKE_DEBUG_S_OBJS): $(DEBUG_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.S Makefile
+$(BLAKE_RELEASE_C_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.c Makefile
+$(BLAKE_RELEASE_S_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.S Makefile
+$(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS):
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ -c $<
 

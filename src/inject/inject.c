@@ -648,3 +648,15 @@ int fast_getdents(unsigned int fd, void* dirp, unsigned int count) {
   // Finish the system call and return.
   return channel_proceed(c, __NR_getdents64, fd, (uint64_t)dirp, count, 0, 0, 0, false);
 }
+
+/// Allow the parallel compiler wrapper to issue untraced execve syscalls
+int execve_untraced(const char* pathname, char* const* argv, char* const* envp) {
+  int rc = safe_syscall(__NR_execve, (uint64_t)pathname, (uint64_t)argv, (uint64_t)envp, 0, 0, 0);
+
+  if (rc < 0) {
+    errno = -rc;
+    return -1;
+  } else {
+    return 0;
+  }
+}

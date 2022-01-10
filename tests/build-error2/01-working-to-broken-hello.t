@@ -9,7 +9,7 @@ Prepare for a clean run
   $ cp versions/world-working.c world.c
 
 Run the first build
-  $ rkr --show
+  $ rkr --show --no-wrapper
   rkr-launch
   Rikerfile
   gcc -o hello hello.c world.c
@@ -31,7 +31,7 @@ Stage in a broken version of the hello.c source file
   $ cp versions/hello-broken.c hello.c
 
 Run a rebuild. This will rerun cc1, which fails. That forces gcc to rerun. The gcc command fails, which forces a rerun of Rikerfile as well.
-  $ rkr --show
+  $ rkr --show --no-wrapper
   cc1 * (glob)
   hello.c: In function 'main':
   hello.c:6:19: error: expected ';' before 'print_world'

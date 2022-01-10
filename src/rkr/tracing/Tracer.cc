@@ -85,7 +85,7 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
     }
   }
 
-  size_t spin_count = 0;
+  // size_t spin_count = 0;
 
   // Wait for an event from ptrace
   while (true) {
@@ -194,9 +194,8 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
         thread.syscallExitPtrace(build);
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
-        // This is a stop after an exec finishes. The process that called exec must have set a
-        // post-syscall handler
-        thread.syscallExitPtrace(build);
+        // This is a stop after an exec finishes.
+        thread.execPtrace(build);
 
       } else if (status == (PTRACE_EVENT_STOP << 8)) {
         // Is this delivering a stopping signal?

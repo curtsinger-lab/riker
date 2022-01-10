@@ -10,7 +10,7 @@ Prepare for a clean run
   $ cp versions/c-original.c c.c
 
 Run the first build
-  $ rkr --show
+  $ rkr --show --no-wrapper
   rkr-launch
   Rikerfile
   gcc -o program a.c b.c c.c main.c
@@ -36,7 +36,7 @@ Modify a.c
   $ cp versions/a-modified.c a.c
 
 Run a rebuild. This should only recompile a.c and relink
-  $ rkr --show
+  $ rkr --show --no-wrapper
   cc1 * (glob)
   as * (glob)
   ld * (glob)
@@ -56,7 +56,7 @@ Now modify b.c and c.c
   $ cp versions/c-modified.c c.c
 
 Run a rebuild. This should recompile b.c and c.c, then relink. The cc1 commands both run first because they are are marked for rerun on the first iteration.
-  $ rkr --show
+  $ rkr --show --no-wrapper
   cc1 * (glob)
   cc1 * (glob)
   as * (glob)

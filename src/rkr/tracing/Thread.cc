@@ -96,6 +96,26 @@ void Thread::syscallExitPtrace(Build& build) noexcept {
   _post_syscall_handlers.pop();
 }
 
+void Thread::execPtrace(Build& build) noexcept {
+  // The tracee can continue
+  resume();
+
+  // The child command depends on the contents of its executable. First, we need to know
+  // what the actual executable is. Read /proc/<pid>/exe to find it
+  auto real_exe_path = readlink("/proc/" + std::to_string(_process->getID()) + "/exe");
+
+  // Now make the reference and expect success
+  auto child_exe_ref_id = makePathRef(build, real_exe_path, ReadAccess);
+  const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
+  build.expectResult(getCommand(), Scenario::Build, child_exe_ref_id, SUCCESS);
+
+  ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
+
+  // The child command depends on the contents of the executable
+  child_exe_ref->getArtifact()->beforeRead(build, getCommand(), child_exe_ref_id);
+  child_exe_ref->getArtifact()->afterRead(build, getCommand(), child_exe_ref_id);
+}
+
 fs::path Thread::getPath(at_fd fd) const noexcept {
   if (fd.isCWD()) {
     auto cwd_ref = _process->getWorkingDir();
@@ -1522,7 +1542,7 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
     // Does the child command need to run?
     if (child->mustRun()) {
       // Yes. Run the actual exec syscall
-      finishSyscall([=](Build& build, long rc) {
+      /*finishSyscall([=](Build& build, long rc) {
         resume();
 
         // Not sure why, but exec returns -38 on success. Make sure that's what we get.
@@ -1542,7 +1562,8 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
         // The child command depends on the contents of the executable
         child_exe_ref->getArtifact()->beforeRead(build, getCommand(), child_exe_ref_id);
         child_exe_ref->getArtifact()->afterRead(build, getCommand(), child_exe_ref_id);
-      });
+      });*/
+      resume();
     } else {
       // No, the child does not need to run the exec syscall.
       // Leave the process in a stalled state so it can be exited later
