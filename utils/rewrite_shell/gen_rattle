@@ -44,7 +44,7 @@ for line in lines:
     line4 = line3.strip()
         
     # print command
-    print('  cmd "' + line4 + '"')
+    print('  cmd Shell "' + line4 + '"')
 
 # trailing newline    
 print()
