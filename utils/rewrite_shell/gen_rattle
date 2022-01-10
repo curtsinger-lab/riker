@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+import sys
+
+if len(sys.argv) != 2:
+    print("Usage: gen_rattle <shell script>")
+    print()
+    print("  This tool converts the given shell program to a Rattle program,")
+    print("  printed on STDOUT.")
+    print()
+    sys.exit(1)
+
+# lines of the input file
+lines: list[str] = []
+
+# read input file
+with open(sys.argv[1], "r") as f:
+    lines = f.readlines()
+    
+# print Rattle boilerplate
+print('''
+module Main where
+
+import Development.Rattle
+
+main :: IO ()
+main = rattleRun rattleOptions $ do
+'''.strip())
+
+# print each command
+for line in lines:
+    # skip blank lines and comments
+    if len(line.strip()) == 0 or line[0] == "#":
+        continue
+        
+    # escape backslashes so that Haskell passes escaped
+    # shell backslashes on... 
+    line2 = line.replace("\\", "\\\\")
+        
+    # replace all double quotes with escaped double quotes
+    line3 = line2.replace('"', '\\"')
+    
+    # remove newlines and other leading and trailing whitespace
+    line4 = line3.strip()
+        
+    # print command
+    print('  cmd "' + line4 + '"')
+
+# trailing newline    
+print()
