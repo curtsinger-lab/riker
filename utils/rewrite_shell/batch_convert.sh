@@ -1,5 +1,4 @@
 #!/bin/sh
-
 echo "paper..."; ./rewrite_shell ../../benchmarks/paper/files/Rikerfile > converted/paper.sh
 echo "vim..."; ./rewrite_shell ../../benchmarks/vim/files/Rikerfile > converted/vim.sh
 echo "coreutils..."; ./rewrite_shell ../../benchmarks/coreutils/files/Rikerfile > converted/coreutils.sh
