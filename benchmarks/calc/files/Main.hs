@@ -4,5 +4,5 @@ import Development.Rattle
 
 main :: IO ()
 main = rattleRun rattleOptions $ do
-  cmd "make  clean  all  --quiet"
+  cmd Shell "make  clean  all  --quiet"
 
