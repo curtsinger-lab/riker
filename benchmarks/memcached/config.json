@@ -31,5 +31,21 @@
       "rm -rf .rkr"
     ],
     "build": "rkr"
+  },
+  "rattle": {
+    "setup": [
+      "./autogen.sh",
+      "./configure",
+      "rm -rf .rattle",
+      "mkdir -p app"
+    ],
+    "copy": {
+      "files/Main.hs": "app/Main.hs",
+      "files/rattle.cabal": "rattle.cabal"
+    },
+    "post_copy_setup": [
+      "cabal build"
+    ],
+    "build": "cabal run"
   }
 }
