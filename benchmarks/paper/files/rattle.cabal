@@ -1,0 +1,9 @@
+cabal-version:      2.4
+name:               benchmark
+version:            0.1.0.0
+
+executable benchmark
+    main-is:          Main.hs
+    build-depends:    base ^>=4.12.0.0, rattle ^>=0.2
+    hs-source-dirs:   app
+    default-language: Haskell2010
