@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "paper..."; ./rewrite_shell ../../benchmarks/paper/files/Rikerfile > converted/paper.sh
+echo "paper..."; ./rewrite_shell ../../benchmarks/paper/files/Rikerfile > converted/paper.sh; ./gen_rattle converted/paper.sh > ../../benchmarks/paper/files/Main.hs
 echo "vim..."; ./rewrite_shell ../../benchmarks/vim/files/Rikerfile > converted/vim.sh
 echo "coreutils..."; ./rewrite_shell ../../benchmarks/coreutils/files/Rikerfile > converted/coreutils.sh
 echo "redis..."; ./rewrite_shell ../../benchmarks/redis/files/Rikerfile > converted/redis.sh

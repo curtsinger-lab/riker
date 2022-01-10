@@ -344,7 +344,8 @@ def show_usage():
   print('Build Tools:')
   print('  default     Use each benchmark\'s default build system')
   print('  rkr         Build with riker')
-  print('  all         Run with both build tools')
+  print('  rattle      Build with rattle')
+  print('  all         Run with all build tools')
   print()
   print('Benchmarks:')
   for bench in BENCHMARK_NAMES:
@@ -366,7 +367,7 @@ if __name__ == '__main__':
     experiment = sys.argv[1]
   
   # Validate and unpack the build tool argument
-  if sys.argv[2] not in ['default', 'rkr', 'all']:
+  if sys.argv[2] not in ['default', 'rkr', 'rattle', 'all']:
     show_usage()
     exit(1)
   else:
@@ -422,6 +423,13 @@ if __name__ == '__main__':
           full_build(bench, 'rkr')
         except Exception as e:
           print(e)
+          
+      # Run the rattle build if requested
+      if build_tool == 'rattle' or build_tool == 'all':
+        try:
+          full_build(bench, 'rattle')
+        except Exception as e:
+          print(e)
   
   # Run case-study experiments
   if experiment == 'case-study' or experiment == 'all':
@@ -443,5 +451,12 @@ if __name__ == '__main__':
       if build_tool == 'rkr' or build_tool == 'all':
         try:
           case_study(bench, 'rkr')
+        except Exception as e:
+          print(e)
+          
+      # Run the rkr build if requested
+      if build_tool == 'rattle' or build_tool == 'all':
+        try:
+          case_study(bench, 'rattle')
         except Exception as e:
           print(e)

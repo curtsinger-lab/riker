@@ -25,5 +25,17 @@
       "files/Rikerfile": "Rikerfile"
     },
     "build": "rkr"
+  },
+  "rattle": {
+    "setup": [
+      "test -f Makefile || ./configure",
+      "make clean",
+      "rm -rf .rattle",
+      "mkdir app"
+    ],
+    "copy": {
+      "files/Main.hs": "app/Main.hs"
+    },
+    "build": "rkr"
   }
 }
