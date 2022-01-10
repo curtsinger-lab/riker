@@ -7,6 +7,15 @@ from lib.utils import join_long_lines
 import sys
 import os
 
+if len(sys.argv) != 2:
+    print("Usage: rewrite_shell <shell script>")
+    print()
+    print("  This tool writes the converted script to STDOUT.")
+    print("  Support for all shell syntax is limited.  The tool")
+    print("  throws an exception when such syntax is encountered.")
+    print()
+    sys.exit(1)
+
 # to store variable bindings; initialize with environment
 env: Dict[str,str] = dict(os.environ)
 
