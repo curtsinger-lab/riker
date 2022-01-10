@@ -113,6 +113,20 @@ def setup(name, build_tool):
       if rc != 0:
         raise Exception('Setup command {} in benchmark {} failed'.format(cmd, name))
 
+def post_copy_setup(name, build_tool):
+  print('  Post-copy setup {} for {} build'.format(name, build_tool))
+
+  bench_path = path.join(BENCH_DIR, name)
+  checkout_path = path.join(bench_path, 'checkout')
+  
+  # Are there setup commands to run?
+  if 'post_copy_setup' in BENCHMARKS[name][build_tool]:
+    for cmd in BENCHMARKS[name][build_tool]['post_copy_setup']:
+      print('    Running {}'.format(cmd))
+      rc = os.system('cd {}; {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmd))
+      if rc != 0:
+        raise Exception('Setup command {} in benchmark {} failed'.format(cmd, name))
+
 def full_build(name, build_tool):
   bench_path = path.join(BENCH_DIR, name)
   checkout_path = path.join(bench_path, 'checkout')
