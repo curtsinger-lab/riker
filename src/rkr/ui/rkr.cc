@@ -146,6 +146,10 @@ int main(int argc, char* argv[]) noexcept {
       "--no-wrapper", []() { options::parallel_wrapper = false; },
       "Do not wrap C/C++ compilers for parallel separate compilation");
 
+  build->add_flag_callback(
+      "--wrapper", []() { options::parallel_wrapper = true; },
+      "Wrap C/C++ compilers for parallel separate compilation");
+
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
