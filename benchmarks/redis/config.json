@@ -29,7 +29,17 @@
       "rm -rf .rkr",
       "make .make-prerequisites"
     ],
-    "build": "rkr"
+    "build": "rkr --no-wrapper"
+  },
+  "rkr-parallel": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf .rkr",
+      "make .make-prerequisites"
+    ],
+    "build": "rkr --wrapper"
   },
   "rattle": {
     "setup": [

@@ -356,10 +356,11 @@ def show_usage():
   print('  all         Run both experiments')
   print()
   print('Build Tools:')
-  print('  default     Use each benchmark\'s default build system')
-  print('  rkr         Build with riker')
-  print('  rattle      Build with rattle')
-  print('  all         Run with all build tools')
+  print('  default       Use each benchmark\'s default build system')
+  print('  rkr           Build with riker')
+  print('  rkr-parallel  Build with riker in parallel mode')
+  print('  rattle        Build with rattle')
+  print('  all           Run with all build tools')
   print()
   print('Benchmarks:')
   for bench in BENCHMARK_NAMES:
@@ -381,7 +382,7 @@ if __name__ == '__main__':
     experiment = sys.argv[1]
   
   # Validate and unpack the build tool argument
-  if sys.argv[2] not in ['default', 'rkr', 'rattle', 'all']:
+  if sys.argv[2] not in ['default', 'rkr', 'rkr-parallel', 'rattle', 'all']:
     show_usage()
     exit(1)
   else:
@@ -408,7 +409,7 @@ if __name__ == '__main__':
     exit(1)
 
   # If rkr is going to be used make sure we have an updated release build
-  if build_tool == 'rkr' or build_tool == 'all':
+  if build_tool == 'rkr' or build_tool == 'rkr-parallel' or build_tool == 'all':
     print('Updating rkr release build')
     rc = os.system('cd {}; make release 2>&1 > /dev/null'.format(RKR_DIR))
     if rc != 0:
@@ -435,6 +436,13 @@ if __name__ == '__main__':
       if build_tool == 'rkr' or build_tool == 'all':
         try:
           full_build(bench, 'rkr')
+        except Exception as e:
+          print(e)
+      
+      # Run the rkr-parallel build if requested (not included in "all")
+      if build_tool == 'rkr-parallel':
+        try:
+          full_build(bench, 'rkr-parallel')
         except Exception as e:
           print(e)
           

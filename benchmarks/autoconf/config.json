@@ -24,6 +24,6 @@
     "copy": {
       "files/Rikerfile": "Rikerfile"
     },
-    "build": "rkr"
+    "build": "rkr --no-wrapper"
   }
 }

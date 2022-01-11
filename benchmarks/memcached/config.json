@@ -30,7 +30,18 @@
       "./configure",
       "rm -rf .rkr"
     ],
-    "build": "rkr"
+    "build": "rkr --no-wrapper"
+  },
+  "rkr-parallel": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "./autogen.sh",
+      "./configure",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr --wrapper"
   },
   "rattle": {
     "setup": [
