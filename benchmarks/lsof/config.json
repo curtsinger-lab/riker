@@ -27,6 +27,16 @@
       "./Configure -n linux",
       "rm -rf .rkr"
     ],
-    "build": "rkr"
+    "build": "rkr --no-wrapper"
+  },
+  "rkr-parallel": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "./Configure -n linux",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr --wrapper"
   }
 }

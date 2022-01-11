@@ -45,5 +45,5 @@ namespace options {
   inline bool inject_tracing_lib = true;
 
   /// Use the parallel compiler wrapper
-  inline bool parallel_wrapper = false;
+  inline bool parallel_wrapper = true;
 }

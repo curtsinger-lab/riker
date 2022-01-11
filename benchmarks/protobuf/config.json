@@ -29,6 +29,6 @@
       "./autogen.sh",
       "test -f Makefile || ./configure"
     ],
-    "build": "rkr"
+    "build": "rkr --no-wrapper"
   }
 }
