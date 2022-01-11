@@ -131,6 +131,10 @@ def full_build(name, build_tool):
   bench_path = path.join(BENCH_DIR, name)
   checkout_path = path.join(bench_path, 'checkout')
 
+  if build_tool not in BENCHMARKS[name]:
+    print('No {} config for {}'.format(build_tool, name))
+    return
+
   print('Full {} build of {}'.format(build_tool, name))
   checkout(name)
 
