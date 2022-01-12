@@ -19,5 +19,20 @@
       "files/Rikerfile": "Rikerfile"
     },
     "build": "rkr --no-wrapper"
+  },
+  "rattle": {
+    "setup": [
+      "make clean",
+      "rm -rf .rattle",
+      "mkdir -p app"
+    ],
+    "copy": {
+      "files/Main.hs": "app/Main.hs",
+      "files/rattle.cabal": "rattle.cabal"
+    },
+    "post_copy_setup": [
+      "cabal build"
+    ],
+    "build": "cabal run"
   }
 }
