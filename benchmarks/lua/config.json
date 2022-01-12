@@ -39,5 +39,19 @@
       "rm -rf .rkr"
     ],
     "build": "rkr --wrapper"
+  },
+  "rattle": {
+    "copy": {
+      "files/Main.hs": "app/Main.hs",
+      "files/rattle.cabal": "rattle.cabal"
+    },
+    "setup": [
+      "rm -rf .rattle",
+      "mkdir -p app"
+    ],
+    "post_copy_setup": [
+      "cabal build"
+    ],
+    "build": "cabal run"
   }
 }
