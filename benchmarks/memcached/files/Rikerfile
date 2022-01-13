@@ -2,9 +2,17 @@
 
 CFLAGS="-DHAVE_CONFIG_H -I. -g -O2 -pthread -pthread -Wall -Werror -pedantic -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls"
 
-MEMCACHED_SRC="memcached.c hash.c jenkins_hash.c murmur3_hash.c slabs.c items.c assoc.c thread.c daemon.c stats_prefix.c util.c cache.c bipbuffer.c logger.c crawler.c itoa_ljust.c slab_automove.c authfile.c restart.c proto_text.c proto_bin.c extstore.c crc32c.c storage.c slab_automove_extstore.c"
+MEMCACHED_SRC="memcached.c hash.c jenkins_hash.c murmur3_hash.c slabs.c items.c assoc.c thread.c daemon.c stats_prefix.c util.c cache.c bipbuffer.c logger.c crawler.c itoa_ljust.c slab_automove.c authfile.c restart.c extstore.c crc32c.c storage.c slab_automove_extstore.c"
 
 TESTAPP_SRC="testapp.c util.c stats_prefix.c jenkins_hash.c murmur3_hash.c cache.c crc32c.c"
+
+# Conditionals to handle changes in memcached build over the 100 commits
+if [ -f "proto_text.c" ];
+then
+  MEMCACHED_SRC="$MEMCACHED_SRC proto_text.c proto_bin.c"
+else
+  TESTAPP_SRC="$TESTAPP_SRC hash.c"
+fi
 
 # Build the release version of memcached
 gcc $CFLAGS -DNDEBUG -o memcached $MEMCACHED_SRC -levent
