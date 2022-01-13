@@ -142,15 +142,20 @@ int main(int argc, char* argv[]) noexcept {
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
-  build->add_flag_callback(
-      "--no-wrapper", []() { options::parallel_wrapper = false; },
-      "Do not wrap C/C++ compilers for parallel separate compilation");
-
+  // Flags to turn the parallel compiler wrapper on/off
   build
       ->add_flag_callback(
           "--wrapper", []() { options::parallel_wrapper = true; },
           "Wrap C/C++ compilers for parallel separate compilation")
-      ->group("");
+      // Hide the --wrapper flag if it is enabled by default
+      ->group(options::parallel_wrapper ? "" : "Options");
+
+  build
+      ->add_flag_callback(
+          "--no-wrapper", []() { options::parallel_wrapper = false; },
+          "Do not wrap C/C++ compilers for parallel separate compilation")
+      // Hide the --no-wrapper flag if it is disabled by default
+      ->group(options::parallel_wrapper ? "Options" : "");
 
   string command_output = "-";
   build->add_option("-o,--output", command_output,
