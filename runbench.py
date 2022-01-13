@@ -231,7 +231,7 @@ def rkr_case_study(name):
     cmds_path = os.path.join(rkr_commands, '{:0>3}'.format(i))
 
     start_time = time.perf_counter()
-    rc = os.system('cd {}; rkr --show-full -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, cmds_path))
+    rc = os.system('cd {}; {} --show-full -o {} 2> /dev/null 1> /dev/null'.format(checkout_path, BENCHMARKS[name]['rkr']['build'], cmds_path))
     runtime = time.perf_counter() - start_time
     print('    Finished in {:.2f}s with exit code {}'.format(runtime, rc))
     if rc != 0:

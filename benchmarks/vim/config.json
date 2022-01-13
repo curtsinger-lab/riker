@@ -26,6 +26,7 @@
     },
     "setup": [
       "./configure",
+      "make clean",
       "rm -rf .rkr"
     ],
     "build": "rkr --no-wrapper"
