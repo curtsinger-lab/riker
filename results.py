@@ -7,7 +7,7 @@ import statistics
 RKR_DIR = path.abspath(path.dirname(__file__))
 BENCH_DIR = path.join(RKR_DIR, 'benchmarks')
 
-SKIP = ['paper']
+SKIP = ['paper', 'xz-clang']
 
 summary = open('results/summary.txt', 'w')
 
