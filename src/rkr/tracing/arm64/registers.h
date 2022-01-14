@@ -1,7 +1,7 @@
 #pragma once
 
 // Register meanings on syscall entry
-#define INSTRUCTION_POINTER rip
+#define INSTRUCTION_POINTER pc
 #define SYSCALL_NUMBER regs[8]
 #define SYSCALL_RETURN regs[0]
 #define SYSCALL_ARG1 regs[0]

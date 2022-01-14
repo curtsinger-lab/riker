@@ -57,17 +57,17 @@ for line in f:
     continue
   
   # Name the three parts
-  (define, name, num) = line.split()
+  (define, constant, num) = line.split()
 
   # If this is the syscall count line, continue
-  if name == '__NR_syscalls':
+  if constant == '__NR_syscalls':
     continue
 
   # Otherwise, handle the syscall
-  if name.startswith('__NR3264_'):
-    name = name[9:]
+  if constant.startswith('__NR3264_'):
+    name = constant[9:]
   else:
-    name = name[5:]
+    name = constant[5:]
 
   try:
     num = int(num)
@@ -76,10 +76,10 @@ for line in f:
 
   # Is this a system call we need to trace, skip, or an unknown system call?
   if name in TRACE:
-    print('/* {:03} */ TRACE({});'.format(num, name), file=out)
+    print('/* {:03} */ TRACE({}, {});'.format(num, constant, name), file=out)
   elif name in SKIP:
-    print('/* {:03} */ // skip {}'.format(num, name), file=out)
+    print('/* {:03} */ // skip {} ({})'.format(num, name, constant), file=out)
   else:
     print('Warning: unknown system call {}'.format(name))
     print('  Source line: {}'.format(line))
-    print('/* {:03} */ // unrecognized {}'.format(num, name), file=out)
+    print('/* {:03} */ // unrecognized {} ({})'.format(num, name, constant), file=out)

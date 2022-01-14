@@ -5,8 +5,8 @@
 #include "tracing/inject.h"
 
 #include <dlfcn.h>
-#include <emmintrin.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,6 +38,9 @@ static struct shared_tracing_data* shmem = NULL;
 // The function to initialize the injected library
 void rkr_inject_init();
 
+// A function to pause briefly while spinning
+void spinlock_pause();
+
 // Replacement implementations of simple functions that use fast shared-memory tracing
 static int fast_open(const char* pathname, int flags, mode_t mode);
 static int fast_openat(int dfd, const char* pathname, int flags, mode_t mode);
@@ -47,7 +50,9 @@ static long fast_read(int fd, void* data, size_t count);
 static long fast_pread(int fd, void* data, size_t count, off_t offset);
 static long fast_write(int fd, const void* data, size_t count);
 static ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz);
+static ssize_t fast_readlinkat(int dfd, const char* pathname, char* buf, size_t bufsiz);
 static int fast_access(const char* pathname, int mode);
+static int fast_faccessat(int dfd, const char* pathname, int mode, int flags);
 static int fast_xstat(int ver, const char* pathname, struct stat* statbuf);
 static int fast_lxstat(int ver, const char* pathname, struct stat* statbuf);
 static int fast_fxstat(int ver, int fd, struct stat* statbuf);
@@ -165,7 +170,9 @@ void rkr_inject_init() {
   rkr_detour("write", fast_write);
   rkr_detour("__write_nocancel", fast_write);
   rkr_detour("readlink", fast_readlink);
+  rkr_detour("readlinkat", fast_readlinkat);
   rkr_detour("access", fast_access);
+  rkr_detour("faccessat", fast_faccessat);
   rkr_detour("__xstat", fast_xstat);
   rkr_detour("__lxstat", fast_lxstat);
   rkr_detour("__fxstat", fast_fxstat);
@@ -221,7 +228,7 @@ void channel_wait(size_t c) {
       // Yes. Break out of the loop
       break;
     } else {
-      _mm_pause();
+      pause();
     }
   }
 
@@ -415,19 +422,7 @@ uint64_t channel_buffer_argv(size_t c, char* const* argv) {
 }
 
 int fast_open(const char* pathname, int flags, mode_t mode) {
-  pid_t tid = gettid();
-
-  // Find an available channel
-  size_t c = channel_acquire(tid);
-
-  // Try to pass the pathname argument in the channel's data buffer
-  uint64_t pathname_arg = channel_buffer_string(c, pathname);
-
-  // Inform the tracer that this command is entering a syscall
-  channel_enter(c, __NR_open, pathname_arg, flags, mode, 0, 0, 0);
-
-  // Finish the system call and return
-  return channel_proceed(c, __NR_open, (uint64_t)pathname, flags, mode, 0, 0, 0, false);
+  return fast_openat(AT_FDCWD, pathname, flags, mode);
 }
 
 int fast_openat(int dfd, const char* pathname, int flags, mode_t mode) {
@@ -483,48 +478,15 @@ void* fast_mmap(void* addr, size_t length, int prot, int flags, int fd, off_t of
 }
 
 int fast_xstat(int ver, const char* pathname, struct stat* statbuf) {
-  pid_t tid = gettid();
-
-  // Find an available channel
-  size_t c = channel_acquire(tid);
-
-  // Try to pass the pathname argument in the channel's data buffer
-  uint64_t pathname_arg = channel_buffer_string(c, pathname);
-
-  // Inform the tracer that this command is entering a system call
-  channel_enter(c, __NR_stat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
-
-  // Finish the system call and return
-  return channel_proceed(c, __NR_stat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, false);
+  return fast_fxstatat(ver, AT_FDCWD, pathname, statbuf, 0);
 }
 
 int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
-  pid_t tid = gettid();
-
-  // Find an available channel
-  size_t c = channel_acquire(tid);
-
-  // Try to pass the pathname argument in the channel's data buffer
-  uint64_t pathname_arg = channel_buffer_string(c, pathname);
-
-  // Inform the tracer that this command is entering a system call
-  channel_enter(c, __NR_lstat, pathname_arg, (uint64_t)statbuf, 0, 0, 0, 0);
-
-  // Finish the system call and return
-  return channel_proceed(c, __NR_lstat, (uint64_t)pathname, (uint64_t)statbuf, 0, 0, 0, 0, false);
+  return fast_fxstatat(ver, AT_FDCWD, pathname, statbuf, AT_SYMLINK_NOFOLLOW);
 }
 
 int fast_fxstat(int ver, int fd, struct stat* statbuf) {
-  pid_t tid = gettid();
-
-  // Find an available channel
-  size_t c = channel_acquire(tid);
-
-  // Inform the tracer that this command is entering a system call
-  channel_enter(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0);
-
-  // Finish the system call and return
-  return channel_proceed(c, __NR_fstat, fd, (uint64_t)statbuf, 0, 0, 0, 0, false);
+  return fast_fxstatat(ver, fd, NULL, statbuf, AT_EMPTY_PATH);
 }
 
 int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
@@ -545,6 +507,10 @@ int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, 
 }
 
 ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
+  return fast_readlinkat(AT_FDCWD, pathname, buf, bufsiz);
+}
+
+ssize_t fast_readlinkat(int dfd, const char* pathname, char* buf, size_t bufsiz) {
   pid_t tid = gettid();
 
   // Find an available channel
@@ -554,14 +520,18 @@ ssize_t fast_readlink(const char* pathname, char* buf, size_t bufsiz) {
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a system call
-  channel_enter(c, __NR_readlink, pathname_arg, (uint64_t)buf, bufsiz, 0, 0, 0);
+  channel_enter(c, __NR_readlinkat, dfd, pathname_arg, (uint64_t)buf, bufsiz, 0, 0);
 
   // Finish the system call and return
-  return channel_proceed(c, __NR_readlink, (uint64_t)pathname, (uint64_t)buf, bufsiz, 0, 0, 0,
+  return channel_proceed(c, __NR_readlinkat, dfd, (uint64_t)pathname, (uint64_t)buf, bufsiz, 0, 0,
                          false);
 }
 
 int fast_access(const char* pathname, int mode) {
+  return fast_faccessat(AT_FDCWD, pathname, mode, 0);
+}
+
+int fast_faccessat(int dfd, const char* pathname, int mode, int flags) {
   pid_t tid = gettid();
 
   // Find an available channel
@@ -571,10 +541,10 @@ int fast_access(const char* pathname, int mode) {
   uint64_t pathname_arg = channel_buffer_string(c, pathname);
 
   // Inform the tracer that this command is entering a system call
-  channel_enter(c, __NR_access, pathname_arg, mode, 0, 0, 0, 0);
+  channel_enter(c, __NR_faccessat, dfd, pathname_arg, mode, flags, 0, 0);
 
   // Finish the system call and return
-  return channel_proceed(c, __NR_access, (uint64_t)pathname, mode, 0, 0, 0, 0, false);
+  return channel_proceed(c, __NR_faccessat, dfd, (uint64_t)pathname, mode, flags, 0, 0, false);
 }
 
 long fast_read(int fd, void* data, size_t count) {
@@ -660,3 +630,21 @@ int execve_untraced(const char* pathname, char* const* argv, char* const* envp) 
     return 0;
   }
 }
+
+// Include architecture-specific register names
+#if defined(__x86_64__) || defined(_M_X64)
+
+#include <emmintrin.h>
+void spinlock_pause() {
+  _mm_pause();
+}
+
+#elif defined(__aarch64__) || defined(_M_ARM64)
+
+void spinlock_pause() {}
+
+#else
+
+void spinlock_pause() {}
+
+#endif
