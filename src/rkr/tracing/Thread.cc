@@ -87,12 +87,16 @@ void Thread::syscallExitPtrace(Build& build) noexcept {
   // Clear errno so we can check for errors
   errno = 0;
 
-  // Now extract the return code from the syscall.
-  long result = ptrace(PTRACE_PEEKUSER, _tid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
-  FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
+  // Get information about the system call stop
+  struct __ptrace_syscall_info info;
+  long rc = ptrace(PTRACE_GET_SYSCALL_INFO, _tid, sizeof(info), &info);
+  FAIL_IF(rc == -1) << "Failed to get syscall info: " << ERR;
+
+  // Make sure this is a syscall exit stop
+  FAIL_IF(info.op != PTRACE_SYSCALL_INFO_EXIT) << "Not a syscall exit";
 
   // Run the handler and remove it from the stack
-  _post_syscall_handlers.top()(build, result);
+  _post_syscall_handlers.top()(build, info.exit.rval);
   _post_syscall_handlers.pop();
 }
 
