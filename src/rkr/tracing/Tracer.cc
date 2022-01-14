@@ -454,6 +454,20 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
   if (options::inject_tracing_lib && _trace_data_fd == -1) {
     // Set up the trace channel fd now
     int fd = open("/tmp/", O_RDWR | O_TMPFILE, 0600);
+
+    // Is O_TMPFILE unsupported?
+    if (fd < 0 && errno == EOPNOTSUPP) {
+      char tempname[] = "/tmp/rkr-XXXXXX";
+      fd = ::mkstemp(tempname);
+
+      // Did mkstemp fail too?
+      if (fd == -1) {
+        WARN << "Failed to create temporary file with mkstemp: " << ERR;
+      } else if (::unlink(tempname)) {
+        WARN << "Failed to unlink temporary file: " << ERR;
+      }
+    }
+
     FAIL_IF(fd < 0) << "Failed to create temporary file for shared tracing channel.";
 
     // Extend the channel to the requested size
