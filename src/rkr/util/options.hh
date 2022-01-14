@@ -42,8 +42,8 @@ namespace options {
   // inline size_t max_cached_file_size = 1024 * 1024 * 10;
 
   /// Inject the shared memory tracing library
-  inline bool inject_tracing_lib = true;
+  inline bool inject_tracing_lib = false;
 
   /// Use the parallel compiler wrapper
-  inline bool parallel_wrapper = true;
+  inline bool parallel_wrapper = false;
 }
