@@ -8,7 +8,7 @@ int main() {
   char *path = "mydir";
   int flags = O_RDONLY|O_CLOEXEC|O_NOFOLLOW;
   int mode = 0;
-  printf("Trying openat(%d, \"%s\", %d, %d)\n", dirfd, path, flags, mode);
+  printf("Trying openat(%d, \"%s\", O_RDONLY|O_CLOEXEC|O_NOFOLLOW, %d)\n", dirfd, path, mode);
   int fd = openat(dirfd, path, flags, mode);
   printf("Got fd = %d\n", fd);
   return 0;

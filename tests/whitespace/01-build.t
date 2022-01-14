@@ -14,6 +14,7 @@ Run the first build
   $ rkr --show
   rkr-launch
   Rikerfile
+  gcc .* (re)
   cc1 .* (re)
   cp hello.s output.s
 
