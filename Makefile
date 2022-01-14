@@ -35,23 +35,30 @@ WRAPPER_NAMES := clang clang++ gcc g++ cc c++
 DEBUG_WRAPPERS := $(addprefix $(DEBUG_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
 RELEASE_WRAPPERS := $(addprefix $(RELEASE_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
 
-# TODO: Don't hard-code the architecture-specific assembly file
-RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
+# Set up sources for the injected library
+RKR_INJECT_SRCS := $(wildcard src/inject/*.c)
 
+# Architecture-specific options for injected library
+ifeq ($(ARCH),x86_64)
+RKR_INJECT_SRCS := $(RKR_INJECT_SRCS) src/inject/syscall-amd64.s
+else ifeq ($(ARCH),aarch64)
+
+endif
+
+# Set up BLAKE3 source files
 BLAKE_C_SRCS := $(BLAKE3)/blake3.c \
 						 	  $(BLAKE3)/blake3_dispatch.c \
 						 	  $(BLAKE3)/blake3_portable.c
 BLAKE_S_SRCS :=
 
+# Architecture-specific BLAKE3 options
 ifeq ($(ARCH),x86_64)
 BLAKE_S_SRCS := $(BLAKE_S_SRCS) \
 							  $(BLAKE3)/blake3_sse2_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_sse41_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_avx2_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_avx512_x86-64_unix.S
-endif
-
-ifeq ($(ARCH),aarch64)
+else ifeq ($(ARCH),aarch64)
 BLAKE_C_SRCS := $(BLAKE_C_SRCS) $(BLAKE3)/blake3_neon.c
 endif
 
