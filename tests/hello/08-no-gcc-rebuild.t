@@ -17,12 +17,15 @@ Run the build
   $ rkr --show
   rkr-launch
   Rikerfile
-  cpp hello.c hello.i
-  cc1 -E .* (re)
-  cc1 .* (re)
-  as .* (re)
-  collect2 .* (re)
-  ld .* (re)
+  cpp .* (re)
+  [^ ]*cc1 -E .* (re)
+  gcc .* (re)
+  [^ ]*cc1 .* (re)
+  gcc .* (re)
+  [^ ]*as .* (re)
+  gcc .* (re)
+  [^ ]*collect2 .* (re)
+  [^ ]*ld .* (re)
 
 Run the hello executable
   $ ./hello
@@ -36,7 +39,6 @@ Run a rebuild, which should rerun cc1, as, and ld
   cc1 -E .* (re)
   cc1 .* (re)
   as .* (re)
-  collect2 .* (re)
   ld .* (re)
 
 Make sure the hello executable is updated
