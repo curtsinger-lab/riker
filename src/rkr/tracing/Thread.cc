@@ -175,7 +175,11 @@ user_regs_struct Thread::getRegisters() noexcept {
 
 void Thread::setRegisters(user_regs_struct& regs) noexcept {
   ASSERT(_channel == -1) << "Cannot set registers when tracing through the shared memory channel";
-  FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
+  struct iovec io {
+    .iov_base = &regs, .iov_len = sizeof(regs)
+  };
+  FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_PRSTATUS, &io))
+      << "Failed to set registers: " << ERR;
 }
 
 void Thread::skip(int64_t result) noexcept {
