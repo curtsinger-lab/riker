@@ -13,7 +13,7 @@ Run the first build
   rkr-launch
   Rikerfile
   ./openat-directory
-  Trying openat(-100, "mydir", 655360, 0)
+  Trying openat(-100, "mydir", O_RDONLY|O_CLOEXEC|O_NOFOLLOW, 0)
   Got fd = 3
 
 Clean up
