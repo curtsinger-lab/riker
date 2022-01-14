@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# paths below are specific to Ubuntu 20.20
 cpp hello.c hello.i
-/usr/lib/gcc/x86_64-linux-gnu/9/cc1 -quiet hello.i -o hello.s
-as hello.s -o hello.o
-/usr/lib/gcc/x86_64-linux-gnu/9/collect2 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o hello /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crti.o /usr/lib/gcc/x86_64-linux-gnu/9/crtbeginS.o -L/usr/lib/gcc/x86_64-linux-gnu/9 -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/9/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/9/../../.. hello.o -lgcc -lgcc_s -lc -lgcc -lgcc_s /usr/lib/gcc/x86_64-linux-gnu/9/crtendS.o /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/crtn.o
+gcc -o hello.s -S hello.i
+gcc -o hello.o -c hello.s
+gcc -o hello hello.o
