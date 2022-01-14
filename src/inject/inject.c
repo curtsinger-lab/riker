@@ -228,7 +228,7 @@ void channel_wait(size_t c) {
       // Yes. Break out of the loop
       break;
     } else {
-      pause();
+      spinlock_pause();
     }
   }
 
@@ -486,7 +486,7 @@ int fast_lxstat(int ver, const char* pathname, struct stat* statbuf) {
 }
 
 int fast_fxstat(int ver, int fd, struct stat* statbuf) {
-  return fast_fxstatat(ver, fd, NULL, statbuf, AT_EMPTY_PATH);
+  return fast_fxstatat(ver, fd, "", statbuf, AT_EMPTY_PATH);
 }
 
 int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* statbuf, int flags) {
