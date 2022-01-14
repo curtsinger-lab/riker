@@ -2,6 +2,7 @@ CC  = clang
 CXX = clang++
 AR = ar
 MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
+ARCH := $(shell uname -p)
 
 BLAKE3 := deps/BLAKE3/c
 
@@ -39,15 +40,24 @@ RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
 
 BLAKE_C_SRCS := $(BLAKE3)/blake3.c \
 						 	  $(BLAKE3)/blake3_dispatch.c \
-						 	  $(BLAKE3)/blake3_portable.c \
-								$(BLAKE3)/blake3_neon.c
+						 	  $(BLAKE3)/blake3_portable.c
+BLAKE_S_SRCS :=
+
+ifeq ($(ARCH),x86_64)
+BLAKE_S_SRCS := $(BLAKE_S_SRCS) \
+							  $(BLAKE3)/blake3_sse2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_sse41_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx2_x86-64_unix.S \
+						 	  $(BLAKE3)/blake3_avx512_x86-64_unix.S
+endif
+
+ifeq ($(ARCH),aarch64)
+BLAKE_C_SRCS := $(BLAKE_C_SRCS) $(BLAKE3)/blake3_neon.c
+endif
+
 BLAKE_DEBUG_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
 BLAKE_RELEASE_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
 
-BLAKE_S_SRCS :=	#$(BLAKE3)/blake3_sse2_x86-64_unix.S \
-						 	  #$(BLAKE3)/blake3_sse41_x86-64_unix.S \
-						 	  #$(BLAKE3)/blake3_avx2_x86-64_unix.S \
-						 	  #$(BLAKE3)/blake3_avx512_x86-64_unix.S
 BLAKE_DEBUG_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 
