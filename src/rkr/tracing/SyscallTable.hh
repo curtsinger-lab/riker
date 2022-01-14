@@ -61,8 +61,8 @@ class SyscallEntry {
 #define SYSCALL_COUNT 512
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(name)                                                                  \
-  _syscalls[__NR_##name] =                                                           \
+#define TRACE(constant, name)                                                        \
+  _syscalls[constant] =                                                           \
       SyscallEntry(#name, [](Output& out, Thread& t, const user_regs_struct& regs) { \
         stats::syscalls++;                                                           \
         t.invokeHandler(&Thread::_##name, out, regs);                                \
