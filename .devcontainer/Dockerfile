@@ -1,5 +1,5 @@
 # Based on vscode development dockerfile from Microsoft
-FROM aarch64/ubuntu:20.04
+FROM arm64/ubuntu:20.04
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
