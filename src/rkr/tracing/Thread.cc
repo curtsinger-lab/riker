@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include <elf.h>
 #include <fmt/format.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
@@ -163,8 +164,12 @@ user_regs_struct Thread::getRegisters() noexcept {
   }
 
   struct user_regs_struct regs;
-  FAIL_IF(ptrace(PTRACE_GETREGS, _tid, nullptr, &regs))
+  struct iovec io {
+    .iov_base = &regs, .iov_len = sizeof(regs)
+  };
+  FAIL_IF(ptrace(PTRACE_GETREGSET, _tid, (void*)NT_PRSTATUS, &io))
       << "Failed to get registers (for PID " << _tid << "): " << ERR;
+
   return regs;
 }
 
