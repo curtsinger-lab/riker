@@ -21,16 +21,14 @@
 // A special pointer value that indicates the tracing channel buffer should be used
 #define TRACING_CHANNEL_BUFFER_PTR 0x7777777700000000
 
-// Register meanings on syscall entry
-#define INSTRUCTION_POINTER rip
-#define SYSCALL_NUMBER orig_rax
-#define SYSCALL_RETURN rax
-#define SYSCALL_ARG1 rdi
-#define SYSCALL_ARG2 rsi
-#define SYSCALL_ARG3 rdx
-#define SYSCALL_ARG4 r10
-#define SYSCALL_ARG5 r8
-#define SYSCALL_ARG6 r9
+// Include architecture-specific register names
+#if defined(__x86_64__) || defined(_M_X64)
+#include "amd64/registers.h"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#include "arm64/registers.h"
+#else
+#error "Unsupported architecture"
+#endif
 
 /********** Channel States **********/
 
