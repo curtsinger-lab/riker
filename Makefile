@@ -13,14 +13,14 @@ COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread
 
 # Debug settings
 DEBUG_DIR := debug
-DEBUG_CFLAGS := -O3 -g -fstandalone-debug $(COMMON_CFLAGS)
-DEBUG_CXXFLAGS := -O3 -g -fstandalone-debug $(COMMON_CXXFLAGS)
+DEBUG_CFLAGS := -O3 -g -fstandalone-debug $(COMMON_CFLAGS) -I$(DEBUG_DIR)
+DEBUG_CXXFLAGS := -O3 -g -fstandalone-debug $(COMMON_CXXFLAGS) -I$(DEBUG_DIR)
 DEBUG_LDFLAGS := $(COMMON_LDFLAGS)
 
 # Release settings
 RELEASE_DIR := release
-RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS)
-RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS)
+RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS) -I$(RELEASE_DIR)
+RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS) -I$(RELEASE_DIR)
 RELEASE_LDFLAGS := -O3 -flto $(COMMON_LDFLAGS)
 
 # Set up variables used for the build
@@ -75,7 +75,8 @@ all: debug
 debug: CFLAGS = $(DEBUG_CFLAGS)
 debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
-debug: $(DEBUG_DIR)/bin/rkr \
+debug: $(DEBUG_DIR)/platform-config.h \
+       $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/bin/rkr-launch \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS)
@@ -83,7 +84,8 @@ debug: $(DEBUG_DIR)/bin/rkr \
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
 release: LDFLAGS = $(RELEASE_LDFLAGS)
-release: $(RELEASE_DIR)/bin/rkr \
+release: $(RELEASE_DIR)/platform-config.h	 
+				 $(RELEASE_DIR)/bin/rkr \
 				 $(RELEASE_DIR)/bin/rkr-launch \
 				 $(RELEASE_DIR)/share/rkr/rkr-inject.so \
 				 $(RELEASE_WRAPPERS)
@@ -113,6 +115,15 @@ $(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELE
 $(DEBUG_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr:
 	@mkdir -p `dirname $@`
 	$(CXX) $^ -o $@ $(LDFLAGS)
+
+$(DEBUG_DIR)/platform-config.h: $(DEBUG_DIR)/bin/platform-config
+$(RELEASE_DIR)/platform-config.h: $(RELEASE_DIR)/bin/platform-config
+$(DEBUG_DIR)/platform-config.h $(RELEASE_DIR)/platform-config.h:
+	$< > $@
+
+$(DEBUG_DIR)/bin/platform-config $(RELEASE_DIR)/bin/platform-config: src/platform-config/platform-config.cc
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 $(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile
 $(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile

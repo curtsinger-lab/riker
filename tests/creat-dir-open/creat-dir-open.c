@@ -1,15 +1,11 @@
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <stdio.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 int main() {
-  int fd = open("outcome", O_CREAT|O_DIRECTORY, S_IRWXU|S_IRWXG);
-  if (fd == -1) {
-    // we should never see this output in Linux
-    printf("Invalid syscall: %s\n", strerror(errno)); 
-  }
+  int fd = open("outcome", O_CREAT | O_DIRECTORY, S_IRWXU | S_IRWXG);
   return 0;
 }
