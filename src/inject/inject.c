@@ -60,11 +60,23 @@ static int fast_fxstatat(int ver, int dfd, const char* pathname, struct stat* st
 static int fast_execve(const char* pathname, char* const* argv, char* const* envp);
 static int fast_getdents(unsigned int fd, void* dirp, unsigned int count);
 
+#if defined(__x86_64__) || defined(_M_X64)
+
 typedef struct jump {
   volatile uint16_t farjmp;
   volatile uint32_t offset;
   volatile uint64_t addr;
 } __attribute__((__packed__)) jump_t;
+
+#elif defined(__aarch64__) || defined(_M_ARM64)
+
+typedef struct jump {
+  uint32_t load_dest;
+  uint32_t branch;
+  uint64_t dest;
+} __attribute__((__packed__)) jump_t;
+
+#endif
 
 typedef int (*main_t)(int, char**, char**);
 typedef int (*start_main_t)(main_t, int, char**, void (*)(), void (*)(), void (*)(), void*);
@@ -91,6 +103,7 @@ int wrapped_libc_start_main(main_t main_fn,
 void rkr_detour(const char* name, void* dest) {
   void* fn = dlsym(RTLD_NEXT, name);
   if (fn != NULL) {
+    // Make the page(s) containing the symbol writable
     uintptr_t base = (uintptr_t)fn;
     uintptr_t end = base + sizeof(jump_t);
     base -= base % 0x1000;
@@ -99,11 +112,25 @@ void rkr_detour(const char* name, void* dest) {
       size = 0x2000;
     }
     safe_syscall(__NR_mprotect, base, size, PROT_WRITE);
+
+    // Overwrite the start of the symbol with a jump instruction
     jump_t* j = (jump_t*)fn;
+
+    // Architecture-specific instruction generation
+#if defined(__x86_64__) || defined(_M_X64)
     j->farjmp = 0x25ff;
     j->offset = 0;
     j->addr = (uint64_t)dest;
+#elif defined(__aarch64__) || defined(_M_ARM64)
+    j->load_dest = 0x5800004a;  // ldr x10, .+8
+    j->branch = 0xd61f0140;     // br x10
+    j->dest = (uint64_t)dest;
+#else
+#error "Injected library does not support current architecture."
+#endif
+
     safe_syscall(__NR_mprotect, base, size, PROT_READ | PROT_EXEC);
+
   } /* else {
      char buf[256];
      snprintf(buf, 256, "Symbol %s not found\n", name);

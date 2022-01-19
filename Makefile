@@ -42,7 +42,7 @@ RKR_INJECT_SRCS := $(wildcard src/inject/*.c)
 ifeq ($(ARCH),x86_64)
 RKR_INJECT_SRCS := $(RKR_INJECT_SRCS) src/inject/syscall-amd64.s
 else ifeq ($(ARCH),aarch64)
-
+RKR_INJECT_SRCS := $(RKR_INJECT_SRCS) src/inject/syscall-arm64.s
 endif
 
 # Set up BLAKE3 source files

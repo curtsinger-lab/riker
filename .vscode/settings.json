@@ -77,7 +77,8 @@
     "emmintrin.h": "c",
     "string.h": "c",
     "fcntl.h": "c",
-    "cerrno": "cpp"
+    "cerrno": "cpp",
+    "syscall.h": "c"
   },
   "C_Cpp.default.cppStandard": "c++17",
   "C_Cpp.intelliSenseMemoryLimit": 512,
