@@ -58,6 +58,8 @@ int main() {
   // Emit file prologue
   cout << "#pragma once" << endl;
   cout << endl;
+  cout << "#include <errno.h>" << endl;
+  cout << endl;
   cout << "#define OUTPUT_NONE 0" << endl;
   cout << "#define OUTPUT_FILE 1" << endl;
   cout << "#define OUTPUT_DIR 2" << endl;
