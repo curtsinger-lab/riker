@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Clean up any leftover state
-  $ rm -rf .rkr hello
+  $ rm -rf .rkr hello hello.i hello.s hello.o
 
 Copy in the basic Rikerfile and make sure it's executable
   $ cp no-gcc-Rikerfile Rikerfile
@@ -17,10 +17,13 @@ Run the build
   $ rkr --show
   rkr-launch
   Rikerfile
-  cpp hello.c hello.i
+  cpp .* (re)
+  [^ ]*cc1 -E .* (re)
+  gcc .* (re)
   [^ ]*cc1 .* (re)
-  [^ ]*cc1 .* (re)
+  gcc .* (re)
   [^ ]*as .* (re)
+  gcc .* (re)
   [^ ]*collect2 .* (re)
   [^ ]*ld .* (re)
 

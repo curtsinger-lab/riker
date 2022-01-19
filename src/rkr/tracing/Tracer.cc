@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include <emmintrin.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>

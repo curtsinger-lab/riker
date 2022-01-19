@@ -1,6 +1,9 @@
 {
   "C_Cpp.intelliSenseEngineFallback": "Disabled",
   "files.associations": {
+    "*.hh": "cpp",
+    "*.cc": "cpp",
+    "*.t": "ignore",
     "memory": "cpp",
     "vector": "cpp",
     "filesystem": "cpp",
@@ -70,7 +73,12 @@
     "typeindex": "cpp",
     "typeinfo": "cpp",
     "valarray": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "emmintrin.h": "c",
+    "string.h": "c",
+    "fcntl.h": "c",
+    "cerrno": "cpp",
+    "syscall.h": "c"
   },
   "C_Cpp.default.cppStandard": "c++17",
   "C_Cpp.intelliSenseMemoryLimit": 512,

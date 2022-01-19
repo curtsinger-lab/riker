@@ -2,6 +2,7 @@ CC  = clang
 CXX = clang++
 AR = ar
 MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
+ARCH := $(shell uname -p)
 
 BLAKE3 := deps/BLAKE3/c
 
@@ -12,14 +13,14 @@ COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread
 
 # Debug settings
 DEBUG_DIR := debug
-DEBUG_CFLAGS := -O3 -g -fstandalone-debug $(COMMON_CFLAGS)
-DEBUG_CXXFLAGS := -O3 -g -fstandalone-debug $(COMMON_CXXFLAGS)
+DEBUG_CFLAGS := -O3 -g -fstandalone-debug $(COMMON_CFLAGS) -I$(DEBUG_DIR)
+DEBUG_CXXFLAGS := -O3 -g -fstandalone-debug $(COMMON_CXXFLAGS) -I$(DEBUG_DIR)
 DEBUG_LDFLAGS := $(COMMON_LDFLAGS)
 
 # Release settings
 RELEASE_DIR := release
-RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS)
-RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS)
+RELEASE_CFLAGS := -DNDEBUG -O3 -flto $(COMMON_CFLAGS) -I$(RELEASE_DIR)
+RELEASE_CXXFLAGS := -DNDEBUG -O3 -flto $(COMMON_CXXFLAGS) -I$(RELEASE_DIR)
 RELEASE_LDFLAGS := -O3 -flto $(COMMON_LDFLAGS)
 
 # Set up variables used for the build
@@ -34,19 +35,36 @@ WRAPPER_NAMES := clang clang++ gcc g++ cc c++
 DEBUG_WRAPPERS := $(addprefix $(DEBUG_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
 RELEASE_WRAPPERS := $(addprefix $(RELEASE_DIR)/share/rkr/wrappers/, $(WRAPPER_NAMES))
 
-# TODO: Don't hard-code the architecture-specific assembly file
-RKR_INJECT_SRCS := $(wildcard src/inject/*.c) src/inject/syscall-amd64.s
+# Set up sources for the injected library
+RKR_INJECT_SRCS := $(wildcard src/inject/*.c)
 
+# Architecture-specific options for injected library
+ifeq ($(ARCH),x86_64)
+RKR_INJECT_SRCS := $(RKR_INJECT_SRCS) src/inject/syscall-amd64.s
+else ifeq ($(ARCH),aarch64)
+RKR_INJECT_SRCS := $(RKR_INJECT_SRCS) src/inject/syscall-arm64.s
+endif
+
+# Set up BLAKE3 source files
 BLAKE_C_SRCS := $(BLAKE3)/blake3.c \
 						 	  $(BLAKE3)/blake3_dispatch.c \
 						 	  $(BLAKE3)/blake3_portable.c
-BLAKE_DEBUG_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
-BLAKE_RELEASE_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+BLAKE_S_SRCS :=
 
-BLAKE_S_SRCS :=	$(BLAKE3)/blake3_sse2_x86-64_unix.S \
+# Architecture-specific BLAKE3 options
+ifeq ($(ARCH),x86_64)
+BLAKE_S_SRCS := $(BLAKE_S_SRCS) \
+							  $(BLAKE3)/blake3_sse2_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_sse41_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_avx2_x86-64_unix.S \
 						 	  $(BLAKE3)/blake3_avx512_x86-64_unix.S
+else ifeq ($(ARCH),aarch64)
+BLAKE_C_SRCS := $(BLAKE_C_SRCS) $(BLAKE3)/blake3_neon.c
+endif
+
+BLAKE_DEBUG_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+BLAKE_RELEASE_C_OBJS := $(patsubst $(BLAKE3)/%.c, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_C_SRCS))
+
 BLAKE_DEBUG_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(DEBUG_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o, $(BLAKE_S_SRCS))
 
@@ -66,9 +84,9 @@ release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
 release: LDFLAGS = $(RELEASE_LDFLAGS)
 release: $(RELEASE_DIR)/bin/rkr \
-				 $(RELEASE_DIR)/bin/rkr-launch \
-				 $(RELEASE_DIR)/share/rkr/rkr-inject.so \
-				 $(RELEASE_WRAPPERS)
+         $(RELEASE_DIR)/bin/rkr-launch \
+         $(RELEASE_DIR)/share/rkr/rkr-inject.so \
+         $(RELEASE_WRAPPERS)
 
 clean: clean-debug clean-release
 
@@ -96,8 +114,17 @@ $(DEBUG_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr:
 	@mkdir -p `dirname $@`
 	$(CXX) $^ -o $@ $(LDFLAGS)
 
-$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile
-$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile
+$(DEBUG_DIR)/platform-config.h: $(DEBUG_DIR)/bin/platform-config
+$(RELEASE_DIR)/platform-config.h: $(RELEASE_DIR)/bin/platform-config
+$(DEBUG_DIR)/platform-config.h $(RELEASE_DIR)/platform-config.h:
+	$< > $@
+
+$(DEBUG_DIR)/bin/platform-config $(RELEASE_DIR)/bin/platform-config: src/platform-config/platform-config.cc
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile $(DEBUG_DIR)/platform-config.h
+$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile $(RELEASE_DIR)/platform-config.h
 $(RKR_DEBUG_OBJS) $(RKR_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<

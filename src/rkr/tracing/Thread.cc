@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include <elf.h>
 #include <fmt/format.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
@@ -87,12 +88,16 @@ void Thread::syscallExitPtrace(Build& build) noexcept {
   // Clear errno so we can check for errors
   errno = 0;
 
-  // Now extract the return code from the syscall.
-  long result = ptrace(PTRACE_PEEKUSER, _tid, offsetof(struct user, regs.SYSCALL_RETURN), nullptr);
-  FAIL_IF(errno != 0) << "Failed to read return value from traced process: " << ERR;
+  // Get information about the system call stop
+  struct __ptrace_syscall_info info;
+  long rc = ptrace(PTRACE_GET_SYSCALL_INFO, _tid, sizeof(info), &info);
+  FAIL_IF(rc == -1) << "Failed to get syscall info: " << ERR;
+
+  // Make sure this is a syscall exit stop
+  FAIL_IF(info.op != PTRACE_SYSCALL_INFO_EXIT) << "Not a syscall exit";
 
   // Run the handler and remove it from the stack
-  _post_syscall_handlers.top()(build, result);
+  _post_syscall_handlers.top()(build, info.exit.rval);
   _post_syscall_handlers.pop();
 }
 
@@ -159,14 +164,33 @@ user_regs_struct Thread::getRegisters() noexcept {
   }
 
   struct user_regs_struct regs;
-  FAIL_IF(ptrace(PTRACE_GETREGS, _tid, nullptr, &regs))
+  struct iovec io {
+    .iov_base = &regs, .iov_len = sizeof(regs)
+  };
+  FAIL_IF(ptrace(PTRACE_GETREGSET, _tid, (void*)NT_PRSTATUS, &io))
       << "Failed to get registers (for PID " << _tid << "): " << ERR;
+
   return regs;
 }
 
 void Thread::setRegisters(user_regs_struct& regs) noexcept {
   ASSERT(_channel == -1) << "Cannot set registers when tracing through the shared memory channel";
-  FAIL_IF(ptrace(PTRACE_SETREGS, _tid, nullptr, &regs)) << "Failed to set registers: " << ERR;
+  struct iovec io {
+    .iov_base = &regs, .iov_len = sizeof(regs)
+  };
+  FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_PRSTATUS, &io))
+      << "Failed to set registers: " << ERR;
+
+  // Set the system call number on ARM
+#if defined(__aarch64__) || defined(_M_ARM64)
+  int syscall_nr = regs.SYSCALL_NUMBER;
+  struct iovec io2 = {
+      .iov_base = &syscall_nr,
+      .iov_len = sizeof(int),
+  };
+  FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_ARM_SYSTEM_CALL, &io2))
+      << "Failed to set system call number" << ERR;
+#endif
 }
 
 void Thread::skip(int64_t result) noexcept {
@@ -379,12 +403,15 @@ void Thread::_openat(Build& build,
   }
 
   // If the open call will fail, skip it and share the error code with the tracee
-  if (!ref->isResolved()) {
+  // TODO: figure out a way to keep this if the syscall has no side effects.
+  // Turning this off for now because returning an error doesn't guarantee no side effects (e.g. on
+  // arm)
+  /*if (!ref->isResolved()) {
     skip(-ref->getResultCode());
     // The command observed a failed openat, so add the error predicate to the command log
     build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
     return;
-  }
+  }*/
 
   // Allow the syscall to finish
   finishSyscall([=](Build& build, long fd) {

@@ -9,6 +9,7 @@
 
 #include "artifacts/SymlinkArtifact.hh"
 #include "data/AccessFlags.hh"
+#include "platform-config.h"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -441,14 +442,34 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
       // Can we write to this directory? If not, return an error
       if (!checkAccess(c, WriteAccess)) return EACCES;
 
-      // Create a new file
-      const auto& newfile = env::createFile(c, flags.mode);
+      int output_type = OUTPUT_FILE;
+      int result_code = SUCCESS;
 
-      // Link the new file into this directory
-      addEntry(c, entry, newfile);
+      // Are we in the O_CREAT | O_DIRECTORY special case?
+      if (flags.directory) {
+        output_type = OPEN_CREAT_DIR_OUTPUT;
+        result_code = OPEN_CREAT_DIR_RESULT;
+      }
 
-      // return the artifact we just created and stop resolution
-      return Ref(flags, newfile);
+      // Does the path resolution actually create a file?
+      if (output_type == OUTPUT_FILE) {
+        const auto& newfile = env::createFile(c, flags.mode);
+        // Link the new file into this directory
+        addEntry(c, entry, newfile);
+
+        // Does the system call return a successful result?
+        if (result_code == SUCCESS) {
+          // Yes. Return a reference to the new file
+          return Ref(flags, newfile);
+        } else {
+          // No. Return the result code
+          return result_code;
+        }
+
+      } else {
+        // No. Just return the expected result code (which should NOT be SUCCESS)
+        return result_code;
+      }
     }
 
     // If the result was an error, return it
@@ -456,7 +477,6 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
 
     // Otherwise continue with resolution, which may follow symlinks
     return res.getArtifact()->resolve(c, shared_from_this(), current, end, flags, symlink_limit);
-
   } else {
     // There is still path left to resolve. Recursively resolve if the result succeeded
     if (res.isSuccess()) {
