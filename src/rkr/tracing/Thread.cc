@@ -180,15 +180,15 @@ void Thread::setRegisters(user_regs_struct& regs) noexcept {
   };
   FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_PRSTATUS, &io))
       << "Failed to set registers: " << ERR;
-  
+
   // Set the system call number on ARM
 #if defined(__aarch64__) || defined(_M_ARM64)
   int syscall_nr = regs.SYSCALL_NUMBER;
   struct iovec io2 = {
-    .iov_base = &syscall_nr,
-    .iov_len = sizeof (int),
+      .iov_base = &syscall_nr,
+      .iov_len = sizeof(int),
   };
-  FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_ARM_SYSTEM_CALL, &io2)) 
+  FAIL_IF(ptrace(PTRACE_SETREGSET, _tid, (void*)NT_ARM_SYSTEM_CALL, &io2))
       << "Failed to set system call number" << ERR;
 #endif
 }
@@ -403,12 +403,15 @@ void Thread::_openat(Build& build,
   }
 
   // If the open call will fail, skip it and share the error code with the tracee
-  if (!ref->isResolved()) {
+  // TODO: figure out a way to keep this if the syscall has no side effects.
+  // Turning this off for now because returning an error doesn't guarantee no side effects (e.g. on
+  // arm)
+  /*if (!ref->isResolved()) {
     skip(-ref->getResultCode());
     // The command observed a failed openat, so add the error predicate to the command log
     build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
     return;
-  }
+  }*/
 
   // Allow the syscall to finish
   finishSyscall([=](Build& build, long fd) {
