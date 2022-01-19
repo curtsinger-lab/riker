@@ -75,8 +75,7 @@ all: debug
 debug: CFLAGS = $(DEBUG_CFLAGS)
 debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
-debug: $(DEBUG_DIR)/platform-config.h \
-       $(DEBUG_DIR)/bin/rkr \
+debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/bin/rkr-launch \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS)
@@ -84,11 +83,10 @@ debug: $(DEBUG_DIR)/platform-config.h \
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
 release: LDFLAGS = $(RELEASE_LDFLAGS)
-release: $(RELEASE_DIR)/platform-config.h	 
-				 $(RELEASE_DIR)/bin/rkr \
-				 $(RELEASE_DIR)/bin/rkr-launch \
-				 $(RELEASE_DIR)/share/rkr/rkr-inject.so \
-				 $(RELEASE_WRAPPERS)
+release: $(RELEASE_DIR)/bin/rkr \
+         $(RELEASE_DIR)/bin/rkr-launch \
+         $(RELEASE_DIR)/share/rkr/rkr-inject.so \
+         $(RELEASE_WRAPPERS)
 
 clean: clean-debug clean-release
 
@@ -125,8 +123,8 @@ $(DEBUG_DIR)/bin/platform-config $(RELEASE_DIR)/bin/platform-config: src/platfor
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
-$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile
-$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile
+$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile $(DEBUG_DIR)/platform-config.h
+$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile $(RELEASE_DIR)/platform-config.h
 $(RKR_DEBUG_OBJS) $(RKR_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
