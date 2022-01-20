@@ -2,32 +2,60 @@
 
 # Set up compilation options
 PREFIX="self-build"
+ARCH=`uname -p`
 BLAKE3="$PWD/deps/BLAKE3/c"
-CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3"
-CXXFLAGS="$CFLAGS --std=c++17 --std=c++17 -Ideps/CLI11/include"
+CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3 -I$PREFIX"
+CXXFLAGS="$CFLAGS --std=c++17 -Ideps/CLI11/include"
 
 # Create output directories
 mkdir -p $PREFIX/bin
 mkdir -p $PREFIX/share/rkr/wrappers
 
-# Compile blake3 sources
-BLAKE3_SRC="$BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S"
+# Set up source file variables
+CONFIG_SRC="src/platform-config/platform-config.cc"
+BLAKE3_SRC="$BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c"
+INJECT_SRC="src/inject/inject.c"
+LAUNCH_SRC="src/rkr-launch/launch.c"
+WRAPPER_SRC="src/wrapper/wrapper.cc"
+RKR_SRC="src/rkr/*/*.cc"
+
+# Set architecture-specific source files
+if [ $ARCH = "x86_64" ]; then
+BLAKE3_SRC="$BLAKE3_SRC $BLAKE3/blake3_sse2_x86-64_unix.S $BLAKE3/blake3_sse41_x86-64_unix.S $BLAKE3/blake3_avx2_x86-64_unix.S $BLAKE3/blake3_avx512_x86-64_unix.S"
+INJECT_SRC="$INJECT_SRC src/inject/syscall-amd64.s"
+
+elif [ $ARCH = "aarch64" ]; then
+BLAKE3_SRC="$BLAKE3_SRC $BLAKE3/blake3_neon.c"
+INJECT_SRC="$INJECT_SRC src/inject/syscall-arm64.s"
+
+else
+  echo "Unsupported architecture $ARCH"
+  exit 1
+fi;
+
+# Compile platform-config
+clang++ $CXXFLAGS -o $PREFIX/bin/platform-config $CONFIG_SRC
+
+# Generate platform-specific config
+$PREFIX/bin/platform-config > $PREFIX/platform-config.h
+
+# Compile blake3 object files
 mkdir -p .blake3_obj
 cd .blake3_obj
 clang $CFLAGS -c $BLAKE3_SRC
 cd ..
 
 # Compile rkr-inject.so
-RKR_INJECT_SRC="src/inject/inject.c src/inject/syscall-amd64.s"
-clang $CFLAGS -fPIC -shared -o $PREFIX/share/rkr/rkr-inject.so $RKR_INJECT_SRC -ldl -lpthread
+clang $CFLAGS -fPIC -shared -o $PREFIX/share/rkr/rkr-inject.so $INJECT_SRC -ldl -lpthread
 
 # Compile rkr-launch
-RKR_LAUNCH_SRC="src/rkr-launch/launch.c"
-clang $CFLAGS -o $PREFIX/bin/rkr-launch $RKR_LAUNCH_SRC
+clang $CFLAGS -o $PREFIX/bin/rkr-launch $LAUNCH_SRC
 
 # Compile rkr-wrapper
-RKR_WRAPPER_SRC="src/wrapper/wrapper.cc"
-clang++ $CXXFLAGS -o $PREFIX/share/rkr/rkr-wrapper $RKR_WRAPPER_SRC -ldl
+clang++ $CXXFLAGS -o $PREFIX/share/rkr/rkr-wrapper $WRAPPER_SRC -ldl
+
+# Compile rkr
+clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC .blake3_obj/*.o -lstdc++fs -lfmt -lpthread
 
 # Link wrappers
 WRAPPERS="c++ cc clang clang++ g++ gcc"
@@ -36,10 +64,6 @@ do
   rm -f $PREFIX/share/rkr/wrappers/$WRAPPER
   ln $PREFIX/share/rkr/rkr-wrapper $PREFIX/share/rkr/wrappers/$WRAPPER
 done
-
-# Compile rkr
-RKR_SRC="src/rkr/*/*.cc"
-clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC .blake3_obj/*.o -lstdc++fs -lfmt -lpthread
 
 # Clean up
 rm -rf .blake3_obj
