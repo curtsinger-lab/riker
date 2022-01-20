@@ -402,16 +402,13 @@ void Thread::_openat(Build& build,
     ref->getArtifact()->beforeTruncate(build, getCommand(), ref_id);
   }
 
-  // If the open call will fail, skip it and share the error code with the tracee
-  // TODO: figure out a way to keep this if the syscall has no side effects.
-  // Turning this off for now because returning an error doesn't guarantee no side effects (e.g. on
-  // arm)
-  /*if (!ref->isResolved()) {
-    skip(-ref->getResultCode());
-    // The command observed a failed openat, so add the error predicate to the command log
+  // If the open call will fail, just run it and don't wait for completion
+  // We can't skip the call because it could still have a side effect
+  if (!ref->isResolved()) {
+    resume();
     build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
     return;
-  }*/
+  }
 
   // Allow the syscall to finish
   finishSyscall([=](Build& build, long fd) {
