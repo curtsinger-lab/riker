@@ -122,8 +122,10 @@ void rkr_detour(const char* name, void* dest) {
     j->offset = 0;
     j->addr = (uint64_t)dest;
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    j->load_dest = 0x5800004a;  // ldr x10, .+8
-    j->branch = 0xd61f0140;     // br x10
+    // Generate an unconditional branch to the detoured function
+    // Use x16 (a.k.a. IP0) because ARM64 allows us to corrupt this register during the call
+    j->load_dest = 0x58000050;  // ldr x16, .+8
+    j->branch = 0xd61f0200;     // br x16
     j->dest = (uint64_t)dest;
 #else
 #error "Injected library does not support current architecture."
