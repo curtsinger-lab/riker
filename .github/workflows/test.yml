@@ -2,7 +2,10 @@ name: test
 on: [push, pull_request]
 jobs:
   run:
-    runs-on: [self-hosted, linux, ${{ matrix.arch }}]
+    runs-on:
+      - self-hosted
+      - linux
+      - ${{ matrix.arch }}
     strategy:
       matrix:
         mode: [debug, release]
