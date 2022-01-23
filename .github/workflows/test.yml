@@ -2,10 +2,11 @@ name: test
 on: [push, pull_request]
 jobs:
   run:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, ${{ matrix.arch }}]
     strategy:
       matrix:
         mode: [debug, release]
+        arch: [x64, arm64]
     steps:
       - uses: actions/checkout@v2
         with:
