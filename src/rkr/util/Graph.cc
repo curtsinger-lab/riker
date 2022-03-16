@@ -52,7 +52,7 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
       // Does the version have a creator? If not, we may skip it
       if (!creator) {
         // If the artifact name is an absolute path, skip it
-        if (fs::path(a->getName()).is_absolute()) continue;
+        if (fs::path(a->getName()).is_absolute() && a->getName() != "/tmp") continue;
 
         // If the version is a base directory version, we can skip it
         // if (v->is_a<DirVersion>()) continue;
