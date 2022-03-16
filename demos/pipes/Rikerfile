@@ -1,0 +1,3 @@
+#!/bin/sh
+
+<input sort | uniq >output

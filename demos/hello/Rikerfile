@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cat greeting > output
+cat location >> output
