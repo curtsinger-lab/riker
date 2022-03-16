@@ -235,6 +235,9 @@ class Command : public std::enable_shared_from_this<Command> {
     /// Inputs to this command
     InputList _inputs;
 
+    /// Changed inputs to this command
+    std::set<std::shared_ptr<Version>> _changed_inputs;
+
     /// Outputs from this command
     OutputList _outputs;
 
@@ -307,8 +310,8 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// An input to this command did not match the expected version
   void inputChanged(std::shared_ptr<Artifact> artifact,
-                    MetadataVersion observed,
-                    MetadataVersion expected,
+                    std::shared_ptr<MetadataVersion> observed,
+                    std::shared_ptr<MetadataVersion> expected,
                     Scenario scenario) noexcept;
 
   /// An input to this command did not match the expected version
@@ -368,6 +371,9 @@ class Command : public std::enable_shared_from_this<Command> {
 
   /// Get the content inputs to this command
   const InputList& getInputs() noexcept;
+
+  /// Get the changed inputs to this command
+  const std::set<std::shared_ptr<Version>>& getChangedInputs() noexcept;
 
   /// Get the outputs from this command
   const OutputList& getOutputs() noexcept;

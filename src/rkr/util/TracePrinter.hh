@@ -101,7 +101,7 @@ class TracePrinter : public IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& c,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion expected) noexcept override {
+                             std::shared_ptr<MetadataVersion> expected) noexcept override {
     _out << MatchMetadataPrinter{c, scenario, ref, expected} << std::endl;
   }
 
@@ -114,7 +114,7 @@ class TracePrinter : public IRSink {
 
   virtual void updateMetadata(const std::shared_ptr<Command>& c,
                               Ref::ID ref,
-                              MetadataVersion written) noexcept override {
+                              std::shared_ptr<MetadataVersion> written) noexcept override {
     _out << UpdateMetadataPrinter{c, ref, written} << std::endl;
   }
 
@@ -313,7 +313,7 @@ class TracePrinter : public IRSink {
     std::shared_ptr<Command> c;
     Scenario scenario;
     Ref::ID ref;
-    MetadataVersion expected;
+    std::shared_ptr<MetadataVersion> expected;
 
     friend std::ostream& operator<<(std::ostream& o, const MatchMetadataPrinter& p) noexcept {
       return o << p.c << ": MatchMetadata(r" << p.ref << ", " << p.expected << ") " << p.scenario;
@@ -336,7 +336,7 @@ class TracePrinter : public IRSink {
   struct UpdateMetadataPrinter {
     std::shared_ptr<Command> c;
     Ref::ID ref;
-    MetadataVersion written;
+    std::shared_ptr<MetadataVersion> written;
 
     friend std::ostream& operator<<(std::ostream& o, const UpdateMetadataPrinter& p) noexcept {
       return o << p.c << ": UpdateMetadata(r" << p.ref << ", " << p.written << ")";

@@ -66,6 +66,11 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     auto artifact_id = addArtifact(a);
     auto version_id = addVersion(v);
 
+    // If this input was changed, mark it
+    if (c->getChangedInputs().find(v) != c->getChangedInputs().end()) {
+      _changed_versions.insert(v);
+    }
+
     // Add the input edge
     _io_edges.emplace(artifact_id + ":" + version_id, command_id);
   }
@@ -75,6 +80,9 @@ string Graph::addCommand(shared_ptr<Command> c) noexcept {
     // Add the artifact and version
     auto artifact_id = addArtifact(a);
     auto version_id = addVersion(v);
+
+    // If this command must run or may run, the version may change
+    if (c->mustRun() || c->mayRun()) _may_change_versions.insert(v);
 
     // Add the output edge
     _io_edges.emplace(command_id, artifact_id + ":" + version_id);
@@ -164,9 +172,11 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
     // Add a row for each version
     for (const auto& v : artifact->getVersions()) {
       o << "<tr><td port=\"" + g.addVersion(v) + "\"";
-      /*if (_changed_versions.find(v) != _changed_versions.end()) {
+      if (g._changed_versions.find(v) != g._changed_versions.end()) {
+        o << " bgcolor=\"red\"";
+      } else if (g._may_change_versions.find(v) != g._may_change_versions.end()) {
         o << " bgcolor=\"yellow\"";
-      }*/
+      }
       o << ">";
       o << "<font point-size=\"10\">" << v->getTypeName() << "</font>";
       o << "</td></tr>";

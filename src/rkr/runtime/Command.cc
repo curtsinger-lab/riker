@@ -596,10 +596,11 @@ void Command::observeChange(Scenario s) noexcept {
 
 // An input to this command did not match the expected version
 void Command::inputChanged(shared_ptr<Artifact> artifact,
-                           MetadataVersion observed,
-                           MetadataVersion expected,
+                           shared_ptr<MetadataVersion> observed,
+                           shared_ptr<MetadataVersion> expected,
                            Scenario scenario) noexcept {
   _current_run._changed |= scenario;
+  if (options::track_inputs_outputs) _current_run._changed_inputs.insert(observed);
 }
 
 // An input to this command did not match the expected version
@@ -608,6 +609,7 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
                            shared_ptr<ContentVersion> expected,
                            Scenario scenario) noexcept {
   _current_run._changed |= scenario;
+  if (options::track_inputs_outputs) _current_run._changed_inputs.insert(observed);
 }
 
 // Add an input to this command
@@ -815,6 +817,14 @@ const Command::InputList& Command::getInputs() noexcept {
       << "Requested inputs from command when input/output tracking is off. Set "
          "options::track_inputs_outputs to true for this command.";
   return _previous_run._inputs;
+}
+
+/// Get the changed inputs to this command
+const set<shared_ptr<Version>>& Command::getChangedInputs() noexcept {
+  ASSERT(options::track_inputs_outputs)
+      << "Requested inputs from command when input/output tracking is off. Set "
+         "options::track_inputs_outputs to true for this command.";
+  return _previous_run._changed_inputs;
 }
 
 /// Get the content outputs from this command

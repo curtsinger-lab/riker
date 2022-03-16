@@ -248,6 +248,9 @@ enum class RecordType : uint8_t {
   NewStrtab = 23,
   End = 24,
 
+  // Metadata version type
+  MetadataVersion = 31,
+
   // Content version subtypes
   FileVersion = 32,
   SymlinkVersion = 33,
@@ -452,10 +455,57 @@ void TraceReader::addCommand(std::shared_ptr<Command> c) noexcept {
   if (!_commands[id]) _commands[id] = c;
 }
 
+// Get a metadata version from the table of metadata versions
+const shared_ptr<MetadataVersion>& TraceReader::getMetadataVersion(
+    MetadataVersion::ID id) const noexcept {
+  return _metadata_versions[id];
+}
+
 // Get a content version from the table of content versions
 const shared_ptr<ContentVersion>& TraceReader::getContentVersion(
     ContentVersion::ID id) const noexcept {
   return _versions[id];
+}
+
+// Get the ID for a metadata version. Emit a new metadata version record if necessary
+MetadataVersion::ID TraceWriter::getMetadataVersionID(
+    const shared_ptr<MetadataVersion>& v) noexcept {
+  auto id = v->getID(_id);
+  if (id.has_value()) return id.value();
+
+  // Look for the provided content version in the map of known versions
+  auto iter = _metadata_versions.find(v);
+  if (iter == _metadata_versions.end()) {
+    // If the version wasn't found, add it now
+    MetadataVersion::ID id = _metadata_versions.size();
+    iter = _metadata_versions.emplace_hint(iter, v, id);
+
+    // Write the metadata version to the trace
+    emitMetadataVersion(v);
+  }
+
+  // Return the ID
+  v->setID(_id, iter->second);
+  return iter->second;
+}
+
+// Set a metadata version in the versions table using a known ID
+void TraceReader::setMetadataVersion(MetadataVersion::ID id,
+                                     std::shared_ptr<MetadataVersion> v) noexcept {
+  if (_metadata_versions.size() <= id) _metadata_versions.resize(id + 1);
+  _metadata_versions[id] = v;
+}
+
+// Add a metadata version to the table and assign a new ID
+void TraceReader::addMetadataVersion(std::shared_ptr<MetadataVersion> v) noexcept {
+  // Assign an ID for the new version
+  size_t id = _next_metadata_version_id++;
+
+  // Make sure the versions array has space for the new version
+  if (id >= _metadata_versions.size()) _metadata_versions.resize(id + 1);
+
+  // If the version isn't already stored, store it
+  if (!_metadata_versions[id]) _metadata_versions[id] = v;
 }
 
 // Get the ID for a content version. Emit a new metadata version record if necessary
@@ -859,22 +909,24 @@ struct Record<RecordType::MatchMetadata> {
   Command::ID command;
   Scenario scenario;
   Ref::ID ref;
-  MetadataVersion version;
+  MetadataVersion::ID version;
 } __attribute__((packed));
 
 // Read a MatchMetadata record from the input trace
 template <>
 void TraceReader::handleRecord<RecordType::MatchMetadata>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::MatchMetadata>();
-  sink.matchMetadata(getCommand(data.command), data.scenario, data.ref, data.version);
+  sink.matchMetadata(getCommand(data.command), data.scenario, data.ref,
+                     getMetadataVersion(data.version));
 }
 
 // Write a MatchMetadata record to the output trace
 void TraceWriter::matchMetadata(const shared_ptr<Command>& c,
                                 Scenario scenario,
                                 Ref::ID ref,
-                                MetadataVersion version) noexcept {
-  emitRecord<RecordType::MatchMetadata>(getCommandID(c), scenario, ref, version);
+                                shared_ptr<MetadataVersion> version) noexcept {
+  emitRecord<RecordType::MatchMetadata>(getCommandID(c), scenario, ref,
+                                        getMetadataVersionID(version));
 }
 
 /********** MatchContent Record **********/
@@ -912,21 +964,21 @@ struct Record<RecordType::UpdateMetadata> {
   RecordType type;
   Command::ID command;
   Ref::ID ref;
-  MetadataVersion version;
+  MetadataVersion::ID version;
 } __attribute__((packed));
 
 // Read an UpdateMetadata record from the input trace
 template <>
 void TraceReader::handleRecord<RecordType::UpdateMetadata>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::UpdateMetadata>();
-  sink.updateMetadata(getCommand(data.command), data.ref, data.version);
+  sink.updateMetadata(getCommand(data.command), data.ref, getMetadataVersion(data.version));
 }
 
 // Write an UpdateMetadata record to the output trace
 void TraceWriter::updateMetadata(const shared_ptr<Command>& c,
                                  Ref::ID ref,
-                                 MetadataVersion version) noexcept {
-  emitRecord<RecordType::UpdateMetadata>(getCommandID(c), ref, version);
+                                 shared_ptr<MetadataVersion> version) noexcept {
+  emitRecord<RecordType::UpdateMetadata>(getCommandID(c), ref, getMetadataVersionID(version));
 }
 
 /********** UpdateContent Record **********/
@@ -1226,6 +1278,29 @@ void TraceWriter::emitEnd() noexcept {
   emitRecord<RecordType::End>();
 }
 
+/********** MetadataVersion Record **********/
+
+template <>
+struct Record<RecordType::MetadataVersion> {
+  RecordType type;
+  uid_t uid;
+  gid_t gid;
+  mode_t mode;
+} __attribute__((packed));
+
+// Read a FileVersion record from the input trace
+template <>
+void TraceReader::handleRecord<RecordType::MetadataVersion>(IRSink& sink) noexcept {
+  const auto& data = takeRecord<RecordType::MetadataVersion>();
+  addMetadataVersion(make_shared<MetadataVersion>(data.uid, data.gid, data.mode));
+}
+
+// Write a FileVersion record to the output trace
+void TraceWriter::emitMetadataVersion(const shared_ptr<MetadataVersion>& v) noexcept {
+  // Emit the metadata version
+  emitRecord<RecordType::MetadataVersion>(v->getUID(), v->getGID(), v->getMode());
+}
+
 /********** FileVersion Record **********/
 
 template <>
@@ -1514,6 +1589,10 @@ void TraceReader::sendTo(IRSink& sink) noexcept {
 
       case RecordType::End:
         handleRecord<RecordType::End>(sink);
+        break;
+
+      case RecordType::MetadataVersion:
+        handleRecord<RecordType::MetadataVersion>(sink);
         break;
 
       case RecordType::FileVersion:

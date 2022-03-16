@@ -770,7 +770,7 @@ void Thread::_fchown(Build& build, int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    build.updateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
+    build.updateMetadata(getCommand(), ref_id, old_metadata->chown(user, group));
   });
 }
 
@@ -808,7 +808,7 @@ void Thread::_fchownat(Build& build,
       build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // We've now set the artifact's metadata
-      build.updateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
+      build.updateMetadata(getCommand(), ref_id, old_metadata->chown(user, group));
 
     } else {
       // No. Record the failure
@@ -837,7 +837,7 @@ void Thread::_fchmod(Build& build, int fd, mode_flags mode) noexcept {
     build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
     // The command updates the metadata
-    build.updateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
+    build.updateMetadata(getCommand(), ref_id, old_metadata->chmod(mode.getMode()));
   });
 }
 
@@ -874,7 +874,7 @@ void Thread::_fchmodat(Build& build,
       build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
 
       // We've now set the artifact's metadata
-      build.updateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
+      build.updateMetadata(getCommand(), ref_id, old_metadata->chmod(mode.getMode()));
 
     } else {
       // No. Record the failure

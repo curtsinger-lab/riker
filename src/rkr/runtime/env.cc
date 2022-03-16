@@ -261,7 +261,7 @@ namespace env {
     auto pipe = make_shared<PipeArtifact>();
 
     // Set the pipe's metadata on behalf of the command
-    pipe->updateMetadata(c, MetadataVersion(uid, gid, mode));
+    pipe->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
 
     _artifacts.push_back(pipe);
     stats::artifacts++;
@@ -279,7 +279,7 @@ namespace env {
     auto symlink = make_shared<SymlinkArtifact>();
 
     // Set the metadata for the new symlink artifact
-    symlink->updateMetadata(c, MetadataVersion(uid, gid, mode));
+    symlink->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, mode));
     symlink->updateContent(c, make_shared<SymlinkVersion>(target));
 
     _artifacts.push_back(symlink);
@@ -301,7 +301,7 @@ namespace env {
     dir->createEmptyDir(c);
 
     // Set the metadata for the new directory artifact
-    dir->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
+    dir->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
 
     _artifacts.push_back(dir);
     stats::artifacts++;
@@ -323,7 +323,7 @@ namespace env {
     auto artifact = make_shared<FileArtifact>();
 
     // Set the metadata and content for the new file artifact
-    artifact->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
+    artifact->updateMetadata(c, make_shared<MetadataVersion>(uid, gid, stat_mode));
     artifact->updateContent(c, cv);
 
     // Observe output to metadata and content for the new file

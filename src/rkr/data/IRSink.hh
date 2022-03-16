@@ -85,7 +85,7 @@ class IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion version) noexcept {}
+                             std::shared_ptr<MetadataVersion> version) noexcept {}
 
   /// Handel a MatchContent IR step
   virtual void matchContent(const std::shared_ptr<Command>& command,
@@ -96,7 +96,7 @@ class IRSink {
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              MetadataVersion version) noexcept {}
+                              std::shared_ptr<MetadataVersion> version) noexcept {}
 
   /// Handle an UpdateContent IR step
   virtual void updateContent(const std::shared_ptr<Command>& command,

@@ -154,18 +154,19 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Metadata Operations ************/
 
   /// Get the current metadata version for this artifact
-  MetadataVersion getMetadata(const std::shared_ptr<Command>& c) noexcept;
+  std::shared_ptr<MetadataVersion> getMetadata(const std::shared_ptr<Command>& c) noexcept;
 
   /// Get the current metadata without recording any dependencies
-  MetadataVersion peekMetadata() noexcept;
+  std::shared_ptr<MetadataVersion> peekMetadata() noexcept;
 
   /// Check to see if this artifact's metadata matches a known version
   void matchMetadata(const std::shared_ptr<Command>& c,
                      Scenario scenario,
-                     MetadataVersion expected) noexcept;
+                     std::shared_ptr<MetadataVersion> expected) noexcept;
 
   /// Apply a new metadata version to this artifact
-  void updateMetadata(const std::shared_ptr<Command>& c, MetadataVersion writing) noexcept;
+  void updateMetadata(const std::shared_ptr<Command>& c,
+                      std::shared_ptr<MetadataVersion> writing) noexcept;
 
   /************ Traced Operations ************/
 

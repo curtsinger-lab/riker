@@ -488,7 +488,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
 void Build::matchMetadata(const shared_ptr<Command>& c,
                           Scenario scenario,
                           Ref::ID ref_id,
-                          MetadataVersion expected) noexcept {
+                          shared_ptr<MetadataVersion> expected) noexcept {
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -571,7 +571,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
 // Command c modifies an artifact
 void Build::updateMetadata(const shared_ptr<Command>& c,
                            Ref::ID ref_id,
-                           MetadataVersion written) noexcept {
+                           shared_ptr<MetadataVersion> written) noexcept {
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;

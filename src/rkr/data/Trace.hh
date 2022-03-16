@@ -128,6 +128,9 @@ class TraceReader {
   /// Get a command from the table of commands
   const std::shared_ptr<Command>& getCommand(Command::ID id) const noexcept;
 
+  /// Get a metadata version from the table of metadata versions
+  const std::shared_ptr<MetadataVersion>& getMetadataVersion(MetadataVersion::ID id) const noexcept;
+
   /// Get a content version from the table of content versions
   const std::shared_ptr<ContentVersion>& getContentVersion(ContentVersion::ID id) const noexcept;
 
@@ -139,6 +142,12 @@ class TraceReader {
 
   /// Add a command to the commands table and assign a new ID
   void addCommand(std::shared_ptr<Command> c) noexcept;
+
+  /// Set a metadata version in the versions table using a known ID
+  void setMetadataVersion(MetadataVersion::ID id, std::shared_ptr<MetadataVersion> v) noexcept;
+
+  /// Add a metadata version to the table and assign a new ID
+  void addMetadataVersion(std::shared_ptr<MetadataVersion> v) noexcept;
 
   /// Set a content version in the versions table using a known ID
   void setVersion(ContentVersion::ID id, std::shared_ptr<ContentVersion> v) noexcept;
@@ -159,8 +168,14 @@ class TraceReader {
   /// The next command ID that will be assigned in the trace
   size_t _next_command_id = 0;
 
+  /// The table of metadata versions indexed by ID
+  std::vector<std::shared_ptr<MetadataVersion>> _metadata_versions;
+
   /// The table of content versions indexed by ID
   std::vector<std::shared_ptr<ContentVersion>> _versions;
+
+  /// The next metadata version ID that will be assigned in the trace
+  size_t _next_metadata_version_id = 0;
 
   /// The next content version ID that will be assigned in the trace
   size_t _next_version_id = 0;
@@ -249,7 +264,7 @@ class TraceWriter : public IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion version) noexcept override;
+                             std::shared_ptr<MetadataVersion> version) noexcept override;
 
   /// Handel a MatchContent IR step
   virtual void matchContent(const std::shared_ptr<Command>& command,
@@ -260,7 +275,7 @@ class TraceWriter : public IRSink {
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              MetadataVersion version) noexcept override;
+                              std::shared_ptr<MetadataVersion> version) noexcept override;
 
   /// Handle an UpdateContent IR step
   virtual void updateContent(const std::shared_ptr<Command>& command,
@@ -311,8 +326,15 @@ class TraceWriter : public IRSink {
   /// Emit a command to the trace
   void emitCommand(const std::shared_ptr<Command>& command) noexcept;
 
+  /// Get the ID of a metadata version, possibly writing it to the output if it is new
+  MetadataVersion::ID getMetadataVersionID(
+      const std::shared_ptr<MetadataVersion>& version) noexcept;
+
   /// Get the ID of a content version, possibly writing it to the output if it is new
   ContentVersion::ID getContentVersionID(const std::shared_ptr<ContentVersion>& version) noexcept;
+
+  /// Emit a metadata version to the trace
+  void emitMetadataVersion(const std::shared_ptr<MetadataVersion>& v) noexcept;
 
   /// Emit a file version to the trace
   void emitFileVersion(const std::shared_ptr<FileVersion>& v) noexcept;
@@ -379,6 +401,9 @@ class TraceWriter : public IRSink {
 
   /// The map from commands to their IDs in the output trace
   std::map<std::shared_ptr<Command>, Command::ID> _commands;
+
+  /// The map from metadata versions to their IDs in the output trace
+  std::map<std::shared_ptr<MetadataVersion>, MetadataVersion::ID> _metadata_versions;
 
   /// The map from content versions to their IDs in the output trace
   std::map<std::shared_ptr<ContentVersion>, ContentVersion::ID> _versions;

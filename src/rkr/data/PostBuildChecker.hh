@@ -42,7 +42,7 @@ class PostBuildChecker : public Next {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion expected) noexcept override {
+                             std::shared_ptr<MetadataVersion> expected) noexcept override {
     if (scenario & Scenario::Build) {
       // Did the reference resolve in the post-build state?
       if (command->getRef(ref)->isResolved()) {
@@ -50,7 +50,7 @@ class PostBuildChecker : public Next {
         auto post_build = command->getRef(ref)->getArtifact()->peekMetadata();
 
         // Is the post-build version match the version from during the build?
-        if (post_build.matches(expected)) {
+        if (post_build->matches(expected)) {
           // Yes. Emit a single predicate for both scenarios
           Next::matchMetadata(command, Scenario::Both, ref, expected);
         } else {

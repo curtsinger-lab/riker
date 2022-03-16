@@ -29,28 +29,48 @@ class MetadataVersion : public Version {
       MetadataVersion(data.st_uid, data.st_gid, data.st_mode) {}
 
   /// Create a new metadata version by changing the owner and/or group in this one
-  MetadataVersion chown(uid_t user, gid_t group) const noexcept;
+  std::shared_ptr<MetadataVersion> chown(uid_t user, gid_t group) const noexcept;
 
   /// Create a new metadata version by changing the mode bits in this one
-  MetadataVersion chmod(mode_t mode) const noexcept;
+  std::shared_ptr<MetadataVersion> chmod(mode_t mode) const noexcept;
 
   /// Check if a given access is allowed by the mode bits in this metadata record
   bool checkAccess(AccessFlags flags) noexcept;
 
+  /// Get the uid field
+  uid_t getUID() const noexcept { return _uid; }
+
+  /// Get the gid field
+  gid_t getGID() const noexcept { return _gid; }
+
   /// Get the mode field from this metadata version
-  mode_t getMode() const noexcept;
+  mode_t getMode() const noexcept { return _mode; }
 
   /// Commit this version to the filesystem
   void commit(fs::path path) noexcept;
 
   /// Compare this version to another version
-  bool matches(MetadataVersion other) const noexcept;
+  bool matches(std::shared_ptr<MetadataVersion> other) const noexcept;
 
   /// Get the name for the type of version this is
   virtual std::string getTypeName() const noexcept override { return "metadata"; }
 
   /// Print this metadata version
   virtual std::ostream& print(std::ostream& o) const noexcept override;
+
+  std::optional<MetadataVersion::ID> getID(size_t buffer_id) {
+    if (_buffer_id == buffer_id) return _id;
+    return std::nullopt;
+  }
+
+  void setID(size_t buffer_id, MetadataVersion::ID id) {
+    _buffer_id = buffer_id;
+    _id = id;
+  }
+
+ protected:
+  MetadataVersion::ID _id;
+  size_t _buffer_id;
 
  private:
   /// The user id for this metadata version

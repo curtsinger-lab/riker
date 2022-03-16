@@ -55,4 +55,10 @@ class Graph {
 
   // Command input edges (artifact -> command)
   std::set<std::pair<std::string, std::string>> _io_edges;
+
+  // Versions that changed
+  std::set<std::shared_ptr<Version>> _changed_versions;
+
+  // Versions that may change (written by a command that must run or may run)
+  std::set<std::shared_ptr<Version>> _may_change_versions;
 };

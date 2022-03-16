@@ -177,7 +177,7 @@ optional<fs::path> Artifact::takeTemporaryPath() noexcept {
 
 // Check if an access is allowed by the metadata for this artifact
 bool Artifact::checkAccess(const shared_ptr<Command>& c, AccessFlags flags) noexcept {
-  return getMetadata(c).checkAccess(flags);
+  return getMetadata(c)->checkAccess(flags);
 }
 
 optional<fs::path> Artifact::commitPath() noexcept {
@@ -258,27 +258,27 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// Get the current metadata version for this artifact
-MetadataVersion Artifact::getMetadata(const shared_ptr<Command>& c) noexcept {
+shared_ptr<MetadataVersion> Artifact::getMetadata(const shared_ptr<Command>& c) noexcept {
   // Get the current metadata and writer and notify the reader of this input
   auto [version, writer] = _metadata.getLatest();
   if (c) c->addMetadataInput(shared_from_this(), version, writer.lock());
-  return *version;
+  return version;
 }
 
 /// Get the current metadata for this artifact without creating any dependencies
-MetadataVersion Artifact::peekMetadata() noexcept {
+shared_ptr<MetadataVersion> Artifact::peekMetadata() noexcept {
   return getMetadata(nullptr);
 }
 
 /// Check to see if this artifact's metadata matches a known version
 void Artifact::matchMetadata(const shared_ptr<Command>& c,
                              Scenario scenario,
-                             MetadataVersion expected) noexcept {
+                             shared_ptr<MetadataVersion> expected) noexcept {
   // Get the current metadata
   auto observed = getMetadata(c);
 
   // Compare versions
-  if (!observed.matches(expected)) {
+  if (!observed->matches(expected)) {
     // Report the mismatch
     LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
          c, scenario, expected, observed);
@@ -287,13 +287,13 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
 }
 
 /// Apply a new metadata version to this artifact
-void Artifact::updateMetadata(const shared_ptr<Command>& c, MetadataVersion writing) noexcept {
-  auto mv = make_shared<MetadataVersion>(writing);
-  appendVersion(mv);
-  _metadata.update(c, mv);
+void Artifact::updateMetadata(const shared_ptr<Command>& c,
+                              shared_ptr<MetadataVersion> writing) noexcept {
+  appendVersion(writing);
+  _metadata.update(c, writing);
 
   // Report the output to the build
-  c->addMetadataOutput(shared_from_this(), mv);
+  c->addMetadataOutput(shared_from_this(), writing);
 }
 
 void Artifact::appendVersion(shared_ptr<Version> v) noexcept {

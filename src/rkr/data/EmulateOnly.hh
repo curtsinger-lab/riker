@@ -92,7 +92,7 @@ class EmulateOnly : public IRSink {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion version) noexcept {
+                             std::shared_ptr<MetadataVersion> version) noexcept {
     if (command->canEmulate()) _next.matchMetadata(command, scenario, ref, version);
   }
 
@@ -107,7 +107,7 @@ class EmulateOnly : public IRSink {
   /// Handle an UpdateMetadata IR step
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              MetadataVersion version) noexcept {
+                              std::shared_ptr<MetadataVersion> version) noexcept {
     if (command->canEmulate()) _next.updateMetadata(command, ref, version);
   }
 

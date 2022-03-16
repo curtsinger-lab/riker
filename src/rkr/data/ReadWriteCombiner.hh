@@ -39,7 +39,7 @@ class MetadataReadCombiner : public Next {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion expected) noexcept override {
+                             std::shared_ptr<MetadataVersion> expected) noexcept override {
     // Post-build checks should be emitted as-is
     if (scenario & Scenario::PostBuild) {
       Next::matchMetadata(command, scenario, ref, expected);
@@ -62,7 +62,7 @@ class MetadataReadCombiner : public Next {
 
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              MetadataVersion writing) noexcept override {
+                              std::shared_ptr<MetadataVersion> writing) noexcept override {
     // Clear the last read
     _last_reader.reset();
     _last_ref = -1;
@@ -86,7 +86,7 @@ class MetadataWriteCombiner : public Next {
   virtual void matchMetadata(const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
-                             MetadataVersion expected) noexcept override {
+                             std::shared_ptr<MetadataVersion> expected) noexcept override {
     // Does this read match the last write?
     if (command == _last_writer && ref == _last_ref) {
       // Yes. We can skip the read, since it's just reading the last write.
@@ -95,7 +95,7 @@ class MetadataWriteCombiner : public Next {
     } else {
       // No. If the last write hasn't been emitted, emit it now
       if (!_emitted) {
-        Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+        Next::updateMetadata(_last_writer, _last_ref, _last_written);
         _emitted = true;
       }
 
@@ -109,7 +109,7 @@ class MetadataWriteCombiner : public Next {
 
   virtual void updateMetadata(const std::shared_ptr<Command>& command,
                               Ref::ID ref,
-                              MetadataVersion writing) noexcept override {
+                              std::shared_ptr<MetadataVersion> writing) noexcept override {
     // We can coalesce this new write with the previous write if the command and reference are the
     // same and the last write has not been accessed
     if (command == _last_writer && ref == _last_ref && !_accessed) {
@@ -120,7 +120,7 @@ class MetadataWriteCombiner : public Next {
     } else {
       // No. Emit the previous write if it hasn't been passed along already
       if (!_emitted) {
-        Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+        Next::updateMetadata(_last_writer, _last_ref, _last_written);
         _emitted = true;
       }
 
@@ -140,7 +140,7 @@ class MetadataWriteCombiner : public Next {
   virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override {
     // If the last write hasn't been emitted and the exiting command performed that write, emit it
     if (!_emitted && _last_writer == command) {
-      Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+      Next::updateMetadata(_last_writer, _last_ref, _last_written);
       _emitted = true;
     }
 
@@ -155,7 +155,7 @@ class MetadataWriteCombiner : public Next {
   Ref::ID _last_ref;
 
   /// The last version written
-  std::optional<MetadataVersion> _last_written;
+  std::shared_ptr<MetadataVersion> _last_written;
 
   /// Has the last write been emitted?
   bool _emitted = true;
