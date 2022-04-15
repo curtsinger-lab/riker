@@ -18,7 +18,9 @@ RUN apt-get -y install --no-install-recommends \
     # test dependencies
     gcc python3-cram file graphviz texlive-latex-base \
     # bench dependencies
-    cmake wget m4
+    cmake wget m4 \
+    # misc
+    ca-certificates
 
 # Link cram3 as cram
 RUN update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100
