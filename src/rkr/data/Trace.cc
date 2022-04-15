@@ -346,8 +346,28 @@ void TraceWriter::link() const noexcept {
     string fdpath = "/proc/self/fd/" + std::to_string(_file.fd);
     rc = linkat(AT_FDCWD, fdpath.c_str(), AT_FDCWD, _path.value().c_str(), AT_SYMLINK_FOLLOW);
 
-    // TODO: if linking fails, fall back on copying
-    FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value();
+    // Did the link fail with a cross-device error?
+    if (rc != 0 && errno == EXDEV) {
+      // Create the output file
+      int outfd = ::open(_path.value().c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      FAIL_IF(outfd < 0) << "Failed to create trace database file: " << ERR;
+
+      // Get the size of the input file
+      struct stat info;
+      rc = ::fstat(_file.fd, &info);
+      FAIL_IF(rc) << "Failed to stat open trace file: " << ERR;
+
+      // Now use sendfile to copy content
+      off_t offset = 0;
+      ssize_t copied = 0;
+      do {
+        ssize_t bytes = sendfile(outfd, _file.fd, &offset, info.st_size - copied);
+        FAIL_IF(bytes < 0) << "Failed to copy trace data: " << ERR;
+        copied += bytes;
+      } while (copied < info.st_size);
+    } else {
+      FAIL_IF(rc != 0) << "Failed to link trace from " << fdpath << " to " << _path.value() << ": " << ERR << " (" << errno << ")";
+    }
   }
 }
 
