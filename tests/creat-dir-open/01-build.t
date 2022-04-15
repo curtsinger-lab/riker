@@ -25,7 +25,7 @@ Check the contents of a_file
     File: outcome
   .*regular empty file.* (re)
   Device.* (re)
-  Access: (0770/-rwxrwx---) * (glob)
+  Access:.* (re)
   Access:.* (re)
   Modify:.* (re)
   Change:.* (re)
