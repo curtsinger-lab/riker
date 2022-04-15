@@ -9,7 +9,8 @@ jobs:
     strategy:
       matrix:
         mode: [debug, release]
-        arch: [x64, arm64]
+        #arch: [x64, arm64]
+        arch: [x64]
     steps:
       - uses: actions/checkout@v2
         with:
