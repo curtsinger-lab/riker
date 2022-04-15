@@ -17,6 +17,9 @@ Run the first build
   Rikerfile
   ./creat-dir-open
 
+If the file was not created on the initial build, skip this test.
+  $ test -f outcome || exit 80
+
 Check the contents of a_file
   $ stat outcome
     File: outcome
