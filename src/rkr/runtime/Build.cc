@@ -168,19 +168,10 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
     LOG(ir) << "traced " << TracePrinter::PipeRefPrinter{c, read_end, write_end};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.pipeRef(c, read_end, write_end);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -211,19 +202,10 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
     LOG(ir) << "traced " << TracePrinter::FileRefPrinter{c, mode, output};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.fileRef(c, mode, output);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -252,19 +234,10 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
     LOG(ir) << "traced " << TracePrinter::SymlinkRefPrinter{c, target, output};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.symlinkRef(c, target, output);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -294,19 +267,10 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
     LOG(ir) << "traced " << TracePrinter::DirRefPrinter{c, mode, output};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.dirRef(c, mode, output);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -339,19 +303,10 @@ void Build::pathRef(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::PathRefPrinter{c, base, path, flags, output};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.pathRef(c, base, path, flags, output);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -405,19 +360,10 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
     LOG(ir) << "traced " << TracePrinter::UsingRefPrinter{c, ref};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.usingRef(c, ref);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -446,19 +392,10 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
     LOG(ir) << "traced " << TracePrinter::DoneWithRefPrinter{c, ref_id};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.doneWithRef(c, ref_id);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -499,19 +436,10 @@ void Build::compareRefs(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::CompareRefsPrinter{c, ref1_id, ref2_id, type};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.compareRefs(c, ref1_id, ref2_id, type);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -563,19 +491,10 @@ void Build::expectResult(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::ExpectResultPrinter{c, scenario, ref_id, expected};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.expectResult(c, scenario, ref_id, expected);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -621,19 +540,10 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchMetadataPrinter{c, scenario, ref_id, expected};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.matchMetadata(c, scenario, ref_id, expected);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -679,19 +589,10 @@ void Build::matchContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::MatchContentPrinter{c, scenario, ref_id, expected};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
    _output.matchContent(c, scenario, ref_id, expected);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -730,19 +631,10 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateMetadataPrinter{c, ref_id, written};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.updateMetadata(c, ref_id, written);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -790,19 +682,10 @@ void Build::updateContent(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::UpdateContentPrinter{c, ref_id, written};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.updateContent(c, ref_id, written);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -851,19 +734,10 @@ void Build::addEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::AddEntryPrinter{c, dir_id, name, target_id};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.addEntry(c, dir_id, name, target_id);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -914,19 +788,10 @@ void Build::removeEntry(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::RemoveEntryPrinter{c, dir_id, name, target_id};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.removeEntry(c, dir_id, name, target_id);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -1055,25 +920,12 @@ void Build::launch(const shared_ptr<Command>& parent,
 void Build::orphan(const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
-<<<<<<< HEAD
-<<<<<<< HEAD
   _deferred_commands.emplace(child);
   if(!parent->mustRun()){
     child->setOrphaned();
   }
   _output.orphan(parent, child, refs);
   cout << "in orphan" << "\n";
-=======
-
->>>>>>> print orphan
-=======
-  _deferred_commands.emplace(child);
-  if(!parent->mustRun()){
-    child->setOrphaned();
-  }
-  _output.orphan(parent, child, refs);
-  cout << "in orphan" << "\n";
->>>>>>> Adopt orphan with frozen bug
   cout << "parent: " << parent << "  orphan: " << child << "\n";
 }
 
@@ -1088,19 +940,10 @@ void Build::join(const shared_ptr<Command>& c,
     LOG(ir) << "traced " << TracePrinter::JoinPrinter{c, child, exit_status};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
     _output.join(c, child, exit_status);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
@@ -1143,20 +986,11 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     LOG(ir) << "traced " << TracePrinter::ExitPrinter{c, exit_status};
 
   } else {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Final report and latest code update
     if (c->isOrphaned()) {
      LOG(exec) << c << " orphaned exits.";;
     _output.exit(c, exit_status);
     return;
   }
-<<<<<<< HEAD
-=======
->>>>>>> Adopt orphan with frozen bug
-=======
->>>>>>> Final report and latest code update
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       LOG(exec) << c << " deferred exits.";
@@ -1164,22 +998,12 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
       _deferred_steps.exit(c, exit_status);
       return;
     }
-<<<<<<< HEAD
-<<<<<<< HEAD
     LOG(exec) << c << " emulated exits.";
-=======
-
->>>>>>> Adopt orphan with frozen bug
-=======
-    LOG(exec) << c << " emulated exits.";
->>>>>>> Final report and latest code update
     stats::emulated_steps++;
     // Log the emulated step
     LOG(ir) << "emulated " << TracePrinter::ExitPrinter{c, exit_status};
   }
   
-<<<<<<< HEAD
-<<<<<<< HEAD
   auto it = c->getRefLists().begin();
   if(c->mustRun()){
     runDeferredSteps();
@@ -1192,27 +1016,6 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     }
     std::advance(it, 1);
   }
-=======
-  list<tuple<Ref::ID, Ref::ID>> test;
-  for(const auto& candidate : c->getChildren()){
-=======
-  auto it = c->getRefLists().begin();
-  if(c->mustRun()){
-    runDeferredSteps();
-  for(const auto& candidate : c->getMaxChildren()){
->>>>>>> Adopt orphan with frozen bug
-    if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
-    cout << "in exit" << "\n";
-    candidate->setOrphaned();
-    _output.orphan(c, candidate, *it);
-    runDeferredSteps();
-    }
-<<<<<<< HEAD
->>>>>>> print orphan
-=======
-    std::advance(it, 1);
-  }
->>>>>>> Adopt orphan with frozen bug
   }
   
 
