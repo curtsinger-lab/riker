@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "data/DefaultTrace.hh"
-#include "data/EmulateOnly.hh"
 #include "data/PostBuildChecker.hh"
 #include "data/ReadWriteCombiner.hh"
 #include "data/Trace.hh"
@@ -117,8 +116,7 @@ void do_build(vector<string> args,
 
     // Run the trace and send the new trace to output
     Build build(output, print_to ? *print_to : std::cout);
-    EmulateOnly filter(build);
-    input.sendTo(filter);
+    input.sendTo(build);
 
     // Plan the next iteration
     root_cmd->planBuild();

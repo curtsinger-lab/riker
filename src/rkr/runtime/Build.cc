@@ -93,6 +93,9 @@ void Build::specialRef(const IRSource& source,
                        const shared_ptr<Command>& c,
                        SpecialRef entity,
                        Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
 
@@ -160,6 +163,9 @@ void Build::pipeRef(const IRSource& source,
                     const shared_ptr<Command>& c,
                     Ref::ID read_end,
                     Ref::ID write_end) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -193,6 +199,9 @@ void Build::fileRef(const IRSource& source,
                     const shared_ptr<Command>& c,
                     mode_t mode,
                     Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -224,6 +233,9 @@ void Build::symlinkRef(const IRSource& source,
                        const shared_ptr<Command>& c,
                        fs::path target,
                        Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -256,6 +268,9 @@ void Build::dirRef(const IRSource& source,
                    const shared_ptr<Command>& c,
                    mode_t mode,
                    Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -289,6 +304,9 @@ void Build::pathRef(const IRSource& source,
                     fs::path path,
                     AccessFlags flags,
                     Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -342,6 +360,9 @@ void Build::pathRef(const IRSource& source,
 
 // A command retains a handle to a given Ref
 void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -372,6 +393,9 @@ void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::
 void Build::doneWithRef(const IRSource& source,
                         const shared_ptr<Command>& c,
                         Ref::ID ref_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -413,6 +437,9 @@ void Build::compareRefs(const IRSource& source,
                         Ref::ID ref1_id,
                         Ref::ID ref2_id,
                         RefComparison type) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -465,6 +492,9 @@ void Build::expectResult(const IRSource& source,
                          Scenario scenario,
                          Ref::ID ref_id,
                          int8_t expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -511,6 +541,9 @@ void Build::matchMetadata(const IRSource& source,
                           Scenario scenario,
                           Ref::ID ref_id,
                           MetadataVersion expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -557,6 +590,9 @@ void Build::matchContent(const IRSource& source,
                          Scenario scenario,
                          Ref::ID ref_id,
                          shared_ptr<ContentVersion> expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -596,6 +632,9 @@ void Build::updateMetadata(const IRSource& source,
                            const shared_ptr<Command>& c,
                            Ref::ID ref_id,
                            MetadataVersion written) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -644,6 +683,9 @@ void Build::updateContent(const IRSource& source,
                           const shared_ptr<Command>& c,
                           Ref::ID ref_id,
                           shared_ptr<ContentVersion> written) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -693,6 +735,9 @@ void Build::addEntry(const IRSource& source,
                      Ref::ID dir_id,
                      string name,
                      Ref::ID target_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -744,6 +789,9 @@ void Build::removeEntry(const IRSource& source,
                         Ref::ID dir_id,
                         string name,
                         Ref::ID target_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -794,6 +842,9 @@ void Build::launch(const IRSource& source,
                    const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (parent->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (parent->mustRun()) {
     stats::traced_steps++;
@@ -879,6 +930,9 @@ void Build::join(const IRSource& source,
                  const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -920,6 +974,9 @@ void Build::join(const IRSource& source,
 
 // Command c is exiting
 void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_status) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
