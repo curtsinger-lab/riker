@@ -222,7 +222,10 @@ void FileArtifact::cacheAll(fs::path path) const noexcept {
 }
 
 /// A traced command is about to stat this artifact
-void FileArtifact::beforeStat(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::beforeStat(Build& build,
+                              const IRSource& source,
+                              const shared_ptr<Command>& c,
+                              Ref::ID ref) noexcept {
   // Create a dependency on the current content so its size is committed appropriately.
   getContent(c);
 
@@ -233,45 +236,61 @@ void FileArtifact::beforeStat(Build& build, const shared_ptr<Command>& c, Ref::I
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void FileArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::beforeRead(Build& build,
+                              const IRSource& source,
+                              const shared_ptr<Command>& c,
+                              Ref::ID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void FileArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::afterRead(Build& build,
+                             const IRSource& source,
+                             const shared_ptr<Command>& c,
+                             Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
-void FileArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::beforeWrite(Build& build,
+                               const IRSource& source,
+                               const shared_ptr<Command>& c,
+                               Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command just wrote to this artifact
-void FileArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::afterWrite(Build& build,
+                              const IRSource& source,
+                              const shared_ptr<Command>& c,
+                              Ref::ID ref) noexcept {
   // Create a new version
   auto writing = make_shared<FileVersion>();
 
   // The command wrote to this file
-  build.updateContent(c, ref, writing);
+  build.updateContent(source, c, ref, writing);
 }
 
 /// A traced command is about to truncate this artifact to length 0
 void FileArtifact::beforeTruncate(Build& build,
+                                  const IRSource& source,
                                   const shared_ptr<Command>& c,
                                   Ref::ID ref) noexcept {
   // Do nothing before a truncate
 }
 
 /// A trace command just truncated this artifact to length 0
-void FileArtifact::afterTruncate(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void FileArtifact::afterTruncate(Build& build,
+                                 const IRSource& source,
+                                 const shared_ptr<Command>& c,
+                                 Ref::ID ref) noexcept {
   // The command wrote an empty content version to this artifact
   auto written = make_shared<FileVersion>();
   written->makeEmptyFingerprint();
 
-  build.updateContent(c, ref, written);
+  build.updateContent(source, c, ref, written);
 }
 
 // Get this artifact's content version

@@ -23,6 +23,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/IRSink.hh"
+#include "data/IRSource.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -112,13 +113,13 @@ void Thread::execPtrace(Build& build) noexcept {
   // Now make the reference and expect success
   auto child_exe_ref_id = makePathRef(build, real_exe_path, ReadAccess);
   const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
-  build.expectResult(getCommand(), Scenario::Build, child_exe_ref_id, SUCCESS);
+  build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, child_exe_ref_id, SUCCESS);
 
   ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
   // The child command depends on the contents of the executable
-  child_exe_ref->getArtifact()->beforeRead(build, getCommand(), child_exe_ref_id);
-  child_exe_ref->getArtifact()->afterRead(build, getCommand(), child_exe_ref_id);
+  child_exe_ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), child_exe_ref_id);
+  child_exe_ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), child_exe_ref_id);
 }
 
 fs::path Thread::getPath(at_fd fd) const noexcept {
@@ -141,20 +142,23 @@ Ref::ID Thread::makePathRef(Build& build, fs::path p, AccessFlags flags, at_fd a
     if (p.string().find("/tmp/") == 0) flags.exclusive = false;
 
     auto ref = getCommand()->nextRef();
-    build.pathRef(getCommand(), _process->getRoot(), p.relative_path(), flags, ref);
+    build.pathRef(TracedIRSource(), getCommand(), _process->getRoot(), p.relative_path(), flags,
+                  ref);
     return ref;
   }
 
   // Handle the special CWD file descriptor to resolve relative to cwd
   if (at.isCWD()) {
     auto ref = getCommand()->nextRef();
-    build.pathRef(getCommand(), _process->getWorkingDir(), p.relative_path(), flags, ref);
+    build.pathRef(TracedIRSource(), getCommand(), _process->getWorkingDir(), p.relative_path(),
+                  flags, ref);
     return ref;
   }
 
   // The path is resolved relative to some file descriptor
   auto ref = getCommand()->nextRef();
-  build.pathRef(getCommand(), _process->getFD(at.getFD()), p.relative_path(), flags, ref);
+  build.pathRef(TracedIRSource(), getCommand(), _process->getFD(at.getFD()), p.relative_path(),
+                flags, ref);
   return ref;
 }
 
@@ -399,14 +403,15 @@ void Thread::_openat(Build& build,
 
   // If this call might truncate the file, call the pre-truncate method on the artifact
   if (ref->isResolved() && ref_flags.truncate) {
-    ref->getArtifact()->beforeTruncate(build, getCommand(), ref_id);
+    ref->getArtifact()->beforeTruncate(build, TracedIRSource(), getCommand(), ref_id);
   }
 
   // If the open call will fail, just run it and don't wait for completion
   // We can't skip the call because it could still have a side effect
   if (!ref->isResolved()) {
     resume();
-    build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
+    build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id,
+                       ref->getResultCode());
     return;
   }
 
@@ -421,25 +426,25 @@ void Thread::_openat(Build& build,
                                   << filename << " (received " << ref << " from model)";
 
       // The command observed a successful openat, so add this predicate to the command log
-      build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // If the O_TMPFILE flag was passed, this call created a reference to an anonymous file
       if (flags.tmpfile()) {
         auto mask = getProcess()->getUmask();
         auto anon_ref_id = getCommand()->nextRef();
-        build.fileRef(getCommand(), mode.getMode() & ~mask, anon_ref_id);
+        build.fileRef(TracedIRSource(), getCommand(), mode.getMode() & ~mask, anon_ref_id);
 
         // Record the reference in the process' file descriptor table
-        _process->addFD(build, fd, anon_ref_id, flags.cloexec());
+        _process->addFD(build, TracedIRSource(), fd, anon_ref_id, flags.cloexec());
 
       } else {
         // If the file is truncated by the open call, set the contents in the artifact
         if (ref_flags.truncate) {
-          ref->getArtifact()->afterTruncate(build, getCommand(), ref_id);
+          ref->getArtifact()->afterTruncate(build, TracedIRSource(), getCommand(), ref_id);
         }
 
         // Record the reference in the correct location in this process' file descriptor table
-        _process->addFD(build, fd, ref_id, flags.cloexec());
+        _process->addFD(build, TracedIRSource(), fd, ref_id, flags.cloexec());
       }
 
     } else {
@@ -449,7 +454,8 @@ void Thread::_openat(Build& build,
           << ", but actual result is " << getErrorName(-fd);
 
       // The command observed a failed openat, so add the error predicate to the command log
-      build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id,
+                         ref->getResultCode());
     }
   });
 }
@@ -480,22 +486,22 @@ void Thread::_mknodat(Build& build,
 
       if (rc == 0) {
         // Record the outcomes for the two references
-        build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
-        build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref, SUCCESS);
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref, ENOENT);
 
         // Create a pipe
         auto read_end = getCommand()->nextRef();
         auto write_end = getCommand()->nextRef();
-        build.pipeRef(getCommand(), read_end, write_end);
+        build.pipeRef(TracedIRSource(), getCommand(), read_end, write_end);
 
         // Link the pipe into the directory
-        build.addEntry(getCommand(), dir_ref, entry, read_end);
+        build.addEntry(TracedIRSource(), getCommand(), dir_ref, entry, read_end);
 
       } else {
         // The syscall failed. Record the outcome of both references
-        build.expectResult(getCommand(), Scenario::Build, dir_ref,
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref,
                            getCommand()->getRef(dir_ref)->getResultCode());
-        build.expectResult(getCommand(), Scenario::Build, entry_ref,
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref,
                            getCommand()->getRef(entry_ref)->getResultCode());
       }
     });
@@ -513,7 +519,7 @@ void Thread::_close(Build& build, int fd) noexcept {
   resume();
 
   // Try to close the FD
-  _process->tryCloseFD(build, fd);
+  _process->tryCloseFD(build, TracedIRSource(), fd);
 }
 
 /************************ Pipes ************************/
@@ -538,14 +544,14 @@ void Thread::_pipe2(Build& build, int* fds, o_flags flags) noexcept {
     // Make a reference to a pipe
     auto read_ref = getCommand()->nextRef();
     auto write_ref = getCommand()->nextRef();
-    build.pipeRef(getCommand(), read_ref, write_ref);
+    build.pipeRef(TracedIRSource(), getCommand(), read_ref, write_ref);
 
     ASSERT(getCommand()->getRef(read_ref)->isResolved()) << "Failed to resolve pipe reference";
     ASSERT(getCommand()->getRef(write_ref)->isResolved()) << "Failed to resolve pipe reference";
 
     // Fill in the file descriptor entries
-    _process->addFD(build, read_pipefd, read_ref, flags.cloexec());
-    _process->addFD(build, write_pipefd, write_ref, flags.cloexec());
+    _process->addFD(build, TracedIRSource(), read_pipefd, read_ref, flags.cloexec());
+    _process->addFD(build, TracedIRSource(), write_pipefd, write_ref, flags.cloexec());
   });
 }
 
@@ -565,7 +571,7 @@ void Thread::_dup(Build& build, int fd) noexcept {
 
       // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
       // false.
-      _process->addFD(build, newfd, _process->getFD(fd), false);
+      _process->addFD(build, TracedIRSource(), newfd, _process->getFD(fd), false);
     });
   } else {
     finishSyscall([=](Build& build, long rc) {
@@ -596,10 +602,10 @@ void Thread::_dup3(Build& build, int oldfd, int newfd, o_flags flags) noexcept {
       if (rc < 0) return;
 
       // If there is an existing descriptor entry number newfd, it is silently closed
-      _process->tryCloseFD(build, newfd);
+      _process->tryCloseFD(build, TracedIRSource(), newfd);
 
       // Duplicate the file descriptor
-      _process->addFD(build, rc, _process->getFD(oldfd), flags.cloexec());
+      _process->addFD(build, TracedIRSource(), rc, _process->getFD(oldfd), flags.cloexec());
     });
   } else {
     finishSyscall([=](Build& build, long rc) {
@@ -647,7 +653,7 @@ void Thread::_faccessat(Build& build,
   // Create a reference
   auto ref_id = makePathRef(build, pathname, AccessFlags::fromAccess(mode, flags), dirfd);
   auto ref = getCommand()->getRef(ref_id);
-  build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
+  build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, ref->getResultCode());
 
   // Try to set the system call result (currently only works for shared memory tracing)
   skip(-ref->getResultCode());
@@ -672,7 +678,7 @@ void Thread::_fstatat(Build& build,
       auto ref_id = _process->getFD(dirfd.getFD());
       auto ref = getCommand()->getRef(ref_id);
       if (ref->isResolved()) {
-        ref->getArtifact()->beforeStat(build, getCommand(), ref_id);
+        ref->getArtifact()->beforeStat(build, TracedIRSource(), getCommand(), ref_id);
       }
     }
 
@@ -682,7 +688,7 @@ void Thread::_fstatat(Build& build,
       if (rc == 0) {
         // This is essentially an fstat call
         // Record the dependency on metadata
-        build.traceMatchMetadata(getCommand(), _process->getFD(dirfd.getFD()));
+        build.traceMatchMetadata(TracedIRSource(), getCommand(), _process->getFD(dirfd.getFD()));
       } else {
         WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
         // do nothing.
@@ -693,7 +699,7 @@ void Thread::_fstatat(Build& build,
     auto dir_ref_id = _process->getFD(dirfd.getFD());
     auto dir_ref = getCommand()->getRef(dir_ref_id);
     ASSERT(dir_ref->isResolved()) << "Cannot match metadata for unresolved reference";
-    build.matchMetadata(getCommand(), Scenario::Build, dir_ref_id,
+    build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, dir_ref_id,
                         dir_ref->getArtifact()->getMetadata(getCommand()));
 
   } else if (pathname.empty()) {
@@ -711,7 +717,7 @@ void Thread::_fstatat(Build& build,
       auto a = ref->getArtifact();
 
       // Depend on content so the size field is accurate
-      a->beforeStat(build, getCommand(), ref_id);
+      a->beforeStat(build, TracedIRSource(), getCommand(), ref_id);
 
       // Let the tracee run the stat call
       resume();
@@ -721,7 +727,8 @@ void Thread::_fstatat(Build& build,
       skip(-ref->getResultCode());
     }
 
-    build.expectResult(getCommand(), Scenario::Build, ref_id, ref->getResultCode());
+    build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id,
+                       ref->getResultCode());
 
     // Finish the syscall to see if the reference succeeds
     /*finishSyscall([=](Build& build, long rc) {
@@ -744,7 +751,7 @@ void Thread::_fstatat(Build& build,
       }
     });*/
     if (ref->isResolved()) {
-      build.matchMetadata(getCommand(), Scenario::Build, ref_id,
+      build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, ref_id,
                           ref->getArtifact()->getMetadata(getCommand()));
     }
   }
@@ -760,7 +767,7 @@ void Thread::_fchown(Build& build, int fd, uid_t user, gid_t group) noexcept {
 
   // The command depends on the old metadata
   auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
-  build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
+  build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, ref_id, old_metadata);
 
   // Finish the sycall and resume the process
   finishSyscall([=](Build& build, long rc) {
@@ -770,7 +777,7 @@ void Thread::_fchown(Build& build, int fd, uid_t user, gid_t group) noexcept {
     if (rc) return;
 
     // The command updates the metadata
-    build.updateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
+    build.updateMetadata(TracedIRSource(), getCommand(), ref_id, old_metadata.chown(user, group));
   });
 }
 
@@ -802,17 +809,17 @@ void Thread::_fchownat(Build& build,
     if (rc >= 0) {
       // Match the old metadata
       auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
-      build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
+      build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, ref_id, old_metadata);
 
       // Yes. Record the successful reference
-      build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // We've now set the artifact's metadata
-      build.updateMetadata(getCommand(), ref_id, old_metadata.chown(user, group));
+      build.updateMetadata(TracedIRSource(), getCommand(), ref_id, old_metadata.chown(user, group));
 
     } else {
       // No. Record the failure
-      build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, -rc);
       WARN_IF(ref->isResolved()) << "Model mismatch: failed to chown through resolved reference";
     }
   });
@@ -834,10 +841,11 @@ void Thread::_fchmod(Build& build, int fd, mode_flags mode) noexcept {
     auto ref = getCommand()->getRef(ref_id);
     ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
     auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
-    build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
+    build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, ref_id, old_metadata);
 
     // The command updates the metadata
-    build.updateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
+    build.updateMetadata(TracedIRSource(), getCommand(), ref_id,
+                         old_metadata.chmod(mode.getMode()));
   });
 }
 
@@ -865,20 +873,21 @@ void Thread::_fchmodat(Build& build,
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       auto ref = getCommand()->getRef(ref_id);
       ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
 
       auto old_metadata = ref->getArtifact()->getMetadata(getCommand());
-      build.matchMetadata(getCommand(), Scenario::Build, ref_id, old_metadata);
+      build.matchMetadata(TracedIRSource(), getCommand(), Scenario::Build, ref_id, old_metadata);
 
       // We've now set the artifact's metadata
-      build.updateMetadata(getCommand(), ref_id, old_metadata.chmod(mode.getMode()));
+      build.updateMetadata(TracedIRSource(), getCommand(), ref_id,
+                           old_metadata.chmod(mode.getMode()));
 
     } else {
       // No. Record the failure
-      build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, -rc);
     }
   });
 }
@@ -896,7 +905,7 @@ void Thread::_read(Build& build, int fd) noexcept {
   const auto& ref = getCommand()->getRef(ref_id);
 
   // Inform the artifact that we are about to read
-  ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
+  ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), ref_id);
 
   // Finish the syscall and resume
   finishSyscall([=](Build& build, long rc) {
@@ -904,7 +913,7 @@ void Thread::_read(Build& build, int fd) noexcept {
 
     if (rc >= 0) {
       // Inform the artifact that the read succeeded
-      ref->getArtifact()->afterRead(build, getCommand(), ref_id);
+      ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), ref_id);
     }
   });
 }
@@ -917,7 +926,7 @@ void Thread::_write(Build& build, int fd) noexcept {
   const auto& ref = getCommand()->getRef(ref_id);
 
   // Inform the artifact that we are about to write
-  ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
+  ref->getArtifact()->beforeWrite(build, TracedIRSource(), getCommand(), ref_id);
 
   // Finish the syscall and resume the process
   finishSyscall([=](Build& build, long rc) {
@@ -927,7 +936,7 @@ void Thread::_write(Build& build, int fd) noexcept {
     if (rc < 0) return;
 
     // Inform the artifact that it was written
-    ref->getArtifact()->afterWrite(build, getCommand(), ref_id);
+    ref->getArtifact()->afterWrite(build, TracedIRSource(), getCommand(), ref_id);
   });
 }
 
@@ -955,8 +964,8 @@ void Thread::_mmap(Build& build,
   bool writable = (prot & PROT_WRITE) && ref->getFlags().w;
 
   // Inform the mapped artifact that it will by read and possibly written
-  ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
-  if (writable) ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
+  ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), ref_id);
+  if (writable) ref->getArtifact()->beforeWrite(build, TracedIRSource(), getCommand(), ref_id);
 
   // Run the syscall to find out if the mmap succeeded
   finishSyscall([=](Build& build, long rc) {
@@ -972,8 +981,8 @@ void Thread::_mmap(Build& build,
     }
 
     // Inform the artifact that it has been read and possibly written
-    ref->getArtifact()->afterRead(build, getCommand(), ref_id);
-    if (writable) ref->getArtifact()->afterWrite(build, getCommand(), ref_id);
+    ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), ref_id);
+    if (writable) ref->getArtifact()->afterWrite(build, TracedIRSource(), getCommand(), ref_id);
 
     // TODO: we need to track which commands have a given artifact mapped.
     // Any time that artifact is modified, all commands that have it mapped will get an
@@ -999,32 +1008,32 @@ void Thread::_truncate(Build& build, fs::path pathname, long length) noexcept {
       ASSERT(rc != 0) << "Call to truncate() succeeded, but the reference did not resolve";
 
       // Record the outcome of the reference
-      build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, -rc);
     });
 
   } else {
     // Is the file being truncated to size zero?
     if (length > 0) {
       // No. Treat this as an ordinary write
-      ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
+      ref->getArtifact()->beforeWrite(build, TracedIRSource(), getCommand(), ref_id);
 
     } else {
       // Yes. There is no dependency on the prior contents.
-      ref->getArtifact()->beforeTruncate(build, getCommand(), ref_id);
+      ref->getArtifact()->beforeTruncate(build, TracedIRSource(), getCommand(), ref_id);
     }
 
     finishSyscall([=](Build& build, long rc) {
       resume();
 
       // We expect the reference to succeed
-      build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       // If the syscall succeeded, finish the write
       if (rc == 0) {
         if (length > 0) {
-          ref->getArtifact()->afterWrite(build, getCommand(), ref_id);
+          ref->getArtifact()->afterWrite(build, TracedIRSource(), getCommand(), ref_id);
         } else {
-          ref->getArtifact()->afterTruncate(build, getCommand(), ref_id);
+          ref->getArtifact()->afterTruncate(build, TracedIRSource(), getCommand(), ref_id);
         }
       }
     });
@@ -1040,9 +1049,9 @@ void Thread::_ftruncate(Build& build, int fd, long length) noexcept {
 
   // If length is non-zero, this is a write so we depend on the previous contents
   if (length > 0) {
-    ref->getArtifact()->beforeWrite(build, getCommand(), ref_id);
+    ref->getArtifact()->beforeWrite(build, TracedIRSource(), getCommand(), ref_id);
   } else {
-    ref->getArtifact()->beforeTruncate(build, getCommand(), ref_id);
+    ref->getArtifact()->beforeTruncate(build, TracedIRSource(), getCommand(), ref_id);
   }
 
   // Finish the syscall and resume the process
@@ -1052,9 +1061,9 @@ void Thread::_ftruncate(Build& build, int fd, long length) noexcept {
     if (rc == 0) {
       // Record the update to the artifact contents
       if (length > 0) {
-        ref->getArtifact()->afterWrite(build, getCommand(), ref_id);
+        ref->getArtifact()->afterWrite(build, TracedIRSource(), getCommand(), ref_id);
       } else {
-        ref->getArtifact()->afterTruncate(build, getCommand(), ref_id);
+        ref->getArtifact()->afterTruncate(build, TracedIRSource(), getCommand(), ref_id);
       }
     }
   });
@@ -1073,8 +1082,8 @@ void Thread::_tee(Build& build, int fd_in, int fd_out) noexcept {
     const auto& out_ref = getCommand()->getRef(out_ref_id);
 
     // We are abou to read from in_ref and write to out_ref
-    in_ref->getArtifact()->beforeRead(build, getCommand(), in_ref_id);
-    out_ref->getArtifact()->beforeWrite(build, getCommand(), out_ref_id);
+    in_ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), in_ref_id);
+    out_ref->getArtifact()->beforeWrite(build, TracedIRSource(), getCommand(), out_ref_id);
 
     // Finish the syscall and resume
     finishSyscall([=](Build& build, long rc) {
@@ -1082,8 +1091,8 @@ void Thread::_tee(Build& build, int fd_in, int fd_out) noexcept {
 
       // If the call succeeds, record the read and write
       if (rc >= 0) {
-        in_ref->getArtifact()->afterRead(build, getCommand(), in_ref_id);
-        out_ref->getArtifact()->afterWrite(build, getCommand(), out_ref_id);
+        in_ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), in_ref_id);
+        out_ref->getArtifact()->afterWrite(build, TracedIRSource(), getCommand(), out_ref_id);
       }
     });
   } else {
@@ -1119,24 +1128,24 @@ void Thread::_mkdirat(Build& build, at_fd dfd, fs::path pathname, mode_flags mod
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the parent directory must succeed
-      build.expectResult(getCommand(), Scenario::Build, parent_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, parent_ref, SUCCESS);
 
       // The entry must not exist prior to this call
-      build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // Make a directory reference to get a new artifact
       auto mask = getProcess()->getUmask();
       auto dir_ref = getCommand()->nextRef();
-      build.dirRef(getCommand(), mode.getMode() & ~mask, dir_ref);
+      build.dirRef(TracedIRSource(), getCommand(), mode.getMode() & ~mask, dir_ref);
 
       // Link the directory into the parent dir
-      build.addEntry(getCommand(), parent_ref, entry, dir_ref);
+      build.addEntry(TracedIRSource(), getCommand(), parent_ref, entry, dir_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      build.expectResult(getCommand(), Scenario::Build, parent_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, parent_ref,
                          getCommand()->getRef(parent_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, entry_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref,
                          getCommand()->getRef(entry_ref)->getResultCode());
     }
   });
@@ -1186,57 +1195,58 @@ void Thread::_renameat2(Build& build,
           getCommand()->getRef(new_entry_ref)->getArtifact()) {
         // Yes. The rename() call is finished, but the command depends on these two references
         // reaching the same artifact.
-        build.compareRefs(getCommand(), old_entry_ref, new_entry_ref, RefComparison::SameInstance);
+        build.compareRefs(TracedIRSource(), getCommand(), old_entry_ref, new_entry_ref,
+                          RefComparison::SameInstance);
         return;
 
       } else {
         // No. The rename() call proceeds, but the command depends on these two references
         // reaching different artifacts.
-        build.compareRefs(getCommand(), old_entry_ref, new_entry_ref,
+        build.compareRefs(TracedIRSource(), getCommand(), old_entry_ref, new_entry_ref,
                           RefComparison::DifferentInstances);
       }
 
       // The accesses to the old directory and entry must have succeeded
-      build.expectResult(getCommand(), Scenario::Build, old_dir_ref, SUCCESS);
-      build.expectResult(getCommand(), Scenario::Build, old_entry_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, old_dir_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, old_entry_ref, SUCCESS);
 
       // Unlink the old entry
-      build.removeEntry(getCommand(), old_dir_ref, old_entry, old_entry_ref);
+      build.removeEntry(TracedIRSource(), getCommand(), old_dir_ref, old_entry, old_entry_ref);
 
       // The access to the new directory must also have succeeded
-      build.expectResult(getCommand(), Scenario::Build, new_dir_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, new_dir_ref, SUCCESS);
 
       // Is this an exchange or noreplace option?
       if (flags.exchange()) {
         // This is an exchange, so the new_entry_ref must exist
-        build.expectResult(getCommand(), Scenario::Build, new_entry_ref, SUCCESS);
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, new_entry_ref, SUCCESS);
 
         // Unlink the new entry
-        build.removeEntry(getCommand(), new_dir_ref, new_entry, new_entry_ref);
+        build.removeEntry(TracedIRSource(), getCommand(), new_dir_ref, new_entry, new_entry_ref);
 
       } else if (flags.noreplace()) {
         // This is a noreplace rename, so new_entry_ref must not exist
-        build.expectResult(getCommand(), Scenario::Build, new_entry_ref, ENOENT);
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, new_entry_ref, ENOENT);
       }
 
       // Link into the new entry
-      build.addEntry(getCommand(), new_dir_ref, new_entry, old_entry_ref);
+      build.addEntry(TracedIRSource(), getCommand(), new_dir_ref, new_entry, old_entry_ref);
 
       // If this is an exchange, we also have to perform the swapped link
       if (flags.exchange()) {
-        build.addEntry(getCommand(), old_dir_ref, old_entry, new_entry_ref);
+        build.addEntry(TracedIRSource(), getCommand(), old_dir_ref, old_entry, new_entry_ref);
       }
     } else {
       // The syscall failed. Be conservative and save the result of all references. If any of them
       // change, that COULD change the syscall outcome.
-      build.expectResult(getCommand(), Scenario::Build, old_dir_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, old_dir_ref,
                          getCommand()->getRef(old_dir_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, old_entry_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, old_entry_ref,
                          getCommand()->getRef(old_entry_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, new_dir_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, new_dir_ref,
                          getCommand()->getRef(new_dir_ref)->getResultCode());
       if (new_entry_ref) {
-        build.expectResult(getCommand(), Scenario::Build, new_entry_ref,
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, new_entry_ref,
                            getCommand()->getRef(new_entry_ref)->getResultCode());
       }
     }
@@ -1250,7 +1260,7 @@ void Thread::_getdents(Build& build, int fd) noexcept {
   auto ref_id = _process->getFD(fd);
   const auto& ref = getCommand()->getRef(ref_id);
 
-  ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
+  ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), ref_id);
 
   // Finish the syscall and resume
   finishSyscall([=](Build& build, long rc) {
@@ -1258,7 +1268,7 @@ void Thread::_getdents(Build& build, int fd) noexcept {
 
     if (rc == 0) {
       // Create a dependency on the artifact's directory list
-      ref->getArtifact()->afterRead(build, getCommand(), ref_id);
+      ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), ref_id);
     }
   });
 }
@@ -1301,25 +1311,25 @@ void Thread::_linkat(Build& build,
     // Did the call succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // The reference to the link target must succeed
-      build.expectResult(getCommand(), Scenario::Build, target_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, target_ref, SUCCESS);
 
       // Record the link operation
-      build.addEntry(getCommand(), dir_ref, entry, target_ref);
+      build.addEntry(TracedIRSource(), getCommand(), dir_ref, entry, target_ref);
 
     } else {
       // The failure could be caused by the dir_ref, entry_ref, or target_ref. To be safe, just
       // record the result of resolving each of them.
-      build.expectResult(getCommand(), Scenario::Build, dir_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref,
                          getCommand()->getRef(dir_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, entry_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref,
                          getCommand()->getRef(entry_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, target_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, target_ref,
                          getCommand()->getRef(target_ref)->getResultCode());
     }
   });
@@ -1347,23 +1357,23 @@ void Thread::_symlinkat(Build& build, fs::path target, at_fd dfd, fs::path newpa
     // Did the syscall succeed?
     if (rc == 0) {
       // Write access to the directory must succeed
-      build.expectResult(getCommand(), Scenario::Build, dir_ref, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref, SUCCESS);
 
       // The link must not exist prior to this call
-      build.expectResult(getCommand(), Scenario::Build, entry_ref, ENOENT);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref, ENOENT);
 
       // Make a symlink reference to get a new artifact
       auto symlink_ref = getCommand()->nextRef();
-      build.symlinkRef(getCommand(), target, symlink_ref);
+      build.symlinkRef(TracedIRSource(), getCommand(), target, symlink_ref);
 
       // Link the symlink into the directory
-      build.addEntry(getCommand(), dir_ref, entry, symlink_ref);
+      build.addEntry(TracedIRSource(), getCommand(), dir_ref, entry, symlink_ref);
 
     } else {
       // The failure could be caused by either dir_ref or entry_ref. Record the result of both.
-      build.expectResult(getCommand(), Scenario::Build, dir_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref,
                          getCommand()->getRef(dir_ref)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, entry_ref,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref,
                          getCommand()->getRef(entry_ref)->getResultCode());
     }
   });
@@ -1385,7 +1395,7 @@ void Thread::_readlinkat(Build& build, at_fd dfd, fs::path pathname) noexcept {
 
   // If the reference resolves, record a pre-read dependency
   if (ref->isResolved()) {
-    ref->getArtifact()->beforeRead(build, getCommand(), ref_id);
+    ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), ref_id);
   }
 
   // Finish the syscall and then resume the process
@@ -1395,16 +1405,16 @@ void Thread::_readlinkat(Build& build, at_fd dfd, fs::path pathname) noexcept {
     // Did the call succeed?
     if (rc >= 0) {
       // Yes. Record the successful reference
-      build.expectResult(getCommand(), Scenario::Build, ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, SUCCESS);
 
       ASSERT(ref->isResolved()) << "Failed to get artifact for successfully-read link";
 
       // We depend on this artifact's contents now
-      ref->getArtifact()->afterRead(build, getCommand(), ref_id);
+      ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), ref_id);
 
     } else {
       // No. Record the failure
-      build.expectResult(getCommand(), Scenario::Build, ref_id, -rc);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref_id, -rc);
     }
   });
 }
@@ -1429,8 +1439,8 @@ void Thread::_unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flag
 
   // If this call is removing a directory, depend on the directory contents
   if (entry_ref->isResolved() && flags.removedir()) {
-    entry_ref->getArtifact()->beforeRead(build, getCommand(), entry_ref_id);
-    entry_ref->getArtifact()->afterRead(build, getCommand(), entry_ref_id);
+    entry_ref->getArtifact()->beforeRead(build, TracedIRSource(), getCommand(), entry_ref_id);
+    entry_ref->getArtifact()->afterRead(build, TracedIRSource(), getCommand(), entry_ref_id);
   }
 
   finishSyscall([=](Build& build, long rc) {
@@ -1439,17 +1449,17 @@ void Thread::_unlinkat(Build& build, at_fd dfd, fs::path pathname, at_flags flag
     // Did the call succeed?
     if (rc == 0) {
       // Both references must have succeeded
-      build.expectResult(getCommand(), Scenario::Build, dir_ref_id, SUCCESS);
-      build.expectResult(getCommand(), Scenario::Build, entry_ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref_id, SUCCESS);
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref_id, SUCCESS);
 
       // Perform the unlink
-      build.removeEntry(getCommand(), dir_ref_id, entry, entry_ref_id);
+      build.removeEntry(TracedIRSource(), getCommand(), dir_ref_id, entry, entry_ref_id);
 
     } else {
       // The failure could be caused by either references. Record the outcome of both.
-      build.expectResult(getCommand(), Scenario::Build, dir_ref_id,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, dir_ref_id,
                          getCommand()->getRef(dir_ref_id)->getResultCode());
-      build.expectResult(getCommand(), Scenario::Build, entry_ref_id,
+      build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, entry_ref_id,
                          getCommand()->getRef(entry_ref_id)->getResultCode());
     }
   });
@@ -1465,9 +1475,9 @@ void Thread::_socket(Build& build, int domain, int type, int protocol) noexcept 
 
     if (rc >= 0) {
       auto ref = getCommand()->nextRef();
-      build.fileRef(getCommand(), 0600, ref);
+      build.fileRef(TracedIRSource(), getCommand(), 0600, ref);
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
-      _process->addFD(build, rc, ref, cloexec);
+      _process->addFD(build, TracedIRSource(), rc, ref, cloexec);
     }
   });
 }
@@ -1489,11 +1499,11 @@ void Thread::_socketpair(Build& build, int domain, int type, int protocol, int s
 
         // Create an anonymous file to represent the socket
         auto ref = getCommand()->nextRef();
-        build.fileRef(getCommand(), 0600, ref);
+        build.fileRef(TracedIRSource(), getCommand(), 0600, ref);
 
         // Add the file descriptors
-        _process->addFD(build, sock1_fd, ref, cloexec);
-        _process->addFD(build, sock2_fd, ref, cloexec);
+        _process->addFD(build, TracedIRSource(), sock1_fd, ref, cloexec);
+        _process->addFD(build, TracedIRSource(), sock2_fd, ref, cloexec);
       }
     });
   } else {
@@ -1518,11 +1528,11 @@ void Thread::_chdir(Build& build, fs::path filename) noexcept {
   finishSyscall([=](Build& build, long rc) {
     resume();
 
-    build.expectResult(getCommand(), Scenario::Build, ref, -rc);
+    build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, ref, -rc);
 
     // Update the current working directory if the chdir call succeeded
     if (rc == 0) {
-      _process->setWorkingDir(build, ref);
+      _process->setWorkingDir(build, TracedIRSource(), ref);
     }
   });
 }
@@ -1545,7 +1555,7 @@ void Thread::_fchdir(Build& build, int fd) noexcept {
 
     if (rc == 0) {
       // Update the working directory
-      _process->setWorkingDir(build, _process->getFD(fd));
+      _process->setWorkingDir(build, TracedIRSource(), _process->getFD(fd));
     }
   });
 }
@@ -1560,8 +1570,8 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
   // Will the exec call succeed?
   if (getCommand()->getRef(exe_ref_id)->isResolved()) {
     // The reference resolved successfully, so the exec should succeed
-    build.expectResult(getCommand(), Scenario::Build, exe_ref_id, SUCCESS);
-    const auto& child = _process->exec(build, exe_ref_id, args);
+    build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, exe_ref_id, SUCCESS);
+    const auto& child = _process->exec(build, TracedIRSource(), exe_ref_id, args);
 
     // Does the child command need to run?
     if (child->mustRun()) {
@@ -1579,7 +1589,8 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
         // Now make the reference and expect success
         auto child_exe_ref_id = makePathRef(build, real_exe_path, ReadAccess);
         const auto& child_exe_ref = getCommand()->getRef(child_exe_ref_id);
-        build.expectResult(getCommand(), Scenario::Build, child_exe_ref_id, SUCCESS);
+        build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, child_exe_ref_id,
+      SUCCESS);
 
         ASSERT(child_exe_ref->isResolved()) << "Failed to locate artifact for executable file";
 
@@ -1606,7 +1617,7 @@ void Thread::_execveat(Build& build, at_fd dfd, fs::path filename, vector<string
     //  ASSERT(getCommand()->getRef(exe_ref_id)->getResultCode() == -rc)
     //      << "Outcome of exec call did not match expected behavior.";
 
-    build.expectResult(getCommand(), Scenario::Build, exe_ref_id,
+    build.expectResult(TracedIRSource(), getCommand(), Scenario::Build, exe_ref_id,
                        getCommand()->getRef(exe_ref_id)->getResultCode());
     //});
   }
@@ -1631,11 +1642,11 @@ void Thread::_wait4(Build& build, pid_t pid, int* wstatus, int options) noexcept
 
     if (exited->getCommand() != getCommand()) {
       if (WIFEXITED(status)) {
-        build.join(getCommand(), exited->getCommand(), WEXITSTATUS(status));
+        build.join(TracedIRSource(), getCommand(), exited->getCommand(), WEXITSTATUS(status));
       } else if (WIFSIGNALED(status)) {
         // TODO: Should we encode termination by signal in some other way?
         // (yes, "some other way")
-        build.join(getCommand(), exited->getCommand(), WEXITSTATUS(status));
+        build.join(TracedIRSource(), getCommand(), exited->getCommand(), WEXITSTATUS(status));
       }
     }
   });

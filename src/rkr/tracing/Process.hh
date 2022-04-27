@@ -11,6 +11,7 @@
 
 #include <sys/types.h>
 
+#include "data/IRSource.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 
@@ -43,7 +44,7 @@ class Process : public std::enable_shared_from_this<Process> {
   Ref::ID getWorkingDir() const noexcept { return _cwd; }
 
   /// Set the working directory
-  void setWorkingDir(Build& build, Ref::ID ref) noexcept;
+  void setWorkingDir(Build& build, const IRSource& source, Ref::ID ref) noexcept;
 
   /// Get the reference used for a given file descriptor entry
   Ref::ID getFD(int fd) noexcept;
@@ -52,13 +53,17 @@ class Process : public std::enable_shared_from_this<Process> {
   bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
 
   /// Add a file descriptor entry
-  void addFD(Build& build, int fd, Ref::ID ref, bool cloexec = false) noexcept;
+  void addFD(Build& build,
+             const IRSource& source,
+             int fd,
+             Ref::ID ref,
+             bool cloexec = false) noexcept;
 
   /// Remove a file descriptor entry
-  void closeFD(Build& build, int fd) noexcept;
+  void closeFD(Build& build, const IRSource& source, int fd) noexcept;
 
   /// Remove a file descriptor entry if it exists. Return true if the close succeeded.
-  bool tryCloseFD(Build& build, int fd) noexcept;
+  bool tryCloseFD(Build& build, const IRSource& source, int fd) noexcept;
 
   /// Set a file descriptor's close-on-exec flag
   void setCloexec(int fd, bool cloexec) noexcept;
@@ -80,11 +85,12 @@ class Process : public std::enable_shared_from_this<Process> {
 
   /// This process is executing a new file
   const std::shared_ptr<Command>& exec(Build& build,
+                                       const IRSource& source,
                                        Ref::ID exe_ref,
                                        std::vector<std::string> args) noexcept;
 
   /// This process is exiting
-  void exit(Build& build, int exit_status) noexcept;
+  void exit(Build& build, const IRSource& source, int exit_status) noexcept;
 
   /// Set a callback that can be used to force this process to exit
   void waitForExit(std::function<void(int)> handler) noexcept;

@@ -65,26 +65,31 @@ class PipeArtifact : public Artifact {
 
   /// A traced command is about to close a reference to this artifact
   virtual void beforeClose(Build& build,
+                           const IRSource& source,
                            const std::shared_ptr<Command>& c,
                            Ref::ID ref) noexcept override;
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
+                          const IRSource& source,
                           const std::shared_ptr<Command>& c,
                           Ref::ID ref) noexcept override {}
 
   /// A traced command just read from this artifact
   virtual void afterRead(Build& build,
+                         const IRSource& source,
                          const std::shared_ptr<Command>& c,
                          Ref::ID ref) noexcept override;
 
   /// A traced command is about to (possibly) write to this artifact
   virtual void beforeWrite(Build& build,
+                           const IRSource& source,
                            const std::shared_ptr<Command>& c,
                            Ref::ID ref) noexcept override;
 
   /// A trace command just wrote to this artifact
   virtual void afterWrite(Build& build,
+                          const IRSource& source,
                           const std::shared_ptr<Command>& c,
                           Ref::ID ref) noexcept override {}
 

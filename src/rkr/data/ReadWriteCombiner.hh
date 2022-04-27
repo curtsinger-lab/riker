@@ -36,13 +36,14 @@ class ReadWriteCombiner
 template <class Next>
 class MetadataReadCombiner : public Next {
  public:
-  virtual void matchMetadata(const std::shared_ptr<Command>& command,
+  virtual void matchMetadata(const IRSource& source,
+                             const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
     // Post-build checks should be emitted as-is
     if (scenario & Scenario::PostBuild) {
-      Next::matchMetadata(command, scenario, ref, expected);
+      Next::matchMetadata(source, command, scenario, ref, expected);
       return;
     }
 
@@ -57,10 +58,11 @@ class MetadataReadCombiner : public Next {
     _last_ref = ref;
 
     // Pass the read along
-    Next::matchMetadata(command, scenario, ref, expected);
+    Next::matchMetadata(source, command, scenario, ref, expected);
   }
 
-  virtual void updateMetadata(const std::shared_ptr<Command>& command,
+  virtual void updateMetadata(const IRSource& source,
+                              const std::shared_ptr<Command>& command,
                               Ref::ID ref,
                               MetadataVersion writing) noexcept override {
     // Clear the last read
@@ -68,7 +70,7 @@ class MetadataReadCombiner : public Next {
     _last_ref = -1;
 
     // Pass the write along
-    Next::updateMetadata(command, ref, writing);
+    Next::updateMetadata(source, command, ref, writing);
   }
 
  private:
@@ -83,7 +85,8 @@ class MetadataReadCombiner : public Next {
 template <class Next>
 class MetadataWriteCombiner : public Next {
  public:
-  virtual void matchMetadata(const std::shared_ptr<Command>& command,
+  virtual void matchMetadata(const IRSource& source,
+                             const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
@@ -95,7 +98,7 @@ class MetadataWriteCombiner : public Next {
     } else {
       // No. If the last write hasn't been emitted, emit it now
       if (!_emitted) {
-        Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+        Next::updateMetadata(source, _last_writer, _last_ref, _last_written.value());
         _emitted = true;
       }
 
@@ -103,11 +106,12 @@ class MetadataWriteCombiner : public Next {
       _accessed = true;
 
       // Emit the matchContent predicate that performs the read
-      Next::matchMetadata(command, scenario, ref, expected);
+      Next::matchMetadata(source, command, scenario, ref, expected);
     }
   }
 
-  virtual void updateMetadata(const std::shared_ptr<Command>& command,
+  virtual void updateMetadata(const IRSource& source,
+                              const std::shared_ptr<Command>& command,
                               Ref::ID ref,
                               MetadataVersion writing) noexcept override {
     // We can coalesce this new write with the previous write if the command and reference are the
@@ -120,7 +124,7 @@ class MetadataWriteCombiner : public Next {
     } else {
       // No. Emit the previous write if it hasn't been passed along already
       if (!_emitted) {
-        Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+        Next::updateMetadata(source, _last_writer, _last_ref, _last_written.value());
         _emitted = true;
       }
 
@@ -137,14 +141,16 @@ class MetadataWriteCombiner : public Next {
    * When a command exits we have to check to see if there is a deferred write from that command. If
    * so, emit the deferred write before the exit step.
    */
-  virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override {
+  virtual void exit(const IRSource& source,
+                    const std::shared_ptr<Command>& command,
+                    int exit_status) noexcept override {
     // If the last write hasn't been emitted and the exiting command performed that write, emit it
     if (!_emitted && _last_writer == command) {
-      Next::updateMetadata(_last_writer, _last_ref, _last_written.value());
+      Next::updateMetadata(source, _last_writer, _last_ref, _last_written.value());
       _emitted = true;
     }
 
-    Next::exit(command, exit_status);
+    Next::exit(source, command, exit_status);
   }
 
  private:
@@ -168,12 +174,13 @@ class MetadataWriteCombiner : public Next {
 template <class Next>
 class ContentReadCombiner : public Next {
  public:
-  virtual void matchContent(const std::shared_ptr<Command>& command,
+  virtual void matchContent(const IRSource& source,
+                            const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
     if (scenario & Scenario::PostBuild) {
-      Next::matchContent(command, scenario, ref, expected);
+      Next::matchContent(source, command, scenario, ref, expected);
       return;
     }
 
@@ -188,10 +195,11 @@ class ContentReadCombiner : public Next {
     _last_ref = ref;
 
     // Pass the read along
-    Next::matchContent(command, scenario, ref, expected);
+    Next::matchContent(source, command, scenario, ref, expected);
   }
 
-  virtual void updateContent(const std::shared_ptr<Command>& command,
+  virtual void updateContent(const IRSource& source,
+                             const std::shared_ptr<Command>& command,
                              Ref::ID ref,
                              std::shared_ptr<ContentVersion> writing) noexcept override {
     // Clear the last read
@@ -199,7 +207,7 @@ class ContentReadCombiner : public Next {
     _last_ref = -1;
 
     // Pass the write along
-    Next::updateContent(command, ref, writing);
+    Next::updateContent(source, command, ref, writing);
   }
 
  private:
@@ -219,7 +227,8 @@ class ContentWriteCombiner : public Next {
    * accessing the last write. If it's a different access we have to emit the previously-deferred
    * write, then pass along the content access.
    */
-  virtual void matchContent(const std::shared_ptr<Command>& command,
+  virtual void matchContent(const IRSource& source,
+                            const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
@@ -231,7 +240,7 @@ class ContentWriteCombiner : public Next {
     } else {
       // No. If the last write hasn't been emitted, emit it now
       if (!_emitted) {
-        Next::updateContent(_last_writer, _last_ref, _last_written);
+        Next::updateContent(source, _last_writer, _last_ref, _last_written);
         _emitted = true;
       }
 
@@ -239,7 +248,7 @@ class ContentWriteCombiner : public Next {
       _accessed = true;
 
       // Emit the matchContent predicate that performs the read
-      Next::matchContent(command, scenario, ref, expected);
+      Next::matchContent(source, command, scenario, ref, expected);
     }
   }
 
@@ -249,7 +258,8 @@ class ContentWriteCombiner : public Next {
    * one. This is only possible for writes by the same command using the same reference. If a write
    * cannot be coalesced, we emit a previously-deferred write and then defer the new one.
    */
-  virtual void updateContent(const std::shared_ptr<Command>& command,
+  virtual void updateContent(const IRSource& source,
+                             const std::shared_ptr<Command>& command,
                              Ref::ID ref,
                              std::shared_ptr<ContentVersion> writing) noexcept override {
     // We can coalesce this new write with the previous write if the command and reference are the
@@ -263,7 +273,7 @@ class ContentWriteCombiner : public Next {
     } else {
       // No. Emit the previous write if it hasn't been passed along already
       if (!_emitted) {
-        Next::updateContent(_last_writer, _last_ref, _last_written);
+        Next::updateContent(source, _last_writer, _last_ref, _last_written);
         _emitted = true;
       }
 
@@ -280,14 +290,16 @@ class ContentWriteCombiner : public Next {
    * When a command exits we have to check to see if there is a deferred write from that command. If
    * so, emit the deferred write before the exit step.
    */
-  virtual void exit(const std::shared_ptr<Command>& command, int exit_status) noexcept override {
+  virtual void exit(const IRSource& source,
+                    const std::shared_ptr<Command>& command,
+                    int exit_status) noexcept override {
     // If the last write hasn't been emitted and the exiting command performed that write, emit it
     if (!_emitted && _last_writer == command) {
-      Next::updateContent(_last_writer, _last_ref, _last_written);
+      Next::updateContent(source, _last_writer, _last_ref, _last_written);
       _emitted = true;
     }
 
-    Next::exit(command, exit_status);
+    Next::exit(source, command, exit_status);
   }
 
  private:

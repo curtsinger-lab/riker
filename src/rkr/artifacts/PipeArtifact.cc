@@ -47,7 +47,10 @@ void PipeArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
 }
 
 // A traced command is about to close a reference to this artifact
-void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void PipeArtifact::beforeClose(Build& build,
+                               const IRSource& source,
+                               const shared_ptr<Command>& c,
+                               Ref::ID ref) noexcept {
   // Is the command closing the last writable reference to this pipe?
   if (c->getRef(ref)->getFlags().w) {
     auto final_write = make_shared<PipeCloseVersion>();
@@ -59,7 +62,10 @@ void PipeArtifact::beforeClose(Build& build, const shared_ptr<Command>& c, Ref::
 }
 
 // A traced command just read from this artifact
-void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void PipeArtifact::afterRead(Build& build,
+                             const IRSource& source,
+                             const shared_ptr<Command>& c,
+                             Ref::ID ref) noexcept {
   // Make sure there are no uncommitted updates
   if (!_committed_mode.value_or(true)) {
     WARN << "Traced command " << c << " is reading from " << this << " with uncommitted state";
@@ -89,19 +95,22 @@ void PipeArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID
   LOG(artifact) << "Creating pipe read version " << read_version;
 
   // The reader updates this pipe with the read version
-  build.updateContent(c, ref, read_version);
+  build.updateContent(source, c, ref, read_version);
 
   // The command should expect to read an equivalent version on future builds
-  build.matchContent(c, Scenario::Build, ref, read_version);
+  build.matchContent(source, c, Scenario::Build, ref, read_version);
 }
 
 // A trace command just wrote to this artifact
-void PipeArtifact::beforeWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void PipeArtifact::beforeWrite(Build& build,
+                               const IRSource& source,
+                               const shared_ptr<Command>& c,
+                               Ref::ID ref) noexcept {
   // Create a new version
   auto writing = make_shared<PipeWriteVersion>();
 
   // The command writes this version to the pipe
-  build.updateContent(c, ref, writing);
+  build.updateContent(source, c, ref, writing);
 }
 
 // Get this artifact's current content

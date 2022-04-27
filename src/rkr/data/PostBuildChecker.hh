@@ -23,23 +23,25 @@ class PostBuildChecker : public Next {
   PostBuildChecker(Args&&... args) noexcept : Next(std::forward<Args>(args)...) {}
 
   /// Handle an ExpectResult IR step
-  virtual void expectResult(const std::shared_ptr<Command>& command,
+  virtual void expectResult(const IRSource& source,
+                            const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
                             int8_t expected) noexcept override {
     if (scenario & Scenario::Build) {
       auto post_build = command->getRef(ref)->getResultCode();
       if (post_build == expected) {
-        Next::expectResult(command, Scenario::Both, ref, expected);
+        Next::expectResult(source, command, Scenario::Both, ref, expected);
       } else {
-        Next::expectResult(command, Scenario::Build, ref, expected);
-        Next::expectResult(command, Scenario::PostBuild, ref, post_build);
+        Next::expectResult(source, command, Scenario::Build, ref, expected);
+        Next::expectResult(source, command, Scenario::PostBuild, ref, post_build);
       }
     }
   }
 
   /// Handle a MatchMetadata IR step
-  virtual void matchMetadata(const std::shared_ptr<Command>& command,
+  virtual void matchMetadata(const IRSource& source,
+                             const std::shared_ptr<Command>& command,
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
@@ -52,21 +54,22 @@ class PostBuildChecker : public Next {
         // Is the post-build version match the version from during the build?
         if (post_build.matches(expected)) {
           // Yes. Emit a single predicate for both scenarios
-          Next::matchMetadata(command, Scenario::Both, ref, expected);
+          Next::matchMetadata(source, command, Scenario::Both, ref, expected);
         } else {
           // No. Emit separate predicates for each scenario
-          Next::matchMetadata(command, Scenario::Build, ref, expected);
-          Next::matchMetadata(command, Scenario::PostBuild, ref, post_build);
+          Next::matchMetadata(source, command, Scenario::Build, ref, expected);
+          Next::matchMetadata(source, command, Scenario::PostBuild, ref, post_build);
         }
       } else {
         // The reference did not resolve post build, so just emit a Build predicate
-        Next::matchMetadata(command, Scenario::Build, ref, expected);
+        Next::matchMetadata(source, command, Scenario::Build, ref, expected);
       }
     }
   }
 
   /// Handle a MatchContent IR step
-  virtual void matchContent(const std::shared_ptr<Command>& command,
+  virtual void matchContent(const IRSource& source,
+                            const std::shared_ptr<Command>& command,
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
@@ -79,16 +82,16 @@ class PostBuildChecker : public Next {
         // Does the post-build version match the version from during the build?
         if (post_build->matches(expected)) {
           // Yes. Emit a single predicate for both scenarios
-          Next::matchContent(command, Scenario::Both, ref, expected);
+          Next::matchContent(source, command, Scenario::Both, ref, expected);
 
         } else {
           // No. Emit separate predicates for each scenario
-          Next::matchContent(command, Scenario::Build, ref, expected);
-          Next::matchContent(command, Scenario::PostBuild, ref, post_build);
+          Next::matchContent(source, command, Scenario::Build, ref, expected);
+          Next::matchContent(source, command, Scenario::PostBuild, ref, post_build);
         }
       } else {
         // The reference did not resolve post build, so just emit a Build predicate
-        Next::matchContent(command, Scenario::Build, ref, expected);
+        Next::matchContent(source, command, Scenario::Build, ref, expected);
       }
     }
   }

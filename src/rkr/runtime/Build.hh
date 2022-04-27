@@ -14,6 +14,7 @@
 #include <sys/types.h>
 
 #include "data/IRSink.hh"
+#include "data/IRSource.hh"
 #include "data/Trace.hh"
 #include "runtime/Ref.hh"
 #include "tracing/Tracer.hh"
@@ -54,101 +55,123 @@ class Build : public IRSink {
   virtual void start(const std::shared_ptr<Command>& c) noexcept override;
 
   /// A command is issuing a reference to a special artifact (e.g. stdin, stdout, root dir)
-  virtual void specialRef(const std::shared_ptr<Command>& c,
+  virtual void specialRef(const IRSource& source,
+                          const std::shared_ptr<Command>& c,
                           SpecialRef entity,
                           Ref::ID output) noexcept override;
 
   /// A command references a new anonymous pipe
-  virtual void pipeRef(const std::shared_ptr<Command>& c,
+  virtual void pipeRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        Ref::ID read_end,
                        Ref::ID write_end) noexcept override;
 
   /// A command references a new anonymous file
-  virtual void fileRef(const std::shared_ptr<Command>& c,
+  virtual void fileRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        mode_t mode,
                        Ref::ID output) noexcept override;
 
   /// A command references a new anonymous symlink
-  virtual void symlinkRef(const std::shared_ptr<Command>& c,
+  virtual void symlinkRef(const IRSource& source,
+                          const std::shared_ptr<Command>& c,
                           fs::path target,
                           Ref::ID output) noexcept override;
 
   /// A command references a new anonymous directory
-  virtual void dirRef(const std::shared_ptr<Command>& c,
+  virtual void dirRef(const IRSource& source,
+                      const std::shared_ptr<Command>& c,
                       mode_t mode,
                       Ref::ID output) noexcept override;
 
   /// A command makes a reference with a path
-  virtual void pathRef(const std::shared_ptr<Command>& c,
+  virtual void pathRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        Ref::ID base,
                        fs::path path,
                        AccessFlags flags,
                        Ref::ID output) noexcept override;
 
   /// A command retains a handle to a Ref
-  virtual void usingRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept override;
+  virtual void usingRef(const IRSource& source,
+                        const std::shared_ptr<Command>& c,
+                        Ref::ID ref) noexcept override;
 
   /// A command is finished with a specific Ref
-  virtual void doneWithRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept override;
+  virtual void doneWithRef(const IRSource& source,
+                           const std::shared_ptr<Command>& c,
+                           Ref::ID ref) noexcept override;
 
   /// A command depends on the outcome of comparing two different references
-  virtual void compareRefs(const std::shared_ptr<Command>& command,
+  virtual void compareRefs(const IRSource& source,
+                           const std::shared_ptr<Command>& command,
                            Ref::ID ref1,
                            Ref::ID ref2,
                            RefComparison type) noexcept override;
 
   /// A command expects a reference to resolve with a particular result
-  virtual void expectResult(const std::shared_ptr<Command>& c,
+  virtual void expectResult(const IRSource& source,
+                            const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
                             int8_t expected) noexcept override;
 
   /// A command accesses metadata for an artifact and expects to find a particular version
-  virtual void matchMetadata(const std::shared_ptr<Command>& c,
+  virtual void matchMetadata(const IRSource& source,
+                             const std::shared_ptr<Command>& c,
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override;
 
   /// A command accesses content for an artifact and expects to find a particular version
-  virtual void matchContent(const std::shared_ptr<Command>& c,
+  virtual void matchContent(const IRSource& source,
+                            const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override;
 
   /// A command modifies the metadata for an artifact
-  virtual void updateMetadata(const std::shared_ptr<Command>& c,
+  virtual void updateMetadata(const IRSource& source,
+                              const std::shared_ptr<Command>& c,
                               Ref::ID,
                               MetadataVersion written) noexcept override;
 
   /// A command writes a new version to an artifact
-  virtual void updateContent(const std::shared_ptr<Command>& c,
+  virtual void updateContent(const IRSource& source,
+                             const std::shared_ptr<Command>& c,
                              Ref::ID ref,
                              std::shared_ptr<ContentVersion> written) noexcept override;
 
   /// A command adds an entry to a directory
-  virtual void addEntry(const std::shared_ptr<Command>& command,
+  virtual void addEntry(const IRSource& source,
+                        const std::shared_ptr<Command>& command,
                         Ref::ID dir,
                         std::string name,
                         Ref::ID target) noexcept override;
 
   /// A command removes an entry from a directory
-  virtual void removeEntry(const std::shared_ptr<Command>& command,
+  virtual void removeEntry(const IRSource& source,
+                           const std::shared_ptr<Command>& command,
                            Ref::ID dir,
                            std::string name,
                            Ref::ID target) noexcept override;
 
   /// A parent command is launching a child command
-  virtual void launch(const std::shared_ptr<Command>& parent,
+  virtual void launch(const IRSource& source,
+                      const std::shared_ptr<Command>& parent,
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override;
 
   /// A command is joining with a child command
-  virtual void join(const std::shared_ptr<Command>& c,
+  virtual void join(const IRSource& source,
+                    const std::shared_ptr<Command>& c,
                     const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override;
 
   /// A command has exited with an exit code
-  virtual void exit(const std::shared_ptr<Command>& c, int exit_status) noexcept override;
+  virtual void exit(const IRSource& source,
+                    const std::shared_ptr<Command>& c,
+                    int exit_status) noexcept override;
 
   /// Finish running a build
   virtual void finish() noexcept override;

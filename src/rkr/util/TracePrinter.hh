@@ -5,6 +5,7 @@
 #include <ostream>
 
 #include "data/IRSink.hh"
+#include "data/IRSource.hh"
 #include "runtime/Ref.hh"
 #include "util/wrappers.hh"
 #include "versions/ContentVersion.hh"
@@ -37,37 +38,43 @@ class TracePrinter : public IRSink {
   /// Create a trace printer that writes to a provided ostream (rvalue reference form)
   TracePrinter(std::ostream&& out) : _out(out) {}
 
-  virtual void specialRef(const std::shared_ptr<Command>& c,
+  virtual void specialRef(const IRSource& source,
+                          const std::shared_ptr<Command>& c,
                           SpecialRef entity,
                           Ref::ID output) noexcept override {
     _out << SpecialRefPrinter{c, entity, output} << std::endl;
   }
 
-  virtual void pipeRef(const std::shared_ptr<Command>& c,
+  virtual void pipeRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        Ref::ID read_end,
                        Ref::ID write_end) noexcept override {
     _out << PipeRefPrinter{c, read_end, write_end} << std::endl;
   }
 
-  virtual void fileRef(const std::shared_ptr<Command>& c,
+  virtual void fileRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        mode_t mode,
                        Ref::ID output) noexcept override {
     _out << FileRefPrinter{c, mode, output} << std::endl;
   }
 
-  virtual void symlinkRef(const std::shared_ptr<Command>& c,
+  virtual void symlinkRef(const IRSource& source,
+                          const std::shared_ptr<Command>& c,
                           fs::path target,
                           Ref::ID output) noexcept override {
     _out << SymlinkRefPrinter{c, target, output} << std::endl;
   }
 
-  virtual void dirRef(const std::shared_ptr<Command>& c,
+  virtual void dirRef(const IRSource& source,
+                      const std::shared_ptr<Command>& c,
                       mode_t mode,
                       Ref::ID output) noexcept override {
     _out << DirRefPrinter{c, mode, output} << std::endl;
   }
 
-  virtual void pathRef(const std::shared_ptr<Command>& c,
+  virtual void pathRef(const IRSource& source,
+                       const std::shared_ptr<Command>& c,
                        Ref::ID base,
                        fs::path path,
                        AccessFlags flags,
@@ -75,57 +82,68 @@ class TracePrinter : public IRSink {
     _out << PathRefPrinter{c, base, path, flags, output} << std::endl;
   }
 
-  virtual void usingRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept override {
+  virtual void usingRef(const IRSource& source,
+                        const std::shared_ptr<Command>& c,
+                        Ref::ID ref) noexcept override {
     _out << UsingRefPrinter{c, ref} << std::endl;
   }
 
-  virtual void doneWithRef(const std::shared_ptr<Command>& c, Ref::ID ref) noexcept override {
+  virtual void doneWithRef(const IRSource& source,
+                           const std::shared_ptr<Command>& c,
+                           Ref::ID ref) noexcept override {
     _out << DoneWithRefPrinter{c, ref} << std::endl;
   }
 
   /// A command depends on the outcome of comparing two different references
-  virtual void compareRefs(const std::shared_ptr<Command>& c,
+  virtual void compareRefs(const IRSource& source,
+                           const std::shared_ptr<Command>& c,
                            Ref::ID ref1,
                            Ref::ID ref2,
                            RefComparison type) noexcept override {
     _out << CompareRefsPrinter{c, ref1, ref2, type} << std::endl;
   }
 
-  virtual void expectResult(const std::shared_ptr<Command>& c,
+  virtual void expectResult(const IRSource& source,
+                            const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
                             int8_t expected) noexcept override {
     _out << ExpectResultPrinter{c, scenario, ref, expected} << std::endl;
   }
 
-  virtual void matchMetadata(const std::shared_ptr<Command>& c,
+  virtual void matchMetadata(const IRSource& source,
+                             const std::shared_ptr<Command>& c,
                              Scenario scenario,
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
     _out << MatchMetadataPrinter{c, scenario, ref, expected} << std::endl;
   }
 
-  virtual void matchContent(const std::shared_ptr<Command>& c,
+  virtual void matchContent(const IRSource& source,
+                            const std::shared_ptr<Command>& c,
                             Scenario scenario,
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
     _out << MatchContentPrinter{c, scenario, ref, expected} << std::endl;
   }
 
-  virtual void updateMetadata(const std::shared_ptr<Command>& c,
+  virtual void updateMetadata(const IRSource& source,
+                              const std::shared_ptr<Command>& c,
                               Ref::ID ref,
                               MetadataVersion written) noexcept override {
     _out << UpdateMetadataPrinter{c, ref, written} << std::endl;
   }
 
-  virtual void updateContent(const std::shared_ptr<Command>& c,
+  virtual void updateContent(const IRSource& source,
+                             const std::shared_ptr<Command>& c,
                              Ref::ID ref,
                              std::shared_ptr<ContentVersion> written) noexcept override {
     _out << UpdateContentPrinter{c, ref, written} << std::endl;
   }
 
   /// Handle an AddEntry IR step
-  virtual void addEntry(const std::shared_ptr<Command>& c,
+  virtual void addEntry(const IRSource& source,
+                        const std::shared_ptr<Command>& c,
                         Ref::ID dir,
                         std::string name,
                         Ref::ID target) noexcept override {
@@ -133,26 +151,31 @@ class TracePrinter : public IRSink {
   }
 
   /// Handle a RemoveEntry IR step
-  virtual void removeEntry(const std::shared_ptr<Command>& c,
+  virtual void removeEntry(const IRSource& source,
+                           const std::shared_ptr<Command>& c,
                            Ref::ID dir,
                            std::string name,
                            Ref::ID target) noexcept override {
     _out << RemoveEntryPrinter{c, dir, name, target} << std::endl;
   }
 
-  virtual void launch(const std::shared_ptr<Command>& c,
+  virtual void launch(const IRSource& source,
+                      const std::shared_ptr<Command>& c,
                       const std::shared_ptr<Command>& child,
                       std::list<std::tuple<Ref::ID, Ref::ID>> refs) noexcept override {
     _out << LaunchPrinter{c, child, refs} << std::endl;
   }
 
-  virtual void join(const std::shared_ptr<Command>& c,
+  virtual void join(const IRSource& source,
+                    const std::shared_ptr<Command>& c,
                     const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override {
     _out << JoinPrinter{c, child, exit_status} << std::endl;
   }
 
-  virtual void exit(const std::shared_ptr<Command>& c, int exit_status) noexcept override {
+  virtual void exit(const IRSource& source,
+                    const std::shared_ptr<Command>& c,
+                    int exit_status) noexcept override {
     _out << ExitPrinter{c, exit_status} << std::endl;
   }
 

@@ -48,13 +48,13 @@ Process::Process(Build& build,
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
-    build.usingRef(_command, ref);
+    build.usingRef(TracedIRSource(), _command, ref);
   }
 
   // The child process also duplicates references to the root and working directories
   // TODO: Do we need to track _exe here as well?
-  build.usingRef(_command, _root);
-  build.usingRef(_command, _cwd);
+  build.usingRef(TracedIRSource(), _command, _root);
+  build.usingRef(TracedIRSource(), _command, _cwd);
 }
 
 /*******************************************/
@@ -62,11 +62,11 @@ Process::Process(Build& build,
 /*******************************************/
 
 // Update a process' working directory
-void Process::setWorkingDir(Build& build, Ref::ID ref) noexcept {
+void Process::setWorkingDir(Build& build, const IRSource& source, Ref::ID ref) noexcept {
   // The process no longer saves its old cwd reference, and now saves the new working directory.
   // Encode this with close and open steps in the IR layer
-  build.doneWithRef(_command, _cwd);
-  build.usingRef(_command, ref);
+  build.doneWithRef(source, _command, _cwd);
+  build.usingRef(source, _command, ref);
 
   // Update the cwd
   _cwd = ref;
@@ -81,40 +81,44 @@ Ref::ID Process::getFD(int fd) noexcept {
 }
 
 // Add a file descriptor entry
-void Process::addFD(Build& build, int fd, Ref::ID ref, bool cloexec) noexcept {
+void Process::addFD(Build& build,
+                    const IRSource& source,
+                    int fd,
+                    Ref::ID ref,
+                    bool cloexec) noexcept {
   if (auto iter = _fds.find(fd); iter != _fds.end()) {
     WARN << "Overwriting an existing fd " << fd << " in " << this;
     auto& [old_ref, old_cloexec] = iter->second;
     WARN << "  Existing fd references " << getCommand()->getRef(old_ref)->getArtifact();
-    build.doneWithRef(_command, old_ref);
+    build.doneWithRef(source, _command, old_ref);
     _fds.erase(iter);
   }
 
   // The command holds an additional handle to the provided Ref
-  build.usingRef(_command, ref);
+  build.usingRef(source, _command, ref);
 
   // Add the entry to the process' file descriptor table
   _fds.emplace(fd, FileDescriptor(ref, cloexec));
 }
 
 // Close a file descriptor
-void Process::closeFD(Build& build, int fd) noexcept {
+void Process::closeFD(Build& build, const IRSource& source, int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter == _fds.end()) {
     LOG(trace) << "Closing an unknown file descriptor " << fd << " in " << this;
   } else {
     auto& [old_ref, old_cloexec] = iter->second;
-    build.doneWithRef(_command, old_ref);
+    build.doneWithRef(source, _command, old_ref);
     _fds.erase(iter);
   }
 }
 
 // Remove a file descriptor entry if it exists
-bool Process::tryCloseFD(Build& build, int fd) noexcept {
+bool Process::tryCloseFD(Build& build, const IRSource& source, int fd) noexcept {
   auto iter = _fds.find(fd);
   if (iter != _fds.end()) {
     auto& [old_ref, old_cloexec] = iter->second;
-    build.doneWithRef(_command, old_ref);
+    build.doneWithRef(source, _command, old_ref);
     _fds.erase(iter);
     return true;
   }
@@ -139,6 +143,7 @@ shared_ptr<Process> Process::fork(Build& build, pid_t child_pid) noexcept {
 
 // The process is executing a new file
 const shared_ptr<Command>& Process::exec(Build& build,
+                                         const IRSource& source,
                                          Ref::ID exe_ref,
                                          vector<string> args) noexcept {
   // Build a map of the initial file descriptors for the child command.
@@ -172,7 +177,7 @@ const shared_ptr<Command>& Process::exec(Build& build,
   }
 
   // Inform the build of the launch
-  build.launch(_command, child, refs);
+  build.launch(source, _command, child, refs);
 
   // The child is now launched in this process
   child->setLaunched(shared_from_this());
@@ -182,18 +187,18 @@ const shared_ptr<Command>& Process::exec(Build& build,
   // already have these IR steps
   if (child->mustRun()) {
     for (const auto& [parent_ref_id, child_ref_id] : refs) {
-      build.usingRef(child, child_ref_id);
+      build.usingRef(source, child, child_ref_id);
     }
   }
 
   // The parent command is no longer using any references in this process
   //_build.traceDoneWithRef(_command, exe_ref);
-  build.doneWithRef(_command, _cwd);
-  build.doneWithRef(_command, _root);
+  build.doneWithRef(source, _command, _cwd);
+  build.doneWithRef(source, _command, _root);
 
   for (const auto& [fd, desc] : _fds) {
     auto [ref, cloexec] = desc;
-    build.doneWithRef(_command, ref);
+    build.doneWithRef(source, _command, ref);
   }
 
   // This process is now running the child
@@ -221,7 +226,7 @@ const shared_ptr<Command>& Process::exec(Build& build,
 }
 
 // The process is exiting
-void Process::exit(Build& build, int exit_status) noexcept {
+void Process::exit(Build& build, const IRSource& source, int exit_status) noexcept {
   // We only need to handle the exit if the process hasn't already been marked as exited. That will
   // happen for skipped commands that are forced to exit.
   if (!_exited) {
@@ -229,17 +234,17 @@ void Process::exit(Build& build, int exit_status) noexcept {
     _exited = true;
 
     // References to the cwd and root directories are closed
-    build.doneWithRef(_command, _cwd);
-    build.doneWithRef(_command, _root);
+    build.doneWithRef(source, _command, _cwd);
+    build.doneWithRef(source, _command, _root);
 
     // Any remaining file descriptors in this process are closed
     for (const auto& [index, desc] : _fds) {
       const auto& [ref, cloexec] = desc;
-      build.doneWithRef(_command, ref);
+      build.doneWithRef(source, _command, ref);
     }
 
     // If this process was the primary for its command, trace the exit
-    if (_primary) build.exit(_command, exit_status);
+    if (_primary) build.exit(source, _command, exit_status);
   }
 }
 

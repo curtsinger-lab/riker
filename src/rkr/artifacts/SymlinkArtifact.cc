@@ -34,14 +34,20 @@ void SymlinkArtifact::rollback() noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void SymlinkArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void SymlinkArtifact::beforeRead(Build& build,
+                                 const IRSource& source,
+                                 const shared_ptr<Command>& c,
+                                 Ref::ID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void SymlinkArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void SymlinkArtifact::afterRead(Build& build,
+                                const IRSource& source,
+                                const shared_ptr<Command>& c,
+                                Ref::ID ref) noexcept {
   // The command now depends on the content of this file
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 // Get this artifact's current content

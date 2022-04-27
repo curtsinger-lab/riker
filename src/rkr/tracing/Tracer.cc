@@ -269,7 +269,7 @@ void Tracer::handleExit(Build& build, Thread& t, int exit_status) noexcept {
   auto proc = t.getProcess();
   if (t.getID() == proc->getID()) {
     LOGF(trace, "{}: exited", proc);
-    proc->exit(build, exit_status);
+    proc->exit(build, TracedIRSource(), exit_status);
     _exited.emplace(proc->getID(), proc);
   }
 
@@ -303,8 +303,8 @@ void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig
       if (::stat(core_path.c_str(), &statbuf) == 0) {
         // Make a reference to the core file that creates it
         auto core_ref = t.getCommand()->nextRef();
-        build.pathRef(t.getCommand(), cwd_ref_id, "core", AccessFlags{.w = true, .create = true},
-                      core_ref);
+        build.pathRef(TracedIRSource(), t.getCommand(), cwd_ref_id, "core",
+                      AccessFlags{.w = true, .create = true}, core_ref);
         auto core = t.getCommand()->getRef(core_ref)->getArtifact();
 
         // Make sure the reference resolved
@@ -313,7 +313,7 @@ void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig
           auto cv = make_shared<FileVersion>(statbuf);
 
           // Trace a write to the core file from the command that's exiting
-          build.updateContent(t.getCommand(), core_ref, cv);
+          build.updateContent(TracedIRSource(), t.getCommand(), core_ref, cv);
 
         } else {
           WARN << "Model did not allow for creation of a core file at " << core_path;

@@ -102,35 +102,46 @@ void SpecialArtifact::applyFinalState(fs::path path) noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void SpecialArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void SpecialArtifact::beforeRead(Build& build,
+                                 const IRSource& source,
+                                 const shared_ptr<Command>& c,
+                                 Ref::ID ref) noexcept {
   // Do nothing before a read
 }
 
 /// A traced command just read from this artifact
-void SpecialArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void SpecialArtifact::afterRead(Build& build,
+                                const IRSource& source,
+                                const shared_ptr<Command>& c,
+                                Ref::ID ref) noexcept {
   // The command now depends on the content of this special artifact
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command is about to (possibly) write to this artifact
 void SpecialArtifact::beforeWrite(Build& build,
+                                  const IRSource& source,
                                   const shared_ptr<Command>& c,
                                   Ref::ID ref) noexcept {
   // The command now depends on the content of this special artifact
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 /// A traced command just wrote to this artifact
-void SpecialArtifact::afterWrite(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void SpecialArtifact::afterWrite(Build& build,
+                                 const IRSource& source,
+                                 const shared_ptr<Command>& c,
+                                 Ref::ID ref) noexcept {
   // Create a new version
   auto writing = make_shared<SpecialVersion>(!_always_changed);
 
   // The command wrote to this special artifact
-  build.updateContent(c, ref, writing);
+  build.updateContent(source, c, ref, writing);
 }
 
 /// A traced command is about to truncate this artifact to length 0
 void SpecialArtifact::beforeTruncate(Build& build,
+                                     const IRSource& source,
                                      const shared_ptr<Command>& c,
                                      Ref::ID ref) noexcept {
   // Do nothing before a truncate
@@ -138,12 +149,13 @@ void SpecialArtifact::beforeTruncate(Build& build,
 
 /// A trace command just truncated this artifact to length 0
 void SpecialArtifact::afterTruncate(Build& build,
+                                    const IRSource& source,
                                     const shared_ptr<Command>& c,
                                     Ref::ID ref) noexcept {
   // The command wrote an empty content version to this artifact
   auto written = make_shared<SpecialVersion>(!_always_changed);
 
-  build.updateContent(c, ref, written);
+  build.updateContent(source, c, ref, written);
 }
 
 // Get this artifact's content version
