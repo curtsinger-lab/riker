@@ -69,7 +69,7 @@ struct TraceFile {
   void destroy() noexcept;
 };
 
-class TraceReader {
+class TraceReader : public IRSource {
  public:
   /// Create a new TraceReader to load from a provided path
   static std::optional<TraceReader> load(std::string path) noexcept;
@@ -93,6 +93,9 @@ class TraceReader {
 
   /// Get the root command
   std::shared_ptr<Command> getRootCommand() const noexcept;
+
+  /// A saved trace is never an executing IRSource
+  virtual bool isExecuting() const override { return false; }
 
  private:
   // Allow TraceWriter to call the constructor below

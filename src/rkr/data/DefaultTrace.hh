@@ -4,10 +4,12 @@
 #include <string>
 #include <vector>
 
+#include "data/IRSource.hh"
+
 class Command;
 class IRSink;
 
-class DefaultTrace {
+class DefaultTrace : public IRSource {
  public:
   /// Create a source for a default starting trace
   DefaultTrace(std::vector<std::string> args = {}) noexcept;
@@ -20,6 +22,9 @@ class DefaultTrace {
 
   /// Get the root command from this trace
   std::shared_ptr<Command> getRootCommand() const noexcept { return _root_command; }
+
+  /// The default trace is never an executing IRSource
+  virtual bool isExecuting() const override { return false; }
 
  private:
   /// The root command for this default trace
