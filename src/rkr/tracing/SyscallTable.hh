@@ -9,6 +9,7 @@
 #include <sys/user.h>
 #include <syscall.h>
 
+#include "data/IRSource.hh"
 #include "tracing/Flags.hh"
 #include "tracing/Tracer.hh"
 #include "tracing/inject.h"
@@ -20,10 +21,14 @@ class Build;
 class Thread;
 
 /// The type of a system call handler
-typedef void (*handler_t)(Build& b, Thread& t, const user_regs_struct& regs);
+typedef void (*handler_t)(Build& b,
+                          const IRSource& source,
+                          Thread& t,
+                          const user_regs_struct& regs);
 
 /// The default handler
-constexpr handler_t default_handler = [](Build& b, Thread& t, const user_regs_struct& regs) {};
+constexpr handler_t default_handler =
+    [](Build& b, const IRSource& source, Thread& t, const user_regs_struct& regs) {};
 
 /**
  * A system call entry records the name of a system call, whether or not it should be traced, and
@@ -49,7 +54,9 @@ class SyscallEntry {
   bool isTraced() const { return _traced; }
 
   /// Run the handler for this system call
-  void runHandler(Build& b, Thread& t, const user_regs_struct& regs) const { _handler(b, t, regs); }
+  void runHandler(Build& b, const IRSource& source, Thread& t, const user_regs_struct& regs) const {
+    _handler(b, source, t, regs);
+  }
 
  private:
   const char* _name;
@@ -61,11 +68,11 @@ class SyscallEntry {
 #define SYSCALL_COUNT 512
 
 /// A helper macro for use in the SyscallTable constructor
-#define TRACE(constant, name)                                                        \
-  _syscalls[constant] =                                                           \
-      SyscallEntry(#name, [](Output& out, Thread& t, const user_regs_struct& regs) { \
-        stats::syscalls++;                                                           \
-        t.invokeHandler(&Thread::_##name, out, regs);                                \
+#define TRACE(constant, name)                                                                   \
+  _syscalls[constant] = SyscallEntry(                                                           \
+      #name, [](Output& out, const IRSource& source, Thread& t, const user_regs_struct& regs) { \
+        stats::syscalls++;                                                                      \
+        t.invokeHandler(&Thread::_##name, out, source, regs);                                   \
       });
 
 /**

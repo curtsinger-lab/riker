@@ -30,6 +30,7 @@ using std::tuple;
 using std::vector;
 
 Process::Process(Build& build,
+                 const IRSource& source,
                  shared_ptr<Command> command,
                  pid_t pid,
                  Ref::ID cwd,
@@ -48,13 +49,13 @@ Process::Process(Build& build,
   // The new process has an open handle to each file descriptor in the _fds table
   for (auto& [index, desc] : _fds) {
     auto& [ref, cloexec] = desc;
-    build.usingRef(TracedIRSource(), _command, ref);
+    build.usingRef(source, _command, ref);
   }
 
   // The child process also duplicates references to the root and working directories
   // TODO: Do we need to track _exe here as well?
-  build.usingRef(TracedIRSource(), _command, _root);
-  build.usingRef(TracedIRSource(), _command, _cwd);
+  build.usingRef(source, _command, _root);
+  build.usingRef(source, _command, _cwd);
 }
 
 /*******************************************/
@@ -136,9 +137,9 @@ void Process::setCloexec(int fd, bool cloexec) noexcept {
 }
 
 // The process is creating a new child
-shared_ptr<Process> Process::fork(Build& build, pid_t child_pid) noexcept {
+shared_ptr<Process> Process::fork(Build& build, const IRSource& source, pid_t child_pid) noexcept {
   // Return the child process object
-  return make_shared<Process>(build, _command, child_pid, _cwd, _root, _fds, _umask);
+  return make_shared<Process>(build, source, _command, child_pid, _cwd, _root, _fds, _umask);
 }
 
 // The process is executing a new file

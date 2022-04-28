@@ -103,11 +103,11 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
           auto iter = _threads.find(_shmem->channels[i].tid);
           if (iter != _threads.end()) {
             if (state == CHANNEL_STATE_PRE_SYSCALL_WAIT) {
-              iter->second.syscallEntryChannel(build, i);
+              iter->second.syscallEntryChannel(build, TracedIRSource(), i);
             } else if (state == CHANNEL_STATE_POST_SYSCALL_NOTIFY) {
               FAIL << "Channel is in post-syscall notify state, which is not yet handled";
             } else if (state == CHANNEL_STATE_POST_SYSCALL_WAIT) {
-              iter->second.syscallExitChannel(build, i);
+              iter->second.syscallExitChannel(build, TracedIRSource(), i);
             }
           } else {
             WARN << "Tracing channel is owned by unrecognized thread " << _shmem->channels[i].tid;
@@ -190,11 +190,11 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
-        thread.syscallExitPtrace(build);
+        thread.syscallExitPtrace(build, TracedIRSource());
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes.
-        thread.execPtrace(build);
+        thread.execPtrace(build, TracedIRSource());
 
       } else if (status == (PTRACE_EVENT_STOP << 8)) {
         // Is this delivering a stopping signal?
@@ -255,7 +255,7 @@ void Tracer::handleFork(Build& build, Thread& t) noexcept {
   if (new_pid == -1) return;
 
   // Create a new process running the same command
-  auto new_proc = t.getProcess()->fork(build, new_pid);
+  auto new_proc = t.getProcess()->fork(build, TracedIRSource(), new_pid);
 
   // Record a new thread running in this process. It is the main thread, so pid and tid will be
   // equal
@@ -399,7 +399,7 @@ void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
     }
 
     // Run the system call handler
-    entry.runHandler(build, t, regs);
+    entry.runHandler(build, TracedIRSource(), t, regs);
 
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
@@ -689,7 +689,8 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
     fds[fd] = Process::FileDescriptor{ref, false};
   }
 
-  auto proc = make_shared<Process>(build, cmd, child_pid, Ref::Cwd, Ref::Root, fds);
+  auto proc =
+      make_shared<Process>(build, TracedIRSource(), cmd, child_pid, Ref::Cwd, Ref::Root, fds);
   _threads.emplace(child_pid, Thread(*this, proc, child_pid));
 
   // The process is the primary process for its command

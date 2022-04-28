@@ -24,6 +24,7 @@ class Process : public std::enable_shared_from_this<Process> {
   using FileDescriptor = std::tuple<Ref::ID, bool>;
 
   Process(Build& build,
+          const IRSource& source,
           std::shared_ptr<Command> command,
           pid_t pid,
           Ref::ID cwd,
@@ -81,7 +82,7 @@ class Process : public std::enable_shared_from_this<Process> {
   mode_t getUmask() const noexcept { return _umask; }
 
   /// This process forked off a child process
-  std::shared_ptr<Process> fork(Build& build, pid_t child_pid) noexcept;
+  std::shared_ptr<Process> fork(Build& build, const IRSource& source, pid_t child_pid) noexcept;
 
   /// This process is executing a new file
   const std::shared_ptr<Command>& exec(Build& build,
