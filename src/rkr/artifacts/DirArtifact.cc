@@ -256,15 +256,21 @@ void DirArtifact::cacheAll(fs::path path) const noexcept {
 }
 
 /// A traced command is about to (possibly) read from this artifact
-void DirArtifact::beforeRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void DirArtifact::beforeRead(Build& build,
+                             const IRSource& source,
+                             const shared_ptr<Command>& c,
+                             Ref::ID ref) noexcept {
   // Create a dependency on the content of this directory
   getContent(c);
 }
 
 /// A traced command just read from this artifact
-void DirArtifact::afterRead(Build& build, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void DirArtifact::afterRead(Build& build,
+                            const IRSource& source,
+                            const shared_ptr<Command>& c,
+                            Ref::ID ref) noexcept {
   // The command now depends on the content of this directory
-  build.matchContent(c, Scenario::Build, ref, getContent(c));
+  build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
 // Get a version that lists all the entries in this directory

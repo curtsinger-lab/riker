@@ -16,6 +16,7 @@
 #include "artifacts/PipeArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "data/AccessFlags.hh"
+#include "data/IRSource.hh"
 #include "data/Trace.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -91,7 +92,13 @@ void Build::finish() noexcept {
   
 }
 
-void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID output) noexcept {
+void Build::specialRef(const IRSource& source,
+                       const shared_ptr<Command>& c,
+                       SpecialRef entity,
+                       Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // If this step comes from a command we need to run, return immediately
   if (c->mustRun()) return;
   
@@ -103,7 +110,7 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
   // If this step comes from a command that hasn't been launched, we need to defer this step
   if (!c->isLaunched()) {
     _deferred_commands.emplace(c);
-    _deferred_steps.specialRef(c, entity, output);
+    _deferred_steps.specialRef(source, c, entity, output);
     return;
   }
 
@@ -114,7 +121,7 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
   LOG(ir) << "emulated " << TracePrinter::SpecialRefPrinter{c, entity, output};
 
   // Create an IR step and add it to the output trace
-  _output.specialRef(c, entity, output);
+  _output.specialRef(source, c, entity, output);
 
   // Resolve the reference
   if (entity == SpecialRef::stdin) {
@@ -160,7 +167,13 @@ void Build::specialRef(const shared_ptr<Command>& c, SpecialRef entity, Ref::ID 
 }
 
 // A command references a new anonymous pipe
-void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID write_end) noexcept {
+void Build::pipeRef(const IRSource& source,
+                    const shared_ptr<Command>& c,
+                    Ref::ID read_end,
+                    Ref::ID write_end) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -175,7 +188,7 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.pipeRef(c, read_end, write_end);
+      _deferred_steps.pipeRef(source, c, read_end, write_end);
       return;
     }
 
@@ -185,7 +198,7 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
   }
 
   // Create an IR step and add it to the output trace
-  _output.pipeRef(c, read_end, write_end);
+  _output.pipeRef(source, c, read_end, write_end);
 
   // Resolve the reference and save the result in output
   auto pipe = env::getPipe(c);
@@ -194,7 +207,13 @@ void Build::pipeRef(const shared_ptr<Command>& c, Ref::ID read_end, Ref::ID writ
 }
 
 // A command references a new anonymous file
-void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
+void Build::fileRef(const IRSource& source,
+                    const shared_ptr<Command>& c,
+                    mode_t mode,
+                    Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -209,7 +228,7 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.fileRef(c, mode, output);
+      _deferred_steps.fileRef(source, c, mode, output);
       return;
     }
 
@@ -219,14 +238,20 @@ void Build::fileRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) n
   }
 
   // Create an IR step and add it to the output trace
-  _output.fileRef(c, mode, output);
+  _output.fileRef(source, c, mode, output);
 
   // Resolve the reference and save the result in output
   c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
 }
 
 // A command references a new anonymous symlink
-void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID output) noexcept {
+void Build::symlinkRef(const IRSource& source,
+                       const shared_ptr<Command>& c,
+                       fs::path target,
+                       Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -241,7 +266,7 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.symlinkRef(c, target, output);
+      _deferred_steps.symlinkRef(source, c, target, output);
       return;
     }
 
@@ -251,7 +276,7 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
   }
 
   // Create an IR step and add it to the output trace
-  _output.symlinkRef(c, target, output);
+  _output.symlinkRef(source, c, target, output);
 
   // Resolve the reference and save the result in output
   c->setRef(output,
@@ -259,7 +284,13 @@ void Build::symlinkRef(const shared_ptr<Command>& c, fs::path target, Ref::ID ou
 }
 
 // A command references a new anonymous directory
-void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) noexcept {
+void Build::dirRef(const IRSource& source,
+                   const shared_ptr<Command>& c,
+                   mode_t mode,
+                   Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -274,7 +305,7 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.dirRef(c, mode, output);
+      _deferred_steps.dirRef(source, c, mode, output);
       return;
     }
 
@@ -284,18 +315,22 @@ void Build::dirRef(const shared_ptr<Command>& c, mode_t mode, Ref::ID output) no
   }
 
   // Create an IR step and add it to the output trace
-  _output.dirRef(c, mode, output);
+  _output.dirRef(source, c, mode, output);
 
   // Resolve the reference and save the result in output
   c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess + ExecAccess, env::getDir(c, mode)));
 }
 
 // A command makes a reference with a path
-void Build::pathRef(const shared_ptr<Command>& c,
+void Build::pathRef(const IRSource& source,
+                    const shared_ptr<Command>& c,
                     Ref::ID base,
                     fs::path path,
                     AccessFlags flags,
                     Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -310,7 +345,7 @@ void Build::pathRef(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.pathRef(c, base, path, flags, output);
+      _deferred_steps.pathRef(source, c, base, path, flags, output);
       return;
     }
 
@@ -333,7 +368,7 @@ void Build::pathRef(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.pathRef(c, base, path, flags, output);
+  _output.pathRef(source, c, base, path, flags, output);
 
   // Is the base directory available?
   if (!base_dir) {
@@ -352,7 +387,10 @@ void Build::pathRef(const shared_ptr<Command>& c,
 }
 
 // A command retains a handle to a given Ref
-void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -367,7 +405,7 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.usingRef(c, ref);
+      _deferred_steps.usingRef(source, c, ref);
       return;
     }
 
@@ -380,11 +418,16 @@ void Build::usingRef(const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   c->usingRef(ref);
 
   // Create an IR step and add it to the output trace
-  _output.usingRef(c, ref);
+  _output.usingRef(source, c, ref);
 }
 
 // A command closes a handle to a given Ref
-void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
+void Build::doneWithRef(const IRSource& source,
+                        const shared_ptr<Command>& c,
+                        Ref::ID ref_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -399,7 +442,7 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.doneWithRef(c, ref_id);
+      _deferred_steps.doneWithRef(source, c, ref_id);
       return;
     }
 
@@ -416,19 +459,23 @@ void Build::doneWithRef(const shared_ptr<Command>& c, Ref::ID ref_id) noexcept {
   if (ref->getUserCount() == 0) {
     auto a = ref->getArtifact();
     if (a) {
-      a->beforeClose(*this, c, ref_id);
+      a->beforeClose(*this, source, c, ref_id);
     }
   }
 
   // Create an IR step and add it to the output trace
-  _output.doneWithRef(c, ref_id);
+  _output.doneWithRef(source, c, ref_id);
 }
 
 // Command c depends on the outcome of comparing two different references
-void Build::compareRefs(const shared_ptr<Command>& c,
+void Build::compareRefs(const IRSource& source,
+                        const shared_ptr<Command>& c,
                         Ref::ID ref1_id,
                         Ref::ID ref2_id,
                         RefComparison type) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -443,7 +490,7 @@ void Build::compareRefs(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.compareRefs(c, ref1_id, ref2_id, type);
+      _deferred_steps.compareRefs(source, c, ref1_id, ref2_id, type);
       return;
     }
 
@@ -453,7 +500,7 @@ void Build::compareRefs(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.compareRefs(c, ref1_id, ref2_id, type);
+  _output.compareRefs(source, c, ref1_id, ref2_id, type);
 
   // TODO: No need to perform the comparison during tracing
 
@@ -480,10 +527,14 @@ void Build::compareRefs(const shared_ptr<Command>& c,
 }
 
 // Command c expects a reference to resolve with a specific result
-void Build::expectResult(const shared_ptr<Command>& c,
+void Build::expectResult(const IRSource& source,
+                         const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          int8_t expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -498,7 +549,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.expectResult(c, scenario, ref_id, expected);
+      _deferred_steps.expectResult(source, c, scenario, ref_id, expected);
       return;
     }
 
@@ -508,7 +559,7 @@ void Build::expectResult(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.expectResult(c, scenario, ref_id, expected);
+  _output.expectResult(source, c, scenario, ref_id, expected);
 
   // Get the reference outcome. Does it match the expected result?
   auto ref = c->getRef(ref_id);
@@ -529,10 +580,14 @@ void Build::expectResult(const shared_ptr<Command>& c,
 }
 
 // Command c accesses an artifact's metadata
-void Build::matchMetadata(const shared_ptr<Command>& c,
+void Build::matchMetadata(const IRSource& source,
+                          const shared_ptr<Command>& c,
                           Scenario scenario,
                           Ref::ID ref_id,
                           MetadataVersion expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -547,7 +602,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.matchMetadata(c, scenario, ref_id, expected);
+      _deferred_steps.matchMetadata(source, c, scenario, ref_id, expected);
       return;
     }
 
@@ -557,7 +612,7 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.matchMetadata(c, scenario, ref_id, expected);
+  _output.matchMetadata(source, c, scenario, ref_id, expected);
 
   // Get the reference we're matching against
   auto ref = c->getRef(ref_id);
@@ -578,10 +633,14 @@ void Build::matchMetadata(const shared_ptr<Command>& c,
 }
 
 // Command c accesses an artifact's content
-void Build::matchContent(const shared_ptr<Command>& c,
+void Build::matchContent(const IRSource& source,
+                         const shared_ptr<Command>& c,
                          Scenario scenario,
                          Ref::ID ref_id,
                          shared_ptr<ContentVersion> expected) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -596,7 +655,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.matchContent(c, scenario, ref_id, expected);
+      _deferred_steps.matchContent(source, c, scenario, ref_id, expected);
       return;
     }
 
@@ -606,7 +665,7 @@ void Build::matchContent(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.matchContent(c, scenario, ref_id, expected);
+  _output.matchContent(source, c, scenario, ref_id, expected);
 
   // If this command is being emulated, check the predicate
   if (c->canEmulate()) {
@@ -621,9 +680,13 @@ void Build::matchContent(const shared_ptr<Command>& c,
 }
 
 // Command c modifies an artifact
-void Build::updateMetadata(const shared_ptr<Command>& c,
+void Build::updateMetadata(const IRSource& source,
+                           const shared_ptr<Command>& c,
                            Ref::ID ref_id,
                            MetadataVersion written) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -638,7 +701,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.updateMetadata(c, ref_id, written);
+      _deferred_steps.updateMetadata(source, c, ref_id, written);
       return;
     }
 
@@ -648,7 +711,7 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.updateMetadata(c, ref_id, written);
+  _output.updateMetadata(source, c, ref_id, written);
 
   // Get the reference
   auto ref = c->getRef(ref_id);
@@ -672,9 +735,13 @@ void Build::updateMetadata(const shared_ptr<Command>& c,
 }
 
 // Command c modifies an artifact
-void Build::updateContent(const shared_ptr<Command>& c,
+void Build::updateContent(const IRSource& source,
+                          const shared_ptr<Command>& c,
                           Ref::ID ref_id,
                           shared_ptr<ContentVersion> written) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -689,7 +756,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.updateContent(c, ref_id, written);
+      _deferred_steps.updateContent(source, c, ref_id, written);
       return;
     }
 
@@ -699,7 +766,7 @@ void Build::updateContent(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.updateContent(c, ref_id, written);
+  _output.updateContent(source, c, ref_id, written);
 
   // Get the reference being written through
   auto ref = c->getRef(ref_id);
@@ -723,10 +790,14 @@ void Build::updateContent(const shared_ptr<Command>& c,
 }
 
 // Command c adds an entry to a directory
-void Build::addEntry(const shared_ptr<Command>& c,
+void Build::addEntry(const IRSource& source,
+                     const shared_ptr<Command>& c,
                      Ref::ID dir_id,
                      string name,
                      Ref::ID target_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -741,7 +812,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.addEntry(c, dir_id, name, target_id);
+      _deferred_steps.addEntry(source, c, dir_id, name, target_id);
       return;
     }
 
@@ -751,7 +822,7 @@ void Build::addEntry(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.addEntry(c, dir_id, name, target_id);
+  _output.addEntry(source, c, dir_id, name, target_id);
 
   // Get the directory and target references
   auto dir = c->getRef(dir_id);
@@ -777,10 +848,14 @@ void Build::addEntry(const shared_ptr<Command>& c,
 }
 
 // Command c removes an entry from a directory
-void Build::removeEntry(const shared_ptr<Command>& c,
+void Build::removeEntry(const IRSource& source,
+                        const shared_ptr<Command>& c,
                         Ref::ID dir_id,
                         string name,
                         Ref::ID target_id) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -795,7 +870,7 @@ void Build::removeEntry(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.removeEntry(c, dir_id, name, target_id);
+      _deferred_steps.removeEntry(source, c, dir_id, name, target_id);
       return;
     }
 
@@ -805,7 +880,7 @@ void Build::removeEntry(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.removeEntry(c, dir_id, name, target_id);
+  _output.removeEntry(source, c, dir_id, name, target_id);
 
   // Get the directory and target references
   auto dir = c->getRef(dir_id);
@@ -831,9 +906,13 @@ void Build::removeEntry(const shared_ptr<Command>& c,
 }
 
 // A parent command launches a child command
-void Build::launch(const shared_ptr<Command>& parent,
+void Build::launch(const IRSource& source,
+                   const shared_ptr<Command>& parent,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (parent->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (parent->mustRun()) {
     stats::traced_steps++;
@@ -844,7 +923,7 @@ void Build::launch(const shared_ptr<Command>& parent,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!parent->isLaunched()) {
       _deferred_commands.emplace(parent);
-      _deferred_steps.launch(parent, child, refs);
+      _deferred_steps.launch(source, parent, child, refs);
       return;
     }
 
@@ -889,7 +968,7 @@ void Build::launch(const shared_ptr<Command>& parent,
   }
 
   // Create an IR step and add it to the output trace
-  _output.launch(parent, child, refs);
+  _output.launch(source, parent, child, refs);
 
   
 
@@ -930,9 +1009,13 @@ void Build::orphan(const shared_ptr<Command>& parent,
 }
 
 // Command c waits for a child command to exit
-void Build::join(const shared_ptr<Command>& c,
+void Build::join(const IRSource& source,
+                 const shared_ptr<Command>& c,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -947,7 +1030,7 @@ void Build::join(const shared_ptr<Command>& c,
     // If this step comes from a command that hasn't been launched, we need to defer this step
     if (!c->isLaunched()) {
       _deferred_commands.emplace(c);
-      _deferred_steps.join(c, child, exit_status);
+      _deferred_steps.join(source, c, child, exit_status);
       return;
     }
 
@@ -964,7 +1047,7 @@ void Build::join(const shared_ptr<Command>& c,
   }
 
   // Create an IR step and add it to the output trace
-  _output.join(c, child, exit_status);
+  _output.join(source, c, child, exit_status);
 
   // If the parent is emulated, check for the expected exit status
   if (c->canEmulate() && child->getExitStatus() != exit_status) {
@@ -977,7 +1060,10 @@ void Build::join(const shared_ptr<Command>& c,
 }
 
 // Command c is exiting
-void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
+void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_status) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -995,7 +1081,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
     if (!c->isLaunched()) {
       LOG(exec) << c << " deferred exits.";
       _deferred_commands.emplace(c);
-      _deferred_steps.exit(c, exit_status);
+      _deferred_steps.exit(source, c, exit_status);
       return;
     }
     LOG(exec) << c << " emulated exits.";
@@ -1021,7 +1107,7 @@ void Build::exit(const shared_ptr<Command>& c, int exit_status) noexcept {
 
 
   // Create an IR step and add it to the output trace
-  _output.exit(c, exit_status);
+  _output.exit(source, c, exit_status);
 
   // Save the exit status for this command
   c->setExitStatus(exit_status);

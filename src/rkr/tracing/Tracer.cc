@@ -103,11 +103,11 @@ optional<tuple<pid_t, int>> Tracer::getEvent(Build& build) noexcept {
           auto iter = _threads.find(_shmem->channels[i].tid);
           if (iter != _threads.end()) {
             if (state == CHANNEL_STATE_PRE_SYSCALL_WAIT) {
-              iter->second.syscallEntryChannel(build, i);
+              iter->second.syscallEntryChannel(build, TracedIRSource(), i);
             } else if (state == CHANNEL_STATE_POST_SYSCALL_NOTIFY) {
               FAIL << "Channel is in post-syscall notify state, which is not yet handled";
             } else if (state == CHANNEL_STATE_POST_SYSCALL_WAIT) {
-              iter->second.syscallExitChannel(build, i);
+              iter->second.syscallExitChannel(build, TracedIRSource(), i);
             }
           } else {
             WARN << "Tracing channel is owned by unrecognized thread " << _shmem->channels[i].tid;
@@ -190,11 +190,11 @@ void Tracer::wait(Build& build, shared_ptr<Process> p) noexcept {
 
       } else if (status == (SIGTRAP | 0x80)) {
         // This is a stop at the end of a system call that was resumed.
-        thread.syscallExitPtrace(build);
+        thread.syscallExitPtrace(build, TracedIRSource());
 
       } else if (status == (SIGTRAP | (PTRACE_EVENT_EXEC << 8))) {
         // This is a stop after an exec finishes.
-        thread.execPtrace(build);
+        thread.execPtrace(build, TracedIRSource());
 
       } else if (status == (PTRACE_EVENT_STOP << 8)) {
         // Is this delivering a stopping signal?
@@ -255,7 +255,7 @@ void Tracer::handleFork(Build& build, Thread& t) noexcept {
   if (new_pid == -1) return;
 
   // Create a new process running the same command
-  auto new_proc = t.getProcess()->fork(build, new_pid);
+  auto new_proc = t.getProcess()->fork(build, TracedIRSource(), new_pid);
 
   // Record a new thread running in this process. It is the main thread, so pid and tid will be
   // equal
@@ -269,7 +269,7 @@ void Tracer::handleExit(Build& build, Thread& t, int exit_status) noexcept {
   auto proc = t.getProcess();
   if (t.getID() == proc->getID()) {
     LOGF(trace, "{}: exited", proc);
-    proc->exit(build, exit_status);
+    proc->exit(build, TracedIRSource(), exit_status);
     _exited.emplace(proc->getID(), proc);
   }
 
@@ -303,8 +303,8 @@ void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig
       if (::stat(core_path.c_str(), &statbuf) == 0) {
         // Make a reference to the core file that creates it
         auto core_ref = t.getCommand()->nextRef();
-        build.pathRef(t.getCommand(), cwd_ref_id, "core", AccessFlags{.w = true, .create = true},
-                      core_ref);
+        build.pathRef(TracedIRSource(), t.getCommand(), cwd_ref_id, "core",
+                      AccessFlags{.w = true, .create = true}, core_ref);
         auto core = t.getCommand()->getRef(core_ref)->getArtifact();
 
         // Make sure the reference resolved
@@ -313,7 +313,7 @@ void Tracer::handleKilled(Build& build, Thread& t, int exit_status, int term_sig
           auto cv = make_shared<FileVersion>(statbuf);
 
           // Trace a write to the core file from the command that's exiting
-          build.updateContent(t.getCommand(), core_ref, cv);
+          build.updateContent(TracedIRSource(), t.getCommand(), core_ref, cv);
 
         } else {
           WARN << "Model did not allow for creation of a core file at " << core_path;
@@ -399,7 +399,7 @@ void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
     }
 
     // Run the system call handler
-    entry.runHandler(build, t, regs);
+    entry.runHandler(build, TracedIRSource(), t, regs);
 
   } else {
     FAIL << "Traced system call number " << regs.SYSCALL_NUMBER << " in " << t;
@@ -689,7 +689,8 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
     fds[fd] = Process::FileDescriptor{ref, false};
   }
 
-  auto proc = make_shared<Process>(build, cmd, child_pid, Ref::Cwd, Ref::Root, fds);
+  auto proc =
+      make_shared<Process>(build, TracedIRSource(), cmd, child_pid, Ref::Cwd, Ref::Root, fds);
   _threads.emplace(child_pid, Thread(*this, proc, child_pid));
 
   // The process is the primary process for its command

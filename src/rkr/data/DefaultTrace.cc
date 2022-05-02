@@ -29,28 +29,28 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
   handler.start(_root_command);
 
   // Create a reference to stdin
-  handler.specialRef(_root_command, SpecialRef::stdin, Ref::Stdin);
-  handler.usingRef(_root_command, Ref::Stdin);
+  handler.specialRef(*this, _root_command, SpecialRef::stdin, Ref::Stdin);
+  handler.usingRef(*this, _root_command, Ref::Stdin);
 
   // Create a reference to stdout
-  handler.specialRef(_root_command, SpecialRef::stdout, Ref::Stdout);
-  handler.usingRef(_root_command, Ref::Stdout);
+  handler.specialRef(*this, _root_command, SpecialRef::stdout, Ref::Stdout);
+  handler.usingRef(*this, _root_command, Ref::Stdout);
 
   // Create a reference to stderr
-  handler.specialRef(_root_command, SpecialRef::stderr, Ref::Stderr);
-  handler.usingRef(_root_command, Ref::Stderr);
+  handler.specialRef(*this, _root_command, SpecialRef::stderr, Ref::Stderr);
+  handler.usingRef(*this, _root_command, Ref::Stderr);
 
   // Set up the reference to the root directory
-  handler.specialRef(_root_command, SpecialRef::root, Ref::Root);
-  handler.usingRef(_root_command, Ref::Root);
+  handler.specialRef(*this, _root_command, SpecialRef::root, Ref::Root);
+  handler.usingRef(*this, _root_command, Ref::Root);
 
   // Set up the reference to the working directory
-  handler.specialRef(_root_command, SpecialRef::cwd, Ref::Cwd);
-  handler.usingRef(_root_command, Ref::Cwd);
+  handler.specialRef(*this, _root_command, SpecialRef::cwd, Ref::Cwd);
+  handler.usingRef(*this, _root_command, Ref::Cwd);
 
   // Set up the reference to the launch executable
-  handler.specialRef(_root_command, SpecialRef::launch_exe, Ref::Exe);
-  handler.usingRef(_root_command, Ref::Exe);
+  handler.specialRef(*this, _root_command, SpecialRef::launch_exe, Ref::Exe);
+  handler.usingRef(*this, _root_command, Ref::Exe);
 
   // Create a rkr-build command
   auto cmd_args = vector<string>{"rkr-launch"};
@@ -68,7 +68,7 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
                                         {Ref::Cwd, Ref::Cwd},       {Ref::Exe, Ref::Exe}};
 
   // Launch the root command
-  handler.launch(_root_command, rkr_build_cmd, refs);
+  handler.launch(*this, _root_command, rkr_build_cmd, refs);
 
   // Finish the trace
   handler.finish();

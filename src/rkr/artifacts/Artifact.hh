@@ -11,6 +11,7 @@
 #include <tuple>
 
 #include "data/AccessFlags.hh"
+#include "data/IRSource.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
 #include "runtime/VersionState.hh"
@@ -170,31 +171,48 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /************ Traced Operations ************/
 
   /// A traced command is about to stat this artifact
-  virtual void beforeStat(Build& build, const std::shared_ptr<Command>& c, Ref::ID ref) noexcept {}
+  virtual void beforeStat(Build& build,
+                          const IRSource& source,
+                          const std::shared_ptr<Command>& c,
+                          Ref::ID ref) noexcept {}
 
   /// A traced command is about to close a reference to this artifact
-  virtual void beforeClose(Build& build, const std::shared_ptr<Command>& c, Ref::ID ref) noexcept {}
+  virtual void beforeClose(Build& build,
+                           const IRSource& source,
+                           const std::shared_ptr<Command>& c,
+                           Ref::ID ref) noexcept {}
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
+                          const IRSource& source,
                           const std::shared_ptr<Command>& c,
                           Ref::ID ref) noexcept = 0;
 
   /// A traced command just read from this artifact
-  virtual void afterRead(Build& build, const std::shared_ptr<Command>& c, Ref::ID ref) noexcept = 0;
+  virtual void afterRead(Build& build,
+                         const IRSource& source,
+                         const std::shared_ptr<Command>& c,
+                         Ref::ID ref) noexcept = 0;
 
   /// A traced command is about to (possibly) write to this artifact
-  virtual void beforeWrite(Build& build, const std::shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  virtual void beforeWrite(Build& build,
+                           const IRSource& source,
+                           const std::shared_ptr<Command>& c,
+                           Ref::ID ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command just wrote to this artifact
-  virtual void afterWrite(Build& build, const std::shared_ptr<Command>& c, Ref::ID ref) noexcept {
+  virtual void afterWrite(Build& build,
+                          const IRSource& source,
+                          const std::shared_ptr<Command>& c,
+                          Ref::ID ref) noexcept {
     FAIL << c << " attempted to write " << this;
   }
 
   /// A traced command is about to (possibly) truncate this artifact to length zero
   virtual void beforeTruncate(Build& build,
+                              const IRSource& source,
                               const std::shared_ptr<Command>& c,
                               Ref::ID ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
@@ -202,6 +220,7 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 
   /// A trace command just truncated this artifact to length zero
   virtual void afterTruncate(Build& build,
+                             const IRSource& source,
                              const std::shared_ptr<Command>& c,
                              Ref::ID ref) noexcept {
     FAIL << c << " attempted to truncate " << this;
