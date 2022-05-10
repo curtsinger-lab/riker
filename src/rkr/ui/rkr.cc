@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) noexcept {
   /************* Global Options *************/
   app.add_flag("--debug", options::debug, "Print source locations with log messages");
   app.add_flag("--no-color", options::disable_color, "Disable color terminal output");
-
+  
   app.add_option_function<set<string>>(
          "--log",
          [&](set<string> categories) {
@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) noexcept {
   /************* Build Subcommand *************/
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
+  build->add_flag("--orphan", options::orphan, "Enable orphan identification and adoption");
   build->add_flag("--show", options::print_on_run, "Show commands as they are run");
   build->add_flag_callback(
       "--show-full",

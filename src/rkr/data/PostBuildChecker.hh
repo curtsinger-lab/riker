@@ -29,7 +29,7 @@ class PostBuildChecker : public Next {
                             Ref::ID ref,
                             int8_t expected) noexcept override {
     if(!command->isLaunched()){
-      Next::expectResult(command, scenario, ref, expected);
+      Next::expectResult(source, command, scenario, ref, expected);
       return;
     }                         
     if (scenario & Scenario::Build) {
@@ -50,7 +50,7 @@ class PostBuildChecker : public Next {
                              Ref::ID ref,
                              MetadataVersion expected) noexcept override {
     if(!command->isLaunched()){
-      Next::matchMetadata(command, scenario, ref, expected);
+      Next::matchMetadata(source, command, scenario, ref, expected);
       return;
     } 
     if (scenario & Scenario::Build) {
@@ -82,7 +82,7 @@ class PostBuildChecker : public Next {
                             Ref::ID ref,
                             std::shared_ptr<ContentVersion> expected) noexcept override {
     if(!command->isLaunched()){
-      Next::matchContent(command, scenario, ref, expected);
+      Next::matchContent(source, command, scenario, ref, expected);
       return;
     } 
     if (scenario & Scenario::Build) {

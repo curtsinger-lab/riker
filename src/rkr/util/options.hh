@@ -31,6 +31,9 @@ namespace options {
   /// When set, gather system call stats and report them at the end of a build
   inline bool syscall_stats = false;
 
+  /// When set, orphan commands are marked and adopted later
+  inline bool orphan = false;
+
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;  // PAPER

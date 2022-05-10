@@ -103,7 +103,7 @@ void Build::specialRef(const IRSource& source,
   if (c->mustRun()) return;
   
   if (c->isOrphaned()) {
-    _output.specialRef(c, entity, output);
+    _output.specialRef(source, c, entity, output);
     return;
   }
   
@@ -182,7 +182,7 @@ void Build::pipeRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.pipeRef(c, read_end, write_end);
+    _output.pipeRef(source, c, read_end, write_end);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -222,7 +222,7 @@ void Build::fileRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.fileRef(c, mode, output);
+    _output.fileRef(source, c, mode, output);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -260,7 +260,7 @@ void Build::symlinkRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.symlinkRef(c, target, output);
+    _output.symlinkRef(source, c, target, output);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -299,7 +299,7 @@ void Build::dirRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.dirRef(c, mode, output);
+    _output.dirRef(source, c, mode, output);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -339,7 +339,7 @@ void Build::pathRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.pathRef(c, base, path, flags, output);
+    _output.pathRef(source, c, base, path, flags, output);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -399,7 +399,7 @@ void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::
 
   } else {
     if (c->isOrphaned()) {
-    _output.usingRef(c, ref);
+    _output.usingRef(source, c, ref);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -436,7 +436,7 @@ void Build::doneWithRef(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.doneWithRef(c, ref_id);
+    _output.doneWithRef(source, c, ref_id);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -484,7 +484,7 @@ void Build::compareRefs(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.compareRefs(c, ref1_id, ref2_id, type);
+    _output.compareRefs(source, c, ref1_id, ref2_id, type);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -543,7 +543,7 @@ void Build::expectResult(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.expectResult(c, scenario, ref_id, expected);
+    _output.expectResult(source, c, scenario, ref_id, expected);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -596,7 +596,7 @@ void Build::matchMetadata(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.matchMetadata(c, scenario, ref_id, expected);
+    _output.matchMetadata(source, c, scenario, ref_id, expected);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -649,7 +649,7 @@ void Build::matchContent(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-   _output.matchContent(c, scenario, ref_id, expected);
+   _output.matchContent(source, c, scenario, ref_id, expected);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -695,7 +695,7 @@ void Build::updateMetadata(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.updateMetadata(c, ref_id, written);
+    _output.updateMetadata(source, c, ref_id, written);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -750,7 +750,7 @@ void Build::updateContent(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.updateContent(c, ref_id, written);
+    _output.updateContent(source, c, ref_id, written);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -806,7 +806,7 @@ void Build::addEntry(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.addEntry(c, dir_id, name, target_id);
+    _output.addEntry(source, c, dir_id, name, target_id);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -864,7 +864,7 @@ void Build::removeEntry(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.removeEntry(c, dir_id, name, target_id);
+    _output.removeEntry(source, c, dir_id, name, target_id);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -889,7 +889,7 @@ void Build::removeEntry(const IRSource& source,
   // Did both references resolve?
   if (dir->isResolved() && target->isResolved()) {
     // Yes. Remove the entry from the directory
-    dir->getArtifact()->removeEntry(c, name, target->getArtifact());
+    dir->getArtifact()->removeEntry( c, name, target->getArtifact());
 
   } else {
     // No. Are we emulating or tracing?
@@ -1024,7 +1024,7 @@ void Build::join(const IRSource& source,
 
   } else {
     if (c->isOrphaned()) {
-    _output.join(c, child, exit_status);
+    _output.join(source, c, child, exit_status);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -1074,7 +1074,7 @@ void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_
   } else {
     if (c->isOrphaned()) {
      LOG(exec) << c << " orphaned exits.";;
-    _output.exit(c, exit_status);
+    _output.exit(source, c, exit_status);
     return;
   }
     // If this step comes from a command that hasn't been launched, we need to defer this step
@@ -1093,15 +1093,17 @@ void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_
   auto it = c->getRefLists().begin();
   if(c->mustRun()){
     runDeferredSteps();
-  for(const auto& candidate : c->getMaxChildren()){
-    if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
-    cout << "in exit" << "\n";
-    candidate->setOrphaned();
-    _output.orphan(c, candidate, *it);
-    runDeferredSteps();
+    if(options::orphan){
+      for(const auto& candidate : c->getMaxChildren()){
+        if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
+          cout << "in exit" << "\n";
+          candidate->setOrphaned();
+          _output.orphan(c, candidate, *it);
+          runDeferredSteps();
+        }
+      std::advance(it, 1);
+      }
     }
-    std::advance(it, 1);
-  }
   }
   
 

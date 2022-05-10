@@ -172,7 +172,8 @@ class TracePrinter : public IRSink {
     _out << OrphanPrinter{c, child, refs} << std::endl;
   }
 
-  virtual void join(const std::shared_ptr<Command>& c,
+  virtual void join(const IRSource& source,
+                    const std::shared_ptr<Command>& c,
                     const std::shared_ptr<Command>& child,
                     int exit_status) noexcept override {
     _out << JoinPrinter{c, child, exit_status} << std::endl;
