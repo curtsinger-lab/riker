@@ -68,6 +68,7 @@ void Build::start(const shared_ptr<Command>& c) noexcept {
   _root_command = c;
 
   // The root command is launched
+  cout << _root_command << " marked as launched. line 71\n";
   _root_command->setLaunched();
 
   // Pass the root command on to the output
@@ -82,6 +83,7 @@ void Build::finish() noexcept {
   env::getRootDir()->checkFinalState("/");
   
   // Finish the run of the root command and all descendants (recursively)
+  cout << _root_command << " " << _root_command->isLaunched() << "\n";
   _root_command->finishRun();
   
   // Inform the output trace that it is finished
@@ -97,6 +99,20 @@ void Build::specialRef(const IRSource& source,
                        SpecialRef entity,
                        Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "specialRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.specialRef(source, c, entity, output);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.specialRef(source, c, entity, output);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // If this step comes from a command we need to run, return immediately
@@ -172,6 +188,20 @@ void Build::pipeRef(const IRSource& source,
                     Ref::ID read_end,
                     Ref::ID write_end) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "pipeRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.pipeRef(source, c, read_end, write_end);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.pipeRef(source, c, read_end, write_end);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -212,6 +242,20 @@ void Build::fileRef(const IRSource& source,
                     mode_t mode,
                     Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "fileRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.fileRef(source, c, mode, output);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.fileRef(source, c, mode, output);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -250,6 +294,20 @@ void Build::symlinkRef(const IRSource& source,
                        fs::path target,
                        Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "symlinkRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.symlinkRef(source, c, target, output);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.symlinkRef(source, c, target, output);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -289,6 +347,20 @@ void Build::dirRef(const IRSource& source,
                    mode_t mode,
                    Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "dirRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.dirRef(source, c, mode, output);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.dirRef(source, c, mode, output);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -329,6 +401,20 @@ void Build::pathRef(const IRSource& source,
                     AccessFlags flags,
                     Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "pathRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.pathRef(source, c, base, path, flags, output);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.pathRef(source, c, base, path, flags, output);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -389,6 +475,21 @@ void Build::pathRef(const IRSource& source,
 // A command retains a handle to a given Ref
 void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << (void*)c.get() << " is deferred the first time in " << "usingRef\n"; 
+      cout << c << " is launched " << c->isLaunched() << " \n";
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.usingRef(source, c, ref);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.usingRef(source, c, ref);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -426,6 +527,20 @@ void Build::doneWithRef(const IRSource& source,
                         const shared_ptr<Command>& c,
                         Ref::ID ref_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "doneWithRef\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.doneWithRef(source, c, ref_id);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.doneWithRef(source, c, ref_id);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -474,6 +589,20 @@ void Build::compareRefs(const IRSource& source,
                         Ref::ID ref2_id,
                         RefComparison type) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "compareRefs\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.compareRefs(source, c, ref1_id, ref2_id, type);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.compareRefs(source, c, ref1_id, ref2_id, type);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -533,6 +662,20 @@ void Build::expectResult(const IRSource& source,
                          Ref::ID ref_id,
                          int8_t expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "expectResult\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.expectResult(source, c, scenario, ref_id, expected);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.expectResult(source, c, scenario, ref_id, expected);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -586,8 +729,21 @@ void Build::matchMetadata(const IRSource& source,
                           Ref::ID ref_id,
                           MetadataVersion expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
-  if (c->mustRun() && !source.isExecuting()) return;
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "matchMetadata\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.matchMetadata(source, c, scenario, ref_id, expected);
+    return;
+  }
 
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.matchMetadata(source, c, scenario, ref_id, expected);
+    return;
+  }
+
+  if (c->mustRun() && !source.isExecuting()) return;
   // Is this step from a traced command?
   if (c->mustRun()) {
     stats::traced_steps++;
@@ -639,6 +795,20 @@ void Build::matchContent(const IRSource& source,
                          Ref::ID ref_id,
                          shared_ptr<ContentVersion> expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "matchContent\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.matchContent(source, c, scenario, ref_id, expected);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.matchContent(source, c, scenario, ref_id, expected);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -685,6 +855,20 @@ void Build::updateMetadata(const IRSource& source,
                            Ref::ID ref_id,
                            MetadataVersion written) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+ if(!c->isLaunched() && !c->isOrphaned()){
+   if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "updateMetadata\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.updateMetadata(source, c, ref_id, written);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.updateMetadata(source, c, ref_id, written);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -740,6 +924,20 @@ void Build::updateContent(const IRSource& source,
                           Ref::ID ref_id,
                           shared_ptr<ContentVersion> written) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "updateContent\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.updateContent(source, c, ref_id, written);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.updateContent(source, c, ref_id, written);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -796,6 +994,20 @@ void Build::addEntry(const IRSource& source,
                      string name,
                      Ref::ID target_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "addEntry\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.addEntry(source, c, dir_id, name, target_id);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.addEntry(source, c, dir_id, name, target_id);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -854,6 +1066,20 @@ void Build::removeEntry(const IRSource& source,
                         string name,
                         Ref::ID target_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "removeEntry\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.removeEntry(source, c, dir_id, name, target_id);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.removeEntry(source, c, dir_id, name, target_id);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -911,6 +1137,17 @@ void Build::launch(const IRSource& source,
                    const shared_ptr<Command>& child,
                    list<tuple<Ref::ID, Ref::ID>> refs) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  // if(!parent->isLaunched() && !parent->isOrphaned()){
+  //   _deferred_commands.emplace(parent);
+  //   _deferred_steps.launch(source, parent, child, refs);
+  //   return;
+  // }
+
+  // if(!parent->isLaunched() && c->isOrphaned()){
+  //   _output.removeEntry(source, c, dir_id, name, target_id);
+  //   return;
+  // }
+
   if (parent->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -977,10 +1214,12 @@ void Build::launch(const IRSource& source,
     // Yes. We need to launch the child if it is supposed to run
     if (child->mustRun()) {
       // Start the child command in the tracer and record it as launched
+      cout << child<< " marked as launched. line 1166\n";
       child->setLaunched(_tracer.start(*this, child));
 
     } else {
       // The child command is launched, and has no associated process
+      cout << child << " marked as launched. line 1171\n";
       child->setLaunched();
     }
   }
@@ -1014,6 +1253,20 @@ void Build::join(const IRSource& source,
                  const shared_ptr<Command>& child,
                  int exit_status) noexcept {
   // If the command must run but the step comes from a saved source, skip it
+  if(!c->isLaunched() && !c->isOrphaned()){
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "join\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.join(source, c, child, exit_status);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    _output.join(source, c, child, exit_status);
+    return;
+  }
+
   if (c->mustRun() && !source.isExecuting()) return;
 
   // Is this step from a traced command?
@@ -1062,7 +1315,54 @@ void Build::join(const IRSource& source,
 // Command c is exiting
 void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_status) noexcept {
   // If the command must run but the step comes from a saved source, skip it
-  if (c->mustRun() && !source.isExecuting()) return;
+  if(!c->isLaunched() && !c->isOrphaned()){
+    cout << "command: " << c << " !isLaunched & !isOrphaned\n";
+    if(_deferred_commands.find(c) == _deferred_commands.end()){
+      cout << c << " is deferred the first time in " << "exit\n"; 
+    }
+    _deferred_commands.emplace(c);
+    _deferred_steps.exit(source, c, exit_status);
+    return;
+  }
+
+  if(!c->isLaunched() && c->isOrphaned()){
+    cout << "command: " << c << " !isLaunched & isOrphaned\n";
+    _output.exit(source, c, exit_status);
+    return;
+  }
+
+  if (c->mustRun() && !source.isExecuting()) {
+    cout << "command: " << c << " mustRun & !isExecuting\n";
+    return;
+    }
+
+  if(c->mustRun()){
+    cout << "command: " << c << " mustRun\n";
+  }
+  else{
+    cout << "command: " << c << " !mustRun\n";
+  }
+
+  if(source.isExecuting()){
+    cout << "command: " << c << " isExecuting\n";
+  }
+  else{
+    cout << "command: " << c << " !isExecuting\n";
+  }
+
+  if(c->isLaunched()){
+    cout << "command: " << c << " isLaunched\n";
+  }
+  else{
+    cout << "command: " << c << " !isLaunched\n";
+  }
+
+  if(c->isOrphaned()){
+    cout << "command: " << c << " isOrphaned\n";
+  }
+  else{
+    cout << "command: " << c << " !isOrphaned\n";
+  }
 
   // Is this step from a traced command?
   if (c->mustRun()) {
