@@ -159,7 +159,7 @@ SRC="\
   shell.c \
   sqlite3.h"
 
-gcc  -g -O2 -o mksourceid /home/curtsinger/Projects/sqlite2/tool/mksourceid.c
+gcc  -g -O2 -o mksourceid ./tool/mksourceid.c
 tclsh8.6 ./tool/mksqlite3h.tcl . >sqlite3.h
 gcc  -g -O2 -o mkkeywordhash -DSQLITE_ENABLE_MATH_FUNCTIONS  ./tool/mkkeywordhash.c
 ./mkkeywordhash >keywordhash.h
