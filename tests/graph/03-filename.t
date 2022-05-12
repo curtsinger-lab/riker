@@ -1,6 +1,9 @@
 Move to test directory
   $ cd $TESTDIR
 
+Is graphviz installed? If not, skip this test
+  $ which dot > /dev/null || exit 80
+
 Clean up any previous build
   $ rm -rf .rkr output A1.png A2.png B1.pdf B2.pdf C1.jpg C2.jpg
 

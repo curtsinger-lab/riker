@@ -1,6 +1,9 @@
 Move to test directory
   $ cd $TESTDIR
 
+Is pdflatex installed? If not, skip this test
+  $ which pdflatex > /dev/null || exit 80
+
 Clean up any leftover state
   $ rm -rf .rkr
   $ rm -f main.aux main.log main.pdf
