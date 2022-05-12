@@ -7,10 +7,7 @@ self-build
 .rkr
 core
 out.png
-*.t.err
-benchmark.local
 __pycache__
+*.t.err
 benchmarks/*/checkout
-log-default
-log-rkr
-.old-*
+graphs/*.pdf
