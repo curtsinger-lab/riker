@@ -101,12 +101,12 @@ test: test-debug
 test-debug: debug
 	@PATH=$(PWD)/$(DEBUG_DIR)/bin:$(PATH) \
 		LD_LIBRARY_PATH=$(PWD)/$(DEBUG_DIR)/lib:$(LD_LIBRARY_PATH) \
-		./runtests.py
+		scripts/runtests.py
 
 test-release: release
 	@PATH=$(PWD)/$(RELEASE_DIR)/bin:$(PATH) \
 		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib:$(LD_LIBRARY_PATH) \
-		./runtests.py
+		scripts/runtests.py
 
 $(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS)
 $(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS)

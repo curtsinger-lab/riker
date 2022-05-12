@@ -1,4 +1,0 @@
-rkr-launch
-Rikerfile
-make --quiet
-/usr/bin/cmake -S/home/curtsinger/Projects/riker/benchmarks/xz-clang/checkout -B/home/curtsinger/Projects/riker/benchmarks/xz-clang/checkout --check-build-system CMakeFiles/Makefile.cmake 0
