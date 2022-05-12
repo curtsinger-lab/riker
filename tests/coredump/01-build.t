@@ -8,8 +8,10 @@ Prepare for a clean run
   $ clang -g -o abort abort.c
 
 Does running the program actually produce a core file? If not, skip this test
+  $ ulimit -c unlimited
   $ ./abort
   Aborted (core dumped)
+  [134]
   $ test -f core || exit 80
   $ rm -f core
 
