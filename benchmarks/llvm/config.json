@@ -1,0 +1,29 @@
+{
+  "git": "https://github.com/llvm/llvm-project.git",
+  "commit": "d28af7c654d8db0b68c175db5ce212d74fb5e9bc",
+  "reps": 3,
+  "experiments": [
+    "full-build"
+  ],
+  "default": {
+    "setup": [
+      "rm -rf llvm-build && mkdir llvm-build && cd llvm-build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_BINDINGS=0 ../llvm"
+    ],
+    "build": "cd llvm-build; make --quiet",
+    "filter": [
+      "sh",
+      "make",
+      "cmake"
+    ]
+  },
+  "rkr": {
+    "copy": {
+      "files/Rikerfile": "Rikerfile"
+    },
+    "setup": [
+      "rm -rf llvm-build && mkdir llvm-build && cd llvm-build && cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_BINDINGS=0 ../llvm",
+      "rm -rf .rkr"
+    ],
+    "build": "rkr"
+  }
+}

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+cd llvm-build; make --always-make
