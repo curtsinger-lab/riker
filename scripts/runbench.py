@@ -367,8 +367,8 @@ def show_usage():
   print('Build Tools:')
   print('  default       Use each benchmark\'s default build system')
   print('  rkr           Build with riker')
-  print('  rkr-parallel  Build with riker in parallel mode')
-  print('  rattle        Build with rattle')
+  print('  rkr-parallel  Build with riker in parallel mode (not included in \'all\')')
+  #print('  rattle        Build with rattle')
   print('  all           Run with all build tools')
   print()
   print('Benchmarks:')
@@ -391,7 +391,8 @@ if __name__ == '__main__':
     experiment = sys.argv[1]
   
   # Validate and unpack the build tool argument
-  if sys.argv[2] not in ['default', 'rkr', 'rkr-parallel', 'rattle', 'all']:
+  #if sys.argv[2] not in ['default', 'rkr', 'rkr-parallel', 'rattle', 'all']:
+  if sys.argv[2] not in ['default', 'rkr', 'rkr-parallel', 'all']:
     show_usage()
     exit(1)
   else:
@@ -456,11 +457,11 @@ if __name__ == '__main__':
           print(e)
           
       # Run the rattle build if requested
-      if build_tool == 'rattle' or build_tool == 'all':
-        try:
-          full_build(bench, 'rattle')
-        except Exception as e:
-          print(e)
+      #if build_tool == 'rattle' or build_tool == 'all':
+      #  try:
+      #    full_build(bench, 'rattle')
+      #  except Exception as e:
+      #    print(e)
   
   # Run case-study experiments
   if experiment == 'case-study' or experiment == 'all':
@@ -486,8 +487,8 @@ if __name__ == '__main__':
           print(e)
           
       # Run the rkr build if requested
-      if build_tool == 'rattle' or build_tool == 'all':
-        try:
-          case_study(bench, 'rattle')
-        except Exception as e:
-          print(e)
+      #if build_tool == 'rattle' or build_tool == 'all':
+      #  try:
+      #    case_study(bench, 'rattle')
+      #  except Exception as e:
+      #    print(e)
