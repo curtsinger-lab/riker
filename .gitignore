@@ -11,3 +11,6 @@ __pycache__
 *.t.err
 benchmarks/*/checkout
 graphs/*.pdf
+.old-*
+rkr-commands
+default-commands

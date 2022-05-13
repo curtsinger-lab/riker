@@ -79,6 +79,11 @@ def checkout(name):
           raise Exception('Custom checkout of {} failed'.format(name))
       if not path.isdir(checkout_path):
         raise Exception('Custom checkout of {} did not create path {}'.format(name, checkout_path))
+    
+    # Was a specific commit requested?
+    if 'commit' in BENCHMARKS[name]:
+      rev = BENCHMARKS[name]['commit']
+      checkout_rev(name, rev)
 
   else:
     raise Exception('No method found to checkout a copy of {}'.format(name))

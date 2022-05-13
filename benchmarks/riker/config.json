@@ -1,5 +1,7 @@
 {
-  "git": "git@github.com:curtsinger-lab/riker",
+  "checkout": [
+    "tar xvzf files/riker.tar.gz"
+  ],
   "commit": "fbfef5653abe3c44c496ab23fadf233157091ae1",
   "experiments": [
     "full-build",
