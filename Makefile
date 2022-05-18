@@ -7,9 +7,9 @@ ARCH := $(shell uname -p)
 BLAKE3 := deps/BLAKE3/c
 
 # Flags shared by both debug and release builds
-COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3)
+COMMON_CFLAGS := -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$(BLAKE3) 
 COMMON_CXXFLAGS := $(COMMON_CFLAGS) --std=c++17 -Ideps/CLI11/include
-COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread
+COMMON_LDFLAGS := -lstdc++fs -lfmt -lpthread 
 
 # Debug settings
 DEBUG_DIR := debug

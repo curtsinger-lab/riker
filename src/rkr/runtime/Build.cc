@@ -68,7 +68,6 @@ void Build::start(const shared_ptr<Command>& c) noexcept {
   _root_command = c;
 
   // The root command is launched
-  cout << _root_command << " marked as launched. line 71\n";
   _root_command->setLaunched();
 
   // Pass the root command on to the output
@@ -83,7 +82,6 @@ void Build::finish() noexcept {
   env::getRootDir()->checkFinalState("/");
   
   // Finish the run of the root command and all descendants (recursively)
-  cout << _root_command << " " << _root_command->isLaunched() << "\n";
   _root_command->finishRun();
   
   // Inform the output trace that it is finished
@@ -100,9 +98,6 @@ void Build::specialRef(const IRSource& source,
                        Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "specialRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.specialRef(source, c, entity, output);
     return;
@@ -189,9 +184,6 @@ void Build::pipeRef(const IRSource& source,
                     Ref::ID write_end) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "pipeRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.pipeRef(source, c, read_end, write_end);
     return;
@@ -243,9 +235,6 @@ void Build::fileRef(const IRSource& source,
                     Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "fileRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.fileRef(source, c, mode, output);
     return;
@@ -295,9 +284,6 @@ void Build::symlinkRef(const IRSource& source,
                        Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "symlinkRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.symlinkRef(source, c, target, output);
     return;
@@ -348,9 +334,6 @@ void Build::dirRef(const IRSource& source,
                    Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "dirRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.dirRef(source, c, mode, output);
     return;
@@ -402,9 +385,6 @@ void Build::pathRef(const IRSource& source,
                     Ref::ID output) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "pathRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.pathRef(source, c, base, path, flags, output);
     return;
@@ -476,10 +456,6 @@ void Build::pathRef(const IRSource& source,
 void Build::usingRef(const IRSource& source, const shared_ptr<Command>& c, Ref::ID ref) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << (void*)c.get() << " is deferred the first time in " << "usingRef\n"; 
-      cout << c << " is launched " << c->isLaunched() << " \n";
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.usingRef(source, c, ref);
     return;
@@ -528,9 +504,6 @@ void Build::doneWithRef(const IRSource& source,
                         Ref::ID ref_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "doneWithRef\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.doneWithRef(source, c, ref_id);
     return;
@@ -590,9 +563,6 @@ void Build::compareRefs(const IRSource& source,
                         RefComparison type) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "compareRefs\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.compareRefs(source, c, ref1_id, ref2_id, type);
     return;
@@ -663,9 +633,6 @@ void Build::expectResult(const IRSource& source,
                          int8_t expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "expectResult\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.expectResult(source, c, scenario, ref_id, expected);
     return;
@@ -730,9 +697,6 @@ void Build::matchMetadata(const IRSource& source,
                           MetadataVersion expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "matchMetadata\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.matchMetadata(source, c, scenario, ref_id, expected);
     return;
@@ -796,9 +760,6 @@ void Build::matchContent(const IRSource& source,
                          shared_ptr<ContentVersion> expected) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "matchContent\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.matchContent(source, c, scenario, ref_id, expected);
     return;
@@ -856,9 +817,6 @@ void Build::updateMetadata(const IRSource& source,
                            MetadataVersion written) noexcept {
   // If the command must run but the step comes from a saved source, skip it
  if(!c->isLaunched() && !c->isOrphaned()){
-   if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "updateMetadata\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.updateMetadata(source, c, ref_id, written);
     return;
@@ -925,9 +883,6 @@ void Build::updateContent(const IRSource& source,
                           shared_ptr<ContentVersion> written) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "updateContent\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.updateContent(source, c, ref_id, written);
     return;
@@ -995,9 +950,6 @@ void Build::addEntry(const IRSource& source,
                      Ref::ID target_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "addEntry\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.addEntry(source, c, dir_id, name, target_id);
     return;
@@ -1067,9 +1019,6 @@ void Build::removeEntry(const IRSource& source,
                         Ref::ID target_id) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "removeEntry\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.removeEntry(source, c, dir_id, name, target_id);
     return;
@@ -1214,12 +1163,11 @@ void Build::launch(const IRSource& source,
     // Yes. We need to launch the child if it is supposed to run
     if (child->mustRun()) {
       // Start the child command in the tracer and record it as launched
-      cout << child<< " marked as launched. line 1166\n";
+      child->setLaunched();
       child->setLaunched(_tracer.start(*this, child));
 
     } else {
       // The child command is launched, and has no associated process
-      cout << child << " marked as launched. line 1171\n";
       child->setLaunched();
     }
   }
@@ -1241,10 +1189,9 @@ void Build::orphan(const shared_ptr<Command>& parent,
   _deferred_commands.emplace(child);
   if(!parent->mustRun()){
     child->setOrphaned();
+    _output.orphan(parent,child,refs);
   }
-  _output.orphan(parent, child, refs);
-  cout << "in orphan" << "\n";
-  cout << "parent: " << parent << "  orphan: " << child << "\n";
+  parent->addChild(child,refs);
 }
 
 // Command c waits for a child command to exit
@@ -1254,9 +1201,6 @@ void Build::join(const IRSource& source,
                  int exit_status) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "join\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.join(source, c, child, exit_status);
     return;
@@ -1316,52 +1260,18 @@ void Build::join(const IRSource& source,
 void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_status) noexcept {
   // If the command must run but the step comes from a saved source, skip it
   if(!c->isLaunched() && !c->isOrphaned()){
-    cout << "command: " << c << " !isLaunched & !isOrphaned\n";
-    if(_deferred_commands.find(c) == _deferred_commands.end()){
-      cout << c << " is deferred the first time in " << "exit\n"; 
-    }
     _deferred_commands.emplace(c);
     _deferred_steps.exit(source, c, exit_status);
     return;
   }
 
   if(!c->isLaunched() && c->isOrphaned()){
-    cout << "command: " << c << " !isLaunched & isOrphaned\n";
     _output.exit(source, c, exit_status);
     return;
   }
 
   if (c->mustRun() && !source.isExecuting()) {
-    cout << "command: " << c << " mustRun & !isExecuting\n";
     return;
-    }
-
-  if(c->mustRun()){
-    cout << "command: " << c << " mustRun\n";
-  }
-  else{
-    cout << "command: " << c << " !mustRun\n";
-  }
-
-  if(source.isExecuting()){
-    cout << "command: " << c << " isExecuting\n";
-  }
-  else{
-    cout << "command: " << c << " !isExecuting\n";
-  }
-
-  if(c->isLaunched()){
-    cout << "command: " << c << " isLaunched\n";
-  }
-  else{
-    cout << "command: " << c << " !isLaunched\n";
-  }
-
-  if(c->isOrphaned()){
-    cout << "command: " << c << " isOrphaned\n";
-  }
-  else{
-    cout << "command: " << c << " !isOrphaned\n";
   }
 
   // Is this step from a traced command?
@@ -1396,7 +1306,6 @@ void Build::exit(const IRSource& source, const shared_ptr<Command>& c, int exit_
     if(options::orphan){
       for(const auto& candidate : c->getMaxChildren()){
         if(std::find(c->getTempChildren().begin(), c->getTempChildren().end(), candidate) == c->getTempChildren().end()){
-          cout << "in exit" << "\n";
           candidate->setOrphaned();
           _output.orphan(c, candidate, *it);
           runDeferredSteps();
@@ -1438,9 +1347,6 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
   // TODO: Should tempfile substitutions be global? Probably. For now they are unique to each
   // command, which could cause problems in strange cases.
 
-for (const auto& candidate : _deferred_commands) {
-  cout<<"FINDCOMMAND--------deferred_command: " << candidate << "\n";
-}
   // Loop over the set of deferred commands
   for (const auto& candidate : _deferred_commands) {
     // Has the candidate been launched already? If so we cannot match it
@@ -1465,7 +1371,6 @@ for (const auto& candidate : _deferred_commands) {
     // We found a matching child command. Apply the required substitutions
     child->applySubstitutions(child_substitutions);
 
-    cout << "try to match parent: " << parent  << "   matched child: " << child << "\n";
     LOG(exec) << "Matched launch of " << child << " by " << parent;
 
   } else {

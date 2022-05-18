@@ -75,31 +75,31 @@ class logger {
     // Set the color for the log category text
     if (!options::disable_color) {
       if (category == LogCategory::error) {
-        std::cerr << FAINT RED;
+        std::cout << FAINT RED;
       } else if (category == LogCategory::warning) {
-        std::cerr << FAINT YELLOW;
+        std::cout << FAINT YELLOW;
       } else {
-        std::cerr << FAINT GREEN;
+        std::cout << FAINT GREEN;
       }
     }
 
     // Print the logging category name
-    std::cerr << "(" << name << ") ";
+    std::cout << "(" << name << ") ";
 
     // Print source information, if enabled
     if (options::debug) {
-      if (!options::disable_color) std::cerr << NORMAL BLUE;
-      std::cerr << "[" << location.file_name() << ":" << location.line() << "] ";
+      if (!options::disable_color) std::cout << NORMAL BLUE;
+      std::cout << "[" << location.file_name() << ":" << location.line() << "] ";
     }
 
     // Set the log color for the actual message
     if (!options::disable_color) {
       if (category == LogCategory::error) {
-        std::cerr << NORMAL RED;
+        std::cout << NORMAL RED;
       } else if (category == LogCategory::warning) {
-        std::cerr << NORMAL YELLOW;
+        std::cout << NORMAL YELLOW;
       } else {
-        std::cerr << NORMAL GREEN;
+        std::cout << NORMAL GREEN;
       }
     }
   }
@@ -108,9 +108,9 @@ class logger {
     if (!enabled) return;
 
     // End color output and print a newline
-    if (!options::disable_color) std::cerr << END_COLOR;
-    std::cerr << "\n";
-    std::cerr << std::dec;
+    if (!options::disable_color) std::cout << END_COLOR;
+    std::cout << "\n";
+    std::cout << std::dec;
 
     // If this log is a fatal call the terminate handler
     if (category == LogCategory::error) terminate();
@@ -118,7 +118,7 @@ class logger {
 
   template <typename T>
   logger& operator<<(const T& t) noexcept {
-    if (enabled) std::cerr << t;
+    if (enabled) std::cout << t;
     return *this;
   }
 };
