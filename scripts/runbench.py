@@ -240,7 +240,8 @@ def rkr_case_study(name):
     runtime = time.perf_counter() - start_time
     print('    Finished in {:.2f}s with exit code {}'.format(runtime, rc))
     if rc != 0:
-      raise Exception('Build failed')
+      print('Warning: build failed')
+      #raise Exception('Build failed')
 
     # Get the size of the riker database
     db_size = os.path.getsize('{}/.rkr/db'.format(checkout_path))
@@ -340,7 +341,8 @@ def default_case_study(name):
     runtime = time.perf_counter() - start_time
     print('    Finished in {:.2f}s with exit code {}'.format(runtime, rc))
     if rc != 0:
-      raise Exception('Build failed')
+      print('Warning: build failed')
+      #raise Exception('Build failed')
 
     commands = command_counts.pop()
     filtered_commands = filtered_command_counts.pop()

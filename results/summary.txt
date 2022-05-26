@@ -24,7 +24,7 @@ Absolute Difference in runtime for nop-build
 
 Incremental Build Extra Wait Time
   Max: 69.185
-  Min: -11.091
-  Mean: 2.627
-  Median: 2.905
-  95th: 3.771
+  Min: -12.023
+  Mean: 2.071
+  Median: 2.454
+  95th: 3.754
