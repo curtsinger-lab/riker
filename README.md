@@ -70,7 +70,8 @@ Riker will only execute commands whose inputs have changed, so you should expect
 
 ## Larger Builds
 Real projects will typically have more complicated build procedures, but with Riker those builds are still simple to specify.
-This repository includes a Rikerfile to build Riker itself.
+This repository includes a [Rikerfile](Rikerfile) to build Riker itself.
+This build includes some typical platform detection and more complex compilation options, but is still quite a bit simpler than Riker's wildcard-heavy make build.
 
 The source repository also includes Rikerfiles for a number of projects that were used in the evaluation for the Riker paper.
 You can find Rikerfiles that build `redis`, `memcached`, `sqlite`, and `xz` under `benchmarks/*/files`.
