@@ -1,16 +1,29 @@
 # Riker: Don't `make`, Make It So
-Riker is currently in a non-functional state, but user instructions will follow as functionality is restored. See the *Development Environment* section below for instructions on setting up your machine to work on Riker.
+Riker is a forward build tool that automatically discovers incremental builds from simple specifications.
+A paper describing Riker will appear at USENIX ATC'22, which will be accessible at <https://www.usenix.org/conference/atc22/presentation/curtsinger> after the conference begins.
 
-## Development Environment
-Riker currently runs only on Linux. There are two supported development environments for Riker, a native Linux machine and a Docker container. See instructions below for setting up each environment.
+Riker works on x86_64 and ARM64 Linux, although the ARM64 target is has seen much less testing.
+Regardless of your platform, you should be aware that this is the product of research and will certainly contain bugs;
+don't rely on Riker for mission-critical builds, but please do try it out and **file a bug report** if you run into issues.
 
-### Development on a Linux Machine (or Virtual Machine)
-Set up build dependencies:
+## Getting Started
+The Docker configuration in this repository works with VSCode's container development and GitHub Codespaces;
+these should make it easy to get started with Riker if you just want to test it out.
+If you want to use Riker on an existing Linux machine, the following steps should get things up and running:
+
+First, install Riker's build and test dependencies (package names for Ubuntu 20.04):
 ```
-$ sudo apt install git gcc clang libfmt-dev build-essential python-cram graphviz
+$ sudo apt install make clang libfmt-dev gdb git gcc python3-cram file graphviz
 ```
 
-Clone the Riker repository and its submodules:
+Riker's test suite relies on the [cram](https://bitheap.org/cram/) tool.
+Use `update-alternatives` to set it up:
+
+```
+$ sudo update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100
+```
+
+Now clone the Riker repository and its submodules:
 ```
 $ git clone --recursive git@github.com:curtsinger-lab/riker
 ```
@@ -22,45 +35,12 @@ $ make
 $ make test
 ```
 
-### Development in Docker
-The Riker repository is configured to work with Visual Studio Code, including support for remote development in Docker containers. You can work on Riker inside a Docker container without VSCode, but you will have to build the container, check out code, and initiate connections to the container manually.
+If you see any failing tests something has gone wrong;
+please file a bug report if you encounter issues here.
+You can example the `.err` files under the `tests/*/` directories to see the output from the test suite.
 
-Following these instructions will give you a Docker container set up for Riker development, with the Riker source stored on the container's volume. Sharing source files from the host machine introduces significant overhead in Docker, but if you want that approach see the *Other Docker Options* section below.
+There is no `install` target for Riker because the project is not yet ready for production use.
+You can add `riker/debug/bin` to your `PATH` to use Riker elsewhere, or produce a release build with `make release` and use the output under the `release` directory.
 
-If you are running macOS or Windows, install [Docker Desktop](https://www.docker.com/products/docker-desktop) for your platform. Linux users who opt to use Docker for development will need to install Docker Engine following [these instructions](https://docs.docker.com/install/).
-
-Next, install the [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) for Visual Studio Code.
-
-Open the command palette in VS Code (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> in macOS). Launch the *Remote-Containers: Open Repository in Container* command by typing in enough of its name to find it in the command palette. This command will build a new container for Riker development using the container configuration in this repository. At the prompt, enter in the path to this repository (`curtsinger-lab/riker` if you are not working in a fork).
-
-You should see a prompt asking what volume you want to clone the repository to. Unless you have a compelling reason to use some existing volume, choose *Create New Volume*.
-
-Next, type the name of the directory you want the cloned repository to live in. This directory is inside the new container, so there should be no conflicts.
-
-VSCode will now build the Docker container, which can take a few minutes. After that process has finished, open a terminal window in VSCode. The terminal should be running in the container, with the prompt `vscode@dev`. The `vscode` user is set up with `sudo` access in the container.
-
-The last step before building is to check out git submodules:
-```
-$ git submodule init
-$ git submodule update
-```
-
-You should now be able to build and test Riker:
-```
-$ make
-$ make test
-```
-
-Some VSCode extensions have to be installed in the Docker container to work correctly with remote development. The configuration in `.devcontainer/devcontainer.json` sets up the C/C++ extension, but you may want to install others as well. To set these up, open the *Extensions* tab in the activity bar (on the left in VSCode) and scroll through the list to look for grayed-out extensions. You can install them by clicking the *Install in Dev Container* button.
-
-### Other Docker Options
-You can use Docker for development on a source tree that is cloned to your host machine instead of inside the container. This is useful if you want other applications to access development files, but I/O from the container will run significantly slower, at least on macOS.
-
-To set up this development environment, start by cloning the repository to your host machine:
-```
-$ git clone --recursive git@github.com:curtsinger-lab/riker
-```
-
-Now, Open the cloned directory in VSCode. Open the command palette (<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) and launch the *Remote-Containers: Open Folder in Container* command. When a file browser window pops up, select the root of the cloned Riker repository (this should be the default).
-
-After a few minutes, the container should be built and ready to use. Keep in mind, building and running Riker will be quite slow in this environment because file I/O is much slower when sharing files with the host system. It takes about twice as long to build Riker in this configuration compared to the recommended Docker configuration (24 seconds vs. 12 seconds) on a 2015 MacBook Pro.
+## Using Riker
+To use Riker, you
