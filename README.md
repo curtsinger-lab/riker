@@ -6,6 +6,10 @@ Riker works on x86_64 and ARM64 Linux, although the ARM64 target is has seen muc
 Regardless of your platform, you should be aware that this is the product of research and will certainly contain bugs;
 don't rely on Riker for mission-critical builds, but please do try it out and **file a bug report** if you run into issues.
 
+## License
+Riker is available under the BSD three-clause license.
+If you want to use Riker but this license interferes with your ability to do so, please contact the authors and we will try to help.
+
 ## Getting Started
 The Docker configuration in this repository works with VSCode's container development and GitHub Codespaces;
 these should make it easy to get started with Riker if you just want to test it out.
@@ -53,3 +57,30 @@ gcc -o myprogram *.c
 
 Executing the Rikerfile as a shell script should perform a full build of the project;
 you can even add a `#!/bin/sh` line to the top of the Rikerfile and make it executable, but this isn't required.
+
+With the build specified, you can now run a full build with Riker (assuming you've put `rkr` in your `PATH`):
+```
+$ rkr --show
+```
+
+The `--show` flag is optional, but will print each command that runs during the build.
+
+Now that you've run a full build, you can edit source files, delete targets, or even edit the `Rikerfile` and run `rkr` again to update the build.
+Riker will only execute commands whose inputs have changed, so you should expect to see fewer commands in the output if you include the `--show` flag.
+
+## Larger Builds
+Real projects will typically have more complicated build procedures, but with Riker those builds are still simple to specify.
+This repository includes a Rikerfile to build Riker itself.
+
+The source repository also includes Rikerfiles for a number of projects that were used in the evaluation for the Riker paper.
+You can find Rikerfiles that build `redis`, `memcached`, `sqlite`, and `xz` under `benchmarks/*/files`.
+Other benchmarks were only evaluated with full builds where Riker simply wraps the existing `make` build;
+we don't expect these builds to perform quite as well on incremental updates, since `make` itself creates dependencies that Riker discovers.
+
+You may also find it informative to browse through the test cases under the `tests/*` directories.
+These tests, written for `cram`, are meant to be human-readable and demonstrate many of Riker's capabilities.
+
+## Other Platforms
+Unfortunately, Riker does not yet work on Windows or macOS.
+We're interested in adding support for these platforms, but Riker relies on system call tracing that will need to be ported, and there are some unusual requirements that make this difficult.
+If you are familiar with system call tracing (not library interposition) on these platforms and would like to help, please let us know.
