@@ -43,4 +43,13 @@ There is no `install` target for Riker because the project is not yet ready for 
 You can add `riker/debug/bin` to your `PATH` to use Riker elsewhere, or produce a release build with `make release` and use the output under the `release` directory.
 
 ## Using Riker
-To use Riker, you
+To use Riker, you first need a project to build.
+For this example, we'll assume you are building a C project with a number of `.c` and `.h` files in the top-level directory.
+To specify a build for Riker, create a Rikerfile like this one:
+
+```
+gcc -o myprogram *.c
+```
+
+Executing the Rikerfile as a shell script should perform a full build of the project;
+you can even add a `#!/bin/sh` line to the top of the Rikerfile and make it executable, but this isn't required.
