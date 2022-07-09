@@ -757,15 +757,23 @@ void Build::addEntry(const IRSource& source,
     }
   }
 
-  // Create an IR step and add it to the output trace
-  _output.addEntry(source, c, dir_id, name, target_id);
-
   // Get the directory and target references
   auto dir = c->getRef(dir_id);
   auto target = c->getRef(target_id);
 
   // Did both references resolve?
   if (dir->isResolved() && target->isResolved()) {
+    // Is this adding an entry in /tmp/? If so, do path substitution
+    auto dirname = dir->getArtifact()->getName();
+    if (dirname.substr(0, 5) == "/tmp/") {
+      string newpath = c->substitutePath(dirname + "/" + name);
+      string newname = newpath.substr(dirname.size() + 1);
+      if (newname != name) {
+        LOG(exec) << "Replaced " << name << " with " << newname;
+      }
+      name = newname;
+    }
+
     // Yes. Add the entry to the directory
     dir->getArtifact()->addEntry(c, name, target->getArtifact());
 
@@ -781,6 +789,9 @@ void Build::addEntry(const IRSource& source,
       c->observeChange(Scenario::Build);
     }
   }
+
+  // Create an IR step and add it to the output trace
+  _output.addEntry(source, c, dir_id, name, target_id);
 }
 
 // Command c removes an entry from a directory
@@ -811,15 +822,23 @@ void Build::removeEntry(const IRSource& source,
     }
   }
 
-  // Create an IR step and add it to the output trace
-  _output.removeEntry(source, c, dir_id, name, target_id);
-
   // Get the directory and target references
   auto dir = c->getRef(dir_id);
   auto target = c->getRef(target_id);
 
   // Did both references resolve?
   if (dir->isResolved() && target->isResolved()) {
+    // Is this removing an entry in /tmp/? If so, do path substitution
+    auto dirname = dir->getArtifact()->getName();
+    if (dirname.substr(0, 5) == "/tmp/") {
+      string newpath = c->substitutePath(dirname + "/" + name);
+      string newname = newpath.substr(dirname.size() + 1);
+      if (newname != name) {
+        LOG(exec) << "Replaced " << name << " with " << newname;
+      }
+      name = newname;
+    }
+
     // Yes. Remove the entry from the directory
     dir->getArtifact()->removeEntry(c, name, target->getArtifact());
 
@@ -835,6 +854,9 @@ void Build::removeEntry(const IRSource& source,
       c->observeChange(Scenario::Build);
     }
   }
+
+  // Create an IR step and add it to the output trace
+  _output.removeEntry(source, c, dir_id, name, target_id);
 }
 
 // A parent command launches a child command
