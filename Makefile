@@ -72,6 +72,9 @@ BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o
 
 all: debug
 
+install: debug
+	echo "To install Riker, add 'riker/debug/bin' to your PATH."
+
 debug: CFLAGS = $(DEBUG_CFLAGS)
 debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
