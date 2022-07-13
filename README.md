@@ -1,6 +1,15 @@
 # Riker: Don't `make`, Make It So
-Riker is a forward build tool that automatically discovers incremental builds from simple specifications.
-A paper describing Riker appeared at USENIX ATC'22, and is available at <https://www.usenix.org/conference/atc22/presentation/curtsinger>.
+
+Riker is a new build tool.
+Unlike `make`, Riker produces fast builds without detailed specifications.
+Importantly, Riker never misses a dependency, ensuring that incremental builds are always consistent with the full build.
+In many cases, a single command such as `gcc *.c` suffices.
+
+Riker was one of two papers that won "best paper" at USENIX ATC'22.
+A paper describing Riker is available at <https://www.usenix.org/conference/atc22/presentation/curtsinger>.
+A talk video and slides will be available after the conference.
+
+## Supported Platforms and Disclaimer
 
 Riker works on x86_64 and ARM64 Linux, although the ARM64 target is has seen much less testing.
 Regardless of your platform, you should be aware that this is the product of research and will certainly contain bugs;
