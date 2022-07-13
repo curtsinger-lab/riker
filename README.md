@@ -12,8 +12,8 @@ A talk video and slides will be available after the conference.
 ## Supported Platforms and Disclaimer
 
 Riker works on x86_64 and ARM64 Linux, although the ARM64 target is has seen much less testing.
-Regardless of your platform, you should be aware that this is the product of research and will certainly contain bugs;
-don't rely on Riker for mission-critical builds, but please do try it out and **file a bug report** if you run into issues.
+Regardless of your platform, you should be aware that this is an alpha-quality release.
+Please do try it out and [file a bug report](https://github.com/curtsinger-lab/riker/issues) if you run into issues.
 
 ## License
 Riker is available under the BSD three-clause license.
