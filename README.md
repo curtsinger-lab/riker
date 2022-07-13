@@ -41,10 +41,19 @@ Now clone the Riker repository and its submodules:
 $ git clone --recursive git@github.com:curtsinger-lab/riker
 ```
 
-Build Riker with `make` and run the test suite:
+Now run `make install` and follow the on-screen instructions.
+
 ```
-$ cd riker
-$ make
+$ make install
+... lots of output ...
+***NOTE***
+To install Riker, add 'riker/debug/bin' to your PATH.
+```
+
+If you run into problems with Riker, please run our test suite and include that output with [a bug report](https://github.com/curtsinger-lab/riker/issues).
+Riker may skip some tests, but it should pass all of the tests that it runs.
+
+```
 $ make test
 ```
 
