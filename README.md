@@ -47,7 +47,7 @@ Now run `make install` and follow the on-screen instructions.
 $ make install
 ... lots of output ...
 ***NOTE***
-To install Riker, add 'riker/debug/bin' to your PATH.
+To install Riker, add '$PWD/riker/debug/bin' to your PATH.
 ```
 
 If you run into problems with Riker, please run our test suite and include that output with [a bug report](https://github.com/curtsinger-lab/riker/issues).
@@ -57,12 +57,7 @@ Riker may skip some tests, but it should pass all of the tests that it runs.
 $ make test
 ```
 
-If you see any failing tests something has gone wrong;
-please file a bug report if you encounter issues here.
-You can example the `.err` files under the `tests/*/` directories to see the output from the test suite.
-
-There is no `install` target for Riker because the project is not yet ready for production use.
-You can add `riker/debug/bin` to your `PATH` to use Riker elsewhere, or produce a release build with `make release` and use the output under the `release` directory.
+You can examine the `.err` files under the `tests/*/` directories to see the output from the test suite.
 
 ## Using Riker
 To use Riker, you first need a project to build.
