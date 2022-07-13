@@ -6,7 +6,7 @@ Importantly, Riker never misses a dependency, ensuring that incremental builds a
 In many cases, a single command such as `gcc *.c` suffices.
 
 Riker was one of two papers that won "best paper" at USENIX ATC'22.
-A paper describing Riker is available at <https://www.usenix.org/conference/atc22/presentation/curtsinger>.
+A paper, titled "Riker: Always-Correct and Fast Incremental Builds from Simple Specifications", is available at <https://www.usenix.org/conference/atc22/presentation/curtsinger>.
 A talk video and slides will be available after the conference.
 
 ## Supported Platforms and Disclaimer
