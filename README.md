@@ -1,6 +1,6 @@
 # Riker: Don't `make`, Make It So
 Riker is a forward build tool that automatically discovers incremental builds from simple specifications.
-A paper describing Riker will appear at USENIX ATC'22, which will be accessible at <https://www.usenix.org/conference/atc22/presentation/curtsinger> after the conference begins.
+A paper describing Riker appeared at USENIX ATC'22, and is available at <https://www.usenix.org/conference/atc22/presentation/curtsinger>.
 
 Riker works on x86_64 and ARM64 Linux, although the ARM64 target is has seen much less testing.
 Regardless of your platform, you should be aware that this is the product of research and will certainly contain bugs;
