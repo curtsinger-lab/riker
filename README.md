@@ -2,7 +2,7 @@
 
 Riker is a new build tool.
 Unlike `make`, Riker produces fast builds without detailed specifications.
-Importantly, Riker never misses a dependency, ensuring that incremental builds are always consistent with the full build.
+Importantly, Riker never misses a dependency and always ensures that incremental builds are always consistent with the full build.
 In many cases, a single command such as `gcc *.c` suffices.
 
 Riker was one of two papers that won "best paper" at USENIX ATC'22.
