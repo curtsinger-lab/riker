@@ -41,23 +41,35 @@ Now clone the Riker repository and its submodules:
 $ git clone --recursive git@github.com:curtsinger-lab/riker
 ```
 
-Now run `make install` and follow the on-screen instructions.
-
+Once the Riker repository has cloned, move to that directory and build Riker:
 ```
-$ make install
-... lots of output ...
-***NOTE***
-To install Riker, add '$PWD/riker/debug/bin' to your PATH.
+$ cd riker
+$ make
 ```
 
-If you run into problems with Riker, please run our test suite and include that output with [a bug report](https://github.com/curtsinger-lab/riker/issues).
-Riker may skip some tests, but it should pass all of the tests that it runs.
-
+After building Riker, we recommend running Riker's test suite. Riker may skip some tests, but it should pass all of the tests that it runs.
 ```
 $ make test
 ```
 
-You can examine the `.err` files under the `tests/*/` directories to see the output from the test suite.
+You can examine the `.err` files under the `tests/*/` directories to see the output from the test suite. If you run into problems with Riker, please run our test suite and include that output with [a bug report](https://github.com/curtsinger-lab/riker/issues).
+
+## Installing Riker
+Riker is alpha-quality software, but if you want to install it globally you can do so with the following commands:
+
+```
+$ make
+$ sudo make install
+```
+
+The above commands will build and install a debug version of Riker.
+We recommend using the debug build because it is only marginally slower than a release build, but collects more information to help track down bugs if they do come up.
+You can install a release build with `make release` and `sudo make install-release`.
+
+You can run Riker's test suite against the installed version of Riker with the `test-installed` target:
+```
+$ make test-installed
+```
 
 ## Using Riker
 To use Riker, you first need a project to build.
