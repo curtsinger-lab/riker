@@ -4,6 +4,9 @@ AR = ar
 MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
 ARCH := $(shell uname -p)
 
+# Install prefix
+PREFIX ?= /usr
+
 BLAKE3 := deps/BLAKE3/c
 
 # Flags shared by both debug and release builds
@@ -72,9 +75,6 @@ BLAKE_RELEASE_S_OBJS := $(patsubst $(BLAKE3)/%.S, $(RELEASE_DIR)/.obj/blake3/%.o
 
 all: debug
 
-install: debug
-	@echo -e "\n\033[5m***NOTE***\nTo install Riker, add '$PWD/riker/debug/bin' to your PATH.\033[0m"
-
 debug: CFLAGS = $(DEBUG_CFLAGS)
 debug: CXXFLAGS = $(DEBUG_CXXFLAGS)
 debug: LDFLAGS = $(DEBUG_LDFLAGS)
@@ -90,6 +90,36 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_DIR)/bin/rkr-launch \
          $(RELEASE_DIR)/share/rkr/rkr-inject.so \
          $(RELEASE_WRAPPERS)
+
+install: install-debug
+
+install-debug:
+	@echo Installing debug build to prefix $(PREFIX)...
+	@(install -d $(PREFIX)/bin $(PREFIX)/share/rkr/wrappers && \
+		install $(DEBUG_DIR)/bin/rkr $(DEBUG_DIR)/bin/rkr-launch $(PREFIX)/bin && \
+		install $(DEBUG_DIR)/share/rkr/rkr-inject.so $(DEBUG_DIR)/share/rkr/rkr-wrapper $(PREFIX)/share/rkr/ && \
+		install $(DEBUG_WRAPPERS) $(PREFIX)/share/rkr/wrappers && \
+		echo Done. && \
+		echo CAUTION: Riker is alpha-quality software. Please report bugs at https://rkr.sh.) || \
+		(echo && \
+		echo "ERROR: Failed to install debug build. Have you run \`make debug\`?" && \
+		exit 0)
+
+install-release:
+	@echo Installing release build to prefix $(PREFIX)... 
+	@(install -d $(PREFIX)/bin $(PREFIX)/share/rkr/wrappers && \
+		install $(RELEASE_DIR)/bin/rkr $(RELEASE_DIR)/bin/rkr-launch $(PREFIX)/bin && \
+		install $(RELEASE_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-wrapper $(PREFIX)/share/rkr/ && \
+		install $(RELEASE_WRAPPERS) $(PREFIX)/share/rkr/wrappers && \
+		echo Done. && \
+		echo CAUTION: Riker is alpha-quality software. Please report bugs at https://rkr.sh.) || \
+		(echo && \
+		echo "ERROR: Failed to install release build. Have you run \`make release\`?" && \
+		exit 0)
+
+uninstall:
+	@echo Removing installed version under prefix $(PREFIX)
+	@rm -rf $(PREFIX)/bin/rkr $(PREFIX)/bin/rkr-launch $(PREFIX)/share/rkr
 
 clean: clean-debug clean-release
 
@@ -110,6 +140,9 @@ test-release: release
 	@PATH=$(PWD)/$(RELEASE_DIR)/bin:$(PATH) \
 		LD_LIBRARY_PATH=$(PWD)/$(RELEASE_DIR)/lib:$(LD_LIBRARY_PATH) \
 		scripts/runtests.py
+
+test-installed:
+	scripts/runtests.py
 
 $(DEBUG_DIR)/bin/rkr: $(RKR_DEBUG_OBJS) $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS)
 $(RELEASE_DIR)/bin/rkr: $(RKR_RELEASE_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS)
@@ -165,6 +198,6 @@ $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELE
 -include $(RKR_DEBUG_DEPS)
 -include $(RKR_RELEASE_DEPS)
 
-.PHONY: all debug release clean clean-debug clean-release test test-debug test-release
+.PHONY: all debug release install install-debug install-release uninstall clean clean-debug clean-release test test-debug test-release test-installed
 
 .SUFFIXES:
