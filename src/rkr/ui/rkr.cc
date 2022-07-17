@@ -100,8 +100,6 @@ int main(int argc, char* argv[]) noexcept {
                                   CLI::ignore_case)
               .description("{all, local, none}"));
 
-  app.add_flag("--mtime-only", options::mtime_only, "When fingerprinting, only rely on mtime.");
-
   optional<fs::path> stats_log;
   app.add_option("--stats", stats_log,
                  "Path to write statistics to a CSV file; appends if file already exists.")
@@ -122,19 +120,6 @@ int main(int argc, char* argv[]) noexcept {
         options::print_full = true;
       },
       "Show complete command lines for all commands as they run");
-
-  build
-      ->add_flag_callback(
-          "--eager", []() { options::lazy_builds = false; },
-          "Eagerly run all commands that may need to run during a rebuild")
-      // Hide the --eager flag if eager builds are enabled by default
-      ->group(options::lazy_builds ? "Options" : "");
-
-  build
-      ->add_flag("--lazy", options::lazy_builds,
-                 "Lazily run commands only as they are needed during rebuild")
-      // Hide the --lazy flag if lazy builds are enabled by default
-      ->group(options::lazy_builds ? "" : "Options");
 
   build->add_flag_callback(
       "--no-inject", []() { options::inject_tracing_lib = false; },

@@ -320,9 +320,6 @@ set<shared_ptr<Command>> Command::collectMustRun() noexcept {
 bool Command::mark(RebuildMarking m) noexcept {
   // See rebuild planning rules in docs/new-rebuild.md
 
-  // If lazy builds are turned off, promote a MayRun marking to MustRun
-  if (!options::lazy_builds && m == RebuildMarking::MayRun) m = RebuildMarking::MustRun;
-
   // Check the new marking
   if (m == RebuildMarking::MustRun) {
     // If this command already had an equivalent or higher marking, return false.

@@ -16,9 +16,6 @@ namespace options {
   /// Which files, if any, should be fingerprinted?
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
-  /// When fingerprinting, do we use a hash function (i.e., BLAKE3)?
-  inline bool mtime_only = false;
-
   /// Should commands keep a precise record of their inputs and outputs? Used for graph.
   inline bool track_inputs_outputs = false;
 
@@ -33,13 +30,7 @@ namespace options {
 
   /****** Optimization ******/
   /// Enable file-staging cache
-  inline bool enable_cache = true;  // PAPER
-
-  /// Run only commands that MUST run, then re-evaluate and execute others as needed
-  inline bool lazy_builds = true;  // PAPER
-
-  /// The maximum file size to consider for caching
-  // inline size_t max_cached_file_size = 1024 * 1024 * 10;
+  inline bool enable_cache = true;
 
   /// Inject the shared memory tracing library
   inline bool inject_tracing_lib = true;
