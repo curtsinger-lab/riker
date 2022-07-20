@@ -171,6 +171,9 @@ class TraceReader : public IRSource {
 
   /// The table of strings indexed by ID
   std::vector<std::string> _strings;
+
+  /// The current command
+  Command::ID _current_command = 0;
 };
 
 class TraceWriter : public IRSink {
@@ -361,6 +364,9 @@ class TraceWriter : public IRSink {
   /// Emit a special version to the trace
   void emitSpecialVersion(const std::shared_ptr<SpecialVersion>& v) noexcept;
 
+  /// Emit a record to set the current command to the trace
+  void emitSetCommand(Command::ID c) noexcept;
+
   /// Emit a string record to the trace
   void emitString(const std::string& str) noexcept;
 
@@ -411,4 +417,7 @@ class TraceWriter : public IRSink {
 
   /// The map from strings to their ID in the string table
   std::unordered_map<std::string, StringID> _strtab;
+
+  /// The current command
+  Command::ID _current_command;
 };
