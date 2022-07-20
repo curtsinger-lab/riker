@@ -642,7 +642,6 @@ void TraceWriter::finish() noexcept {
 template <>
 struct Record<RecordType::SpecialRef> {
   RecordType type;
-  // Command::ID command;
   SpecialRef entity;
   Ref::ID output;
 } __attribute__((packed));
@@ -651,7 +650,7 @@ struct Record<RecordType::SpecialRef> {
 template <>
 void TraceReader::handleRecord<RecordType::SpecialRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SpecialRef>();
-  sink.specialRef(*this, getCommand(_current_command), data.entity, data.output);
+  sink.specialRef(*this, _current_command, data.entity, data.output);
 }
 
 // Write a SpecialRef record to the output trace
@@ -659,8 +658,7 @@ void TraceWriter::specialRef(const IRSource& source,
                              const shared_ptr<Command>& c,
                              SpecialRef entity,
                              Ref::ID output) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitRecord<RecordType::SetCommand>(id);
+  setCommand(c);
   emitRecord<RecordType::SpecialRef>(entity, output);
 }
 
@@ -669,7 +667,6 @@ void TraceWriter::specialRef(const IRSource& source,
 template <>
 struct Record<RecordType::PipeRef> {
   RecordType type;
-  // Command::ID command;
   Ref::ID read_end;
   Ref::ID write_end;
 } __attribute__((packed));
@@ -678,7 +675,7 @@ struct Record<RecordType::PipeRef> {
 template <>
 void TraceReader::handleRecord<RecordType::PipeRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::PipeRef>();
-  sink.pipeRef(*this, getCommand(_current_command), data.read_end, data.write_end);
+  sink.pipeRef(*this, _current_command, data.read_end, data.write_end);
 }
 
 // Write a PipeRef record to the output trace
@@ -686,8 +683,7 @@ void TraceWriter::pipeRef(const IRSource& source,
                           const shared_ptr<Command>& c,
                           Ref::ID read_end,
                           Ref::ID write_end) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::PipeRef>(read_end, write_end);
 }
 
@@ -696,7 +692,6 @@ void TraceWriter::pipeRef(const IRSource& source,
 template <>
 struct Record<RecordType::FileRef> {
   RecordType type;
-  // Command::ID command;
   mode_t mode;
   Ref::ID output;
 } __attribute__((packed));
@@ -705,7 +700,7 @@ struct Record<RecordType::FileRef> {
 template <>
 void TraceReader::handleRecord<RecordType::FileRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::FileRef>();
-  sink.fileRef(*this, getCommand(_current_command), data.mode, data.output);
+  sink.fileRef(*this, _current_command, data.mode, data.output);
 }
 
 // Write a FileRef record to the output trace
@@ -713,8 +708,7 @@ void TraceWriter::fileRef(const IRSource& source,
                           const shared_ptr<Command>& c,
                           mode_t mode,
                           Ref::ID output) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::FileRef>(mode, output);
 }
 
@@ -723,7 +717,6 @@ void TraceWriter::fileRef(const IRSource& source,
 template <>
 struct Record<RecordType::SymlinkRef> {
   RecordType type;
-  // Command::ID command;
   PathID target;
   Ref::ID output;
 } __attribute__((packed));
@@ -732,7 +725,7 @@ struct Record<RecordType::SymlinkRef> {
 template <>
 void TraceReader::handleRecord<RecordType::SymlinkRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SymlinkRef>();
-  sink.symlinkRef(*this, getCommand(_current_command), getString(data.target), data.output);
+  sink.symlinkRef(*this, _current_command, getString(data.target), data.output);
 }
 
 // Write a SymlinkRef record to the output trace
@@ -740,8 +733,7 @@ void TraceWriter::symlinkRef(const IRSource& source,
                              const shared_ptr<Command>& c,
                              fs::path target,
                              Ref::ID output) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::SymlinkRef>(getPathID(target), output);
 }
 
@@ -750,7 +742,6 @@ void TraceWriter::symlinkRef(const IRSource& source,
 template <>
 struct Record<RecordType::DirRef> {
   RecordType type;
-  // Command::ID command;
   mode_t mode;
   Ref::ID output;
 } __attribute__((packed));
@@ -759,7 +750,7 @@ struct Record<RecordType::DirRef> {
 template <>
 void TraceReader::handleRecord<RecordType::DirRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::DirRef>();
-  sink.dirRef(*this, getCommand(_current_command), data.mode, data.output);
+  sink.dirRef(*this, _current_command, data.mode, data.output);
 }
 
 // Write a DirRef record to the output trace
@@ -767,8 +758,7 @@ void TraceWriter::dirRef(const IRSource& source,
                          const shared_ptr<Command>& c,
                          mode_t mode,
                          Ref::ID output) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::DirRef>(mode, output);
 }
 
@@ -777,7 +767,6 @@ void TraceWriter::dirRef(const IRSource& source,
 template <>
 struct Record<RecordType::PathRef> {
   RecordType type;
-  // Command::ID command;
   Ref::ID base;
   PathID path;
   AccessFlags flags;
@@ -788,7 +777,7 @@ struct Record<RecordType::PathRef> {
 template <>
 void TraceReader::handleRecord<RecordType::PathRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::PathRef>();
-  sink.pathRef(*this, getCommand(_current_command), data.base, getString(data.path), data.flags,
+  sink.pathRef(*this, _current_command, data.base, getString(data.path), data.flags,
                data.output);
 }
 
@@ -799,8 +788,7 @@ void TraceWriter::pathRef(const IRSource& source,
                           fs::path path,
                           AccessFlags flags,
                           Ref::ID output) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::PathRef>(base, getPathID(path), flags, output);
 }
 
@@ -809,7 +797,6 @@ void TraceWriter::pathRef(const IRSource& source,
 template <>
 struct Record<RecordType::UsingRef> {
   RecordType type;
-  // Command::ID command;
   Ref::ID ref;
 } __attribute__((packed));
 
@@ -817,15 +804,14 @@ struct Record<RecordType::UsingRef> {
 template <>
 void TraceReader::handleRecord<RecordType::UsingRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::UsingRef>();
-  sink.usingRef(*this, getCommand(_current_command), data.ref);
+  sink.usingRef(*this, _current_command, data.ref);
 }
 
 // Write a UsingRef record to the output trace
 void TraceWriter::usingRef(const IRSource& source,
                            const shared_ptr<Command>& c,
                            Ref::ID ref) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::UsingRef>(ref);
 }
 
@@ -834,7 +820,6 @@ void TraceWriter::usingRef(const IRSource& source,
 template <>
 struct Record<RecordType::DoneWithRef> {
   RecordType type;
-  // Command::ID command;
   Ref::ID ref;
 } __attribute__((packed));
 
@@ -842,15 +827,14 @@ struct Record<RecordType::DoneWithRef> {
 template <>
 void TraceReader::handleRecord<RecordType::DoneWithRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::DoneWithRef>();
-  sink.doneWithRef(*this, getCommand(_current_command), data.ref);
+  sink.doneWithRef(*this, _current_command, data.ref);
 }
 
 // Write a DoneWithRef record to the output trace
 void TraceWriter::doneWithRef(const IRSource& source,
                               const shared_ptr<Command>& c,
                               Ref::ID ref) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::DoneWithRef>(ref);
 }
 
@@ -859,7 +843,6 @@ void TraceWriter::doneWithRef(const IRSource& source,
 template <>
 struct Record<RecordType::CompareRefs> {
   RecordType type;
-  // Command::ID command;
   Ref::ID ref1;
   Ref::ID ref2;
   RefComparison cmp;
@@ -869,7 +852,7 @@ struct Record<RecordType::CompareRefs> {
 template <>
 void TraceReader::handleRecord<RecordType::CompareRefs>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::CompareRefs>();
-  sink.compareRefs(*this, getCommand(_current_command), data.ref1, data.ref2, data.cmp);
+  sink.compareRefs(*this, _current_command, data.ref1, data.ref2, data.cmp);
 }
 
 // Write a CompareRefs record to the output trace
@@ -878,8 +861,7 @@ void TraceWriter::compareRefs(const IRSource& source,
                               Ref::ID ref1,
                               Ref::ID ref2,
                               RefComparison type) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::CompareRefs>(ref1, ref2, type);
 }
 
@@ -888,7 +870,6 @@ void TraceWriter::compareRefs(const IRSource& source,
 template <>
 struct Record<RecordType::ExpectResult> {
   RecordType type;
-  // Command::ID command;
   Scenario scenario;
   Ref::ID ref;
   int8_t expected;
@@ -898,7 +879,7 @@ struct Record<RecordType::ExpectResult> {
 template <>
 void TraceReader::handleRecord<RecordType::ExpectResult>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::ExpectResult>();
-  sink.expectResult(*this, getCommand(_current_command), data.scenario, data.ref, data.expected);
+  sink.expectResult(*this, _current_command, data.scenario, data.ref, data.expected);
 }
 
 // Write an ExpectResult record to the output trace
@@ -907,8 +888,7 @@ void TraceWriter::expectResult(const IRSource& source,
                                Scenario scenario,
                                Ref::ID ref,
                                int8_t expected) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::ExpectResult>(scenario, ref, expected);
 }
 
@@ -917,7 +897,6 @@ void TraceWriter::expectResult(const IRSource& source,
 template <>
 struct Record<RecordType::MatchMetadata> {
   RecordType type;
-  // Command::ID command;
   Scenario scenario;
   Ref::ID ref;
   MetadataVersion version;
@@ -927,7 +906,7 @@ struct Record<RecordType::MatchMetadata> {
 template <>
 void TraceReader::handleRecord<RecordType::MatchMetadata>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::MatchMetadata>();
-  sink.matchMetadata(*this, getCommand(_current_command), data.scenario, data.ref, data.version);
+  sink.matchMetadata(*this, _current_command, data.scenario, data.ref, data.version);
 }
 
 // Write a MatchMetadata record to the output trace
@@ -936,8 +915,7 @@ void TraceWriter::matchMetadata(const IRSource& source,
                                 Scenario scenario,
                                 Ref::ID ref,
                                 MetadataVersion version) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::MatchMetadata>(scenario, ref, version);
 }
 
@@ -946,7 +924,6 @@ void TraceWriter::matchMetadata(const IRSource& source,
 template <>
 struct Record<RecordType::MatchContent> {
   RecordType type;
-  // Command::ID command;
   Scenario scenario;
   Ref::ID ref;
   ContentVersion::ID version;
@@ -956,7 +933,7 @@ struct Record<RecordType::MatchContent> {
 template <>
 void TraceReader::handleRecord<RecordType::MatchContent>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::MatchContent>();
-  sink.matchContent(*this, getCommand(_current_command), data.scenario, data.ref,
+  sink.matchContent(*this, _current_command, data.scenario, data.ref,
                     getContentVersion(data.version));
 }
 
@@ -966,8 +943,7 @@ void TraceWriter::matchContent(const IRSource& source,
                                Scenario scenario,
                                Ref::ID ref,
                                shared_ptr<ContentVersion> version) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::MatchContent>(scenario, ref, getContentVersionID(version));
 }
 
@@ -976,7 +952,6 @@ void TraceWriter::matchContent(const IRSource& source,
 template <>
 struct Record<RecordType::UpdateMetadata> {
   RecordType type;
-  // Command::ID command;
   Ref::ID ref;
   MetadataVersion version;
 } __attribute__((packed));
@@ -985,7 +960,7 @@ struct Record<RecordType::UpdateMetadata> {
 template <>
 void TraceReader::handleRecord<RecordType::UpdateMetadata>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::UpdateMetadata>();
-  sink.updateMetadata(*this, getCommand(_current_command), data.ref, data.version);
+  sink.updateMetadata(*this, _current_command, data.ref, data.version);
 }
 
 // Write an UpdateMetadata record to the output trace
@@ -993,8 +968,7 @@ void TraceWriter::updateMetadata(const IRSource& source,
                                  const shared_ptr<Command>& c,
                                  Ref::ID ref,
                                  MetadataVersion version) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::UpdateMetadata>(ref, version);
 }
 
@@ -1003,7 +977,6 @@ void TraceWriter::updateMetadata(const IRSource& source,
 template <>
 struct Record<RecordType::UpdateContent> {
   RecordType type;
-  // Command::ID command;
   Ref::ID ref;
   ContentVersion::ID version;
 } __attribute__((packed));
@@ -1012,7 +985,7 @@ struct Record<RecordType::UpdateContent> {
 template <>
 void TraceReader::handleRecord<RecordType::UpdateContent>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::UpdateContent>();
-  sink.updateContent(*this, getCommand(_current_command), data.ref,
+  sink.updateContent(*this, _current_command, data.ref,
                      getContentVersion(data.version));
 }
 
@@ -1021,8 +994,7 @@ void TraceWriter::updateContent(const IRSource& source,
                                 const shared_ptr<Command>& c,
                                 Ref::ID ref,
                                 shared_ptr<ContentVersion> version) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::UpdateContent>(ref, getContentVersionID(version));
 }
 
@@ -1031,7 +1003,6 @@ void TraceWriter::updateContent(const IRSource& source,
 template <>
 struct Record<RecordType::AddEntry> {
   RecordType type;
-  // Command::ID command;
   Ref::ID dir;
   StringID name;
   Ref::ID target;
@@ -1041,7 +1012,7 @@ struct Record<RecordType::AddEntry> {
 template <>
 void TraceReader::handleRecord<RecordType::AddEntry>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::AddEntry>();
-  sink.addEntry(*this, getCommand(_current_command), data.dir, getString(data.name), data.target);
+  sink.addEntry(*this, _current_command, data.dir, getString(data.name), data.target);
 }
 
 // Write an AddEntry record to the output trace
@@ -1050,8 +1021,7 @@ void TraceWriter::addEntry(const IRSource& source,
                            Ref::ID dir,
                            string name,
                            Ref::ID target) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::AddEntry>(dir, getStringID(name), target);
 }
 
@@ -1060,7 +1030,6 @@ void TraceWriter::addEntry(const IRSource& source,
 template <>
 struct Record<RecordType::RemoveEntry> {
   RecordType type;
-  // Command::ID command;
   Ref::ID dir;
   StringID name;
   Ref::ID target;
@@ -1070,7 +1039,7 @@ struct Record<RecordType::RemoveEntry> {
 template <>
 void TraceReader::handleRecord<RecordType::RemoveEntry>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::RemoveEntry>();
-  sink.removeEntry(*this, getCommand(_current_command), data.dir, getString(data.name),
+  sink.removeEntry(*this, _current_command, data.dir, getString(data.name),
                    data.target);
 }
 
@@ -1080,8 +1049,7 @@ void TraceWriter::removeEntry(const IRSource& source,
                               Ref::ID dir,
                               string name,
                               Ref::ID target) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::RemoveEntry>(dir, getStringID(name), target);
 }
 
@@ -1090,7 +1058,6 @@ void TraceWriter::removeEntry(const IRSource& source,
 template <>
 struct Record<RecordType::Launch> {
   RecordType type;
-  // Command::ID parent;
   Command::ID child;
   uint16_t refs_length;
 } __attribute__((packed));
@@ -1111,7 +1078,7 @@ void TraceReader::handleRecord<RecordType::Launch>(IRSink& sink) noexcept {
     refs_list.push_back(tuple{refs[i].in_parent, refs[i].in_child});
   }
 
-  sink.launch(*this, getCommand(_current_command), getCommand(data.child), refs_list);
+  sink.launch(*this, _current_command, getCommand(data.child), refs_list);
 }
 
 // Write a Launch record to the output trace
@@ -1122,8 +1089,8 @@ void TraceWriter::launch(const IRSource& source,
   // Compute the length of the ref mapping list, which should fit in a 16-bit integer
   uint16_t refs_length = refs.size();
 
-  auto id = getCommandID(parent);
-  if (id != _current_command) emitSetCommand(id);
+  // Set the current command
+  setCommand(parent);
 
   // Emit the fixed-length portion of the record
   emitRecord<RecordType::Launch>(getCommandID(child), refs_length);
@@ -1139,7 +1106,6 @@ void TraceWriter::launch(const IRSource& source,
 template <>
 struct Record<RecordType::Join> {
   RecordType type;
-  // Command::ID parent;
   Command::ID child;
   int exit_status;
 } __attribute__((packed));
@@ -1148,7 +1114,7 @@ struct Record<RecordType::Join> {
 template <>
 void TraceReader::handleRecord<RecordType::Join>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::Join>();
-  sink.join(*this, getCommand(_current_command), getCommand(data.child), data.exit_status);
+  sink.join(*this, _current_command, getCommand(data.child), data.exit_status);
 }
 
 // Write a Join record to the output trace
@@ -1156,8 +1122,7 @@ void TraceWriter::join(const IRSource& source,
                        const shared_ptr<Command>& parent,
                        const shared_ptr<Command>& child,
                        int exit_status) noexcept {
-  auto id = getCommandID(parent);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(parent);
   emitRecord<RecordType::Join>(getCommandID(child), exit_status);
 }
 
@@ -1166,7 +1131,6 @@ void TraceWriter::join(const IRSource& source,
 template <>
 struct Record<RecordType::Exit> {
   RecordType type;
-  // Command::ID command;
   int exit_status;
 } __attribute__((packed));
 
@@ -1174,15 +1138,14 @@ struct Record<RecordType::Exit> {
 template <>
 void TraceReader::handleRecord<RecordType::Exit>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::Exit>();
-  sink.exit(*this, getCommand(_current_command), data.exit_status);
+  sink.exit(*this, _current_command, data.exit_status);
 }
 
 // Write an Exit record to the output trace
 void TraceWriter::exit(const IRSource& source,
                        const shared_ptr<Command>& c,
                        int exit_status) noexcept {
-  auto id = getCommandID(c);
-  if (id != _current_command) emitSetCommand(id);
+  setCommand(c);
   emitRecord<RecordType::Exit>(exit_status);
 }
 
@@ -1509,17 +1472,19 @@ struct Record<RecordType::SetCommand> {
   Command::ID c;
 } __attribute__((packed));
 
-// Read a SpecialVersion record from the input trace
+// Read a SetCommand record from the trace
 template <>
 void TraceReader::handleRecord<RecordType::SetCommand>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SetCommand>();
-  _current_command = data.c;
+  _current_command = getCommand(data.c);
 }
 
 // Write a SetCommand record to the output trace
-void TraceWriter::emitSetCommand(Command::ID c) noexcept {
-  emitRecord<RecordType::SetCommand>(c);
-  _current_command = c;
+void TraceWriter::setCommand(std::shared_ptr<Command> c) noexcept {
+  if (c != _current_command) {
+    _current_command = c;
+    emitRecord<RecordType::SetCommand>(getCommandID(c));
+  }
 }
 
 /********** Process an input trace **********/
