@@ -295,7 +295,7 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Track a content version input to this command
   void addContentInput(std::shared_ptr<Artifact> a,
                        std::shared_ptr<ContentVersion> v,
-                       std::shared_ptr<Command> writer) noexcept;
+                       std::weak_ptr<Command> writer) noexcept;
 
   /// Track a directory version input to this command
   void addDirectoryInput(std::shared_ptr<Artifact> a,

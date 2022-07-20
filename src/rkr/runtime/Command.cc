@@ -26,10 +26,10 @@ using std::nullopt;
 using std::optional;
 using std::set;
 using std::shared_ptr;
-using std::weak_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using std::weak_ptr;
 
 namespace fs = std::filesystem;
 
@@ -527,7 +527,7 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
 // Add an input to this command
 void Command::addContentInput(shared_ptr<Artifact> a,
                               shared_ptr<ContentVersion> v,
-                              shared_ptr<Command> writer) noexcept {
+                              weak_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
 
   // Is the artifact one of our temporary files?
@@ -538,7 +538,7 @@ void Command::addContentInput(shared_ptr<Artifact> a,
       iter->second = true;
 
       // Is this an access from a different command, or no command at all?
-      if (writer.get() != this) {
+      if (writer.lock().get() != this) {
         // Get a path to the artifact
         auto path = a->getPath();
 
@@ -551,24 +551,19 @@ void Command::addContentInput(shared_ptr<Artifact> a,
     }
   }
 
-  // If this command wrote the version there's no need to do any additional tracking
-  if (writer.get() == this) return;
-
   // If this command is running, make sure the file is available
   if (mustRun()) a->commitContent();
 
-  // If the version was created by another command, track the use of that command's output
-  if (writer) {
-    // Is the version committable?
-    if (!v->canCommit()) {
-      // No. Is the input uncommitted? If so, the writer must produce it for this command
-      if (a->hasUncommittedContent()) {
-        _current_run._needs_output_from.emplace(writer);
-      }
+  // If the version cannot be committed, record the runtime dependency
+  if (!v->canCommit()) {
+    auto w = writer.lock();
+    if (!w) return;
 
-      // If the writer has to run, the reader must also run.
-      writer->_current_run._output_needed_by.emplace(shared_from_this());
-    }
+    // If this command runs, the writer must also run
+    _current_run._needs_output_from.emplace(writer);
+
+    // If the writer has to run, the reader must also run.
+    w->_current_run._output_needed_by.emplace(shared_from_this());
   }
 }
 
