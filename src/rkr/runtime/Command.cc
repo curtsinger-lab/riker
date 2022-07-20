@@ -26,6 +26,7 @@ using std::nullopt;
 using std::optional;
 using std::set;
 using std::shared_ptr;
+using std::weak_ptr;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -519,14 +520,8 @@ void Command::inputChanged(shared_ptr<Artifact> artifact,
 // Add an input to this command
 void Command::addMetadataInput(shared_ptr<Artifact> a,
                                shared_ptr<MetadataVersion> v,
-                               shared_ptr<Command> writer) noexcept {
+                               weak_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
-
-  // If this command wrote the version there's no need to do any additional tracking
-  if (writer.get() == this) return;
-
-  // If this command is running, make sure the metadata is committed
-  if (mustRun()) a->commitMetadata();
 }
 
 // Add an input to this command
@@ -578,29 +573,10 @@ void Command::addContentInput(shared_ptr<Artifact> a,
 }
 
 // Add an input to this command
-void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
-                                std::shared_ptr<DirVersion> v,
-                                std::shared_ptr<Command> writer) noexcept {
-  if (!v) return;
-
+void Command::addDirectoryInput(shared_ptr<Artifact> a,
+                                shared_ptr<DirVersion> v,
+                                weak_ptr<Command> writer) noexcept {
   if (options::track_inputs_outputs) _current_run._inputs.emplace_back(a, v, writer);
-
-  // If this command is running, make sure the directory version is committed
-  if (mustRun()) {
-    // We'll need to treat the artifact as a DirArtifact
-    auto dir = a->as<DirArtifact>();
-    ASSERT(dir) << "Non-directory artifact " << a << " passed to addDirectoryInput";
-
-    // Does the directory version refer to a specific entry?
-    auto e = v->getEntry();
-    if (e.has_value()) {
-      // Yes. Commit that entry
-      dir->commitEntry(e.value());
-    } else {
-      // No. Just commit the base content
-      a->commitContent();
-    }
-  }
 }
 
 // Add an output to this command

@@ -178,7 +178,7 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
    * \param c   The command reading the entry
    * \returns   The artifact reachable through this entry, or nullptr if it has been unlinked
    */
-  std::shared_ptr<Artifact> getTarget(std::shared_ptr<Command> c) const noexcept;
+  std::shared_ptr<Artifact> getTarget(std::shared_ptr<Command> c) noexcept;
 
   /// Get the directory this entry appears in
   std::shared_ptr<DirArtifact> getDir() const noexcept { return _dir.lock(); }

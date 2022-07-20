@@ -298,11 +298,13 @@ shared_ptr<ContentVersion> DirArtifact::getContent(const shared_ptr<Command>& c)
   }
 
   // Get the latest version
-  auto [base, weak_creator] = _base.getLatest();
-  auto creator = weak_creator.lock();
+  auto [base, creator] = _base.getLatest();
 
   // The command listing this directory depends on its base version
   if (c) c->addDirectoryInput(shared_from_this(), base, creator);
+
+  // If the command is running, commit the full directory
+  if (c && c->mustRun()) commitContent();
 
   for (const auto& [name, entry] : _entries) {
     // Get the artifact targeted by this entry. This access records a dependency on the entry.
@@ -400,7 +402,7 @@ Ref DirArtifact::resolve(const shared_ptr<Command>& c,
   } else {
     // Add a path resolution input from the base version
     auto [base, creator] = _base.getLatest();
-    c->addDirectoryInput(shared_from_this(), base, creator.lock());
+    c->addDirectoryInput(shared_from_this(), base, creator);
 
     // There's no match in the directory entry map. We need to check the base version for a match
     if (base->getCreated()) {
@@ -599,7 +601,10 @@ void DirEntry::updateEntry(shared_ptr<Command> c, shared_ptr<DirEntryVersion> ve
   // Is there a version in place already? There may not be if this is a brand new entry.
   if (auto [v, writer] = _state.getLatest(); v) {
     // The command depends on the prior state of the entry
-    c->addDirectoryInput(_dir.lock(), v, writer.lock());
+    c->addDirectoryInput(_dir.lock(), v, writer);
+
+    // If the command is running, commit the entry state
+    if (c->mustRun()) commit();
 
     // If the latest version has a target artifact, that artifact is about to lose its link
     if (v->getTarget()) v->getTarget()->removeLink(shared_from_this());
@@ -645,10 +650,13 @@ shared_ptr<Artifact> DirEntry::peekTarget() const noexcept {
 }
 
 // Get the artifact linked at this entry on behalf of command c
-shared_ptr<Artifact> DirEntry::getTarget(shared_ptr<Command> c) const noexcept {
+shared_ptr<Artifact> DirEntry::getTarget(shared_ptr<Command> c) noexcept {
   // Record the input to c, which may commit this entry
   auto [version, writer] = _state.getLatest();
-  if (c) c->addDirectoryInput(_dir.lock(), version, writer.lock());
+  if (c) c->addDirectoryInput(_dir.lock(), version, writer);
+
+  // If the command is running, commit this entry
+  if (c && c->mustRun()) commit();
 
   if (!version) return nullptr;
 

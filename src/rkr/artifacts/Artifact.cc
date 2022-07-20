@@ -261,7 +261,11 @@ void Artifact::applyFinalState(fs::path path) noexcept {
 MetadataVersion Artifact::getMetadata(const shared_ptr<Command>& c) noexcept {
   // Get the current metadata and writer and notify the reader of this input
   auto [version, writer] = _metadata.getLatest();
-  if (c) c->addMetadataInput(shared_from_this(), version, writer.lock());
+  if (c) c->addMetadataInput(shared_from_this(), version, writer);
+
+  // If c is running, commit the metadata
+  if (c && c->mustRun()) commitMetadata();
+
   return *version;
 }
 
