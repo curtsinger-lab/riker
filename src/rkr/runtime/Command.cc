@@ -527,15 +527,6 @@ void Command::addMetadataInput(shared_ptr<Artifact> a,
 
   // If this command is running, make sure the metadata is committed
   if (mustRun()) a->commitMetadata();
-
-  // If the version was created by another command, track the use of that command's output
-  if (writer) {
-    // This command uses output from writer
-    _current_run._uses_output_from.emplace(writer);
-
-    // Otherwise, add this command run to the creator's set of output users
-    writer->_current_run._output_used_by.emplace(shared_from_this());
-  }
 }
 
 // Add an input to this command
@@ -573,10 +564,6 @@ void Command::addContentInput(shared_ptr<Artifact> a,
 
   // If the version was created by another command, track the use of that command's output
   if (writer) {
-    // This command uses output from writer
-    _current_run._uses_output_from.emplace(writer);
-    writer->_current_run._output_used_by.emplace(shared_from_this());
-
     // Is the version committable?
     if (!v->canCommit()) {
       // No. Is the input uncommitted? If so, the writer must produce it for this command
@@ -614,13 +601,6 @@ void Command::addDirectoryInput(std::shared_ptr<Artifact> a,
       a->commitContent();
     }
   }
-
-  // If the version was created by another command, track the use of that command's output
-  if (writer) {
-    // This command uses output from writer
-    _current_run._uses_output_from.emplace(writer);
-    writer->_current_run._output_used_by.emplace(shared_from_this());
-  }
 }
 
 // Add an output to this command
@@ -656,11 +636,6 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
 /// Get this command's list of children
 const list<shared_ptr<Command>>& Command::getChildren() noexcept {
   return _previous_run._children;
-}
-
-// Get the set of commands that produce inputs to this command
-const Command::WeakCommandSet& Command::getInputProducers() const noexcept {
-  return _previous_run._uses_output_from;
 }
 
 optional<map<string, string>> Command::tryToMatch(const vector<string>& other_args,

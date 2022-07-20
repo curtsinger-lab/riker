@@ -214,14 +214,8 @@ class Command : public std::enable_shared_from_this<Command> {
     /// Outputs from this command
     OutputList _outputs;
 
-    /// The set of commands that produce any inputs to this command
-    WeakCommandSet _uses_output_from;
-
     /// The set of commands that produce uncached inputs to this command
     WeakCommandSet _needs_output_from;
-
-    /// The set of commands that use this command's outputs
-    WeakCommandSet _output_used_by;
 
     /// The set of commands that require uncached outputs from this command
     WeakCommandSet _output_needed_by;
