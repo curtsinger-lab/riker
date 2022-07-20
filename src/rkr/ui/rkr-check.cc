@@ -29,34 +29,16 @@ void do_check(vector<string> args) noexcept {
   // Plan the next build
   root_cmd->planBuild();
 
-  // Print commands that must run
-  bool must_run_header_printed = false;
-  for (const auto& c : root_cmd->collectMustRun()) {
-    // Print the header if necessary
-    if (!must_run_header_printed) {
-      cout << "Commands that must run:" << endl;
-      must_run_header_printed = true;
+  // Get the set of commands that must run
+  auto must_run = root_cmd->collectMustRun();
+
+  if (must_run.size() > 0) {
+    cout << "Commands that must run:" << endl;
+    for (const auto& c : must_run) {
+      cout << "  " << c->getShortName(options::command_length) << endl;
     }
 
-    // Print the command
-    cout << "  " << c->getShortName(options::command_length) << endl;
-  }
-
-  // If we printed anything, add a newline
-  if (must_run_header_printed) cout << endl;
-
-  // Print the rebuild plan
-  bool may_run_header_printed = false;
-  for (const auto& c : root_cmd->collectMayRun()) {
-    if (!may_run_header_printed) {
-      cout << "Commands that may run:" << endl;
-      may_run_header_printed = true;
-    }
-    cout << "  " << c->getShortName(options::command_length) << endl;
-  }
-
-  // If we never printed the header, there were no commands to rerun
-  if (!must_run_header_printed && !may_run_header_printed) {
+  } else {
     cout << "No commands to rerun" << endl;
   }
 }

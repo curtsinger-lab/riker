@@ -1052,8 +1052,8 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
     // Has the candidate been launched already? If so we cannot match it
     if (candidate->isLaunched()) continue;
 
-    // Prefer matches marked Emulate over MayRun or MustRun
-    if (child && child->getMarking() <= candidate->getMarking()) continue;
+    // Prefer commands that don't need to run when matching
+    if (child && candidate->mustRun()) continue;
 
     // Try to match the candidate to the given arguments
     auto substitutions = candidate->tryToMatch(args, fds);
@@ -1079,7 +1079,7 @@ shared_ptr<Command> Build::findCommand(const shared_ptr<Command>& parent,
   } else {
     // Create a child and mark it as running
     child = make_shared<Command>(args);
-    child->setMarking(RebuildMarking::MustRun);
+    child->setRunning();
 
     LOG(exec) << "New command " << child << " did not match any previous command.";
 

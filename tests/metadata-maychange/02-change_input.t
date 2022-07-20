@@ -23,15 +23,7 @@ Run the first build
 Change the contents of a_input
   $ echo "goodbye" > a_input
 
-Check the rebuild plan. We know a must rerun, but b may have to run because a changes its input metadata
-  $ rkr check
-  Commands that must run:
-    ./a
-  
-  Commands that may run:
-    ./b
-
-Now run the build. The b command does not need to run because ./a does not change the metadata
+Now run the build. The b command does not need to run because it depends only on metadata, which ./a does not change
   $ rkr --show
   ./a
 

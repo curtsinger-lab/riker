@@ -232,8 +232,8 @@ void Command::finishRun() noexcept {
   _previous_run = std::move(_current_run);
   _current_run = Command::Run();
 
-  // At the end of a build phase, all commands return to the Emulate marking
-  _marking = RebuildMarking::Emulate;
+  // At the end of a build phase, all commands return to a non-running plan
+  _must_run = false;
 
   // Recursively finish the run for all children
   for (const auto& child : _previous_run._children) {
@@ -246,7 +246,7 @@ void Command::planBuild() noexcept {
   // See rebuild planning rules in docs/new-rebuild.md
   // Rules 1 & 2: If this command observe a change on its previous run, mark it for rerun
   if (_previous_run._changed == Scenario::Both) {
-    if (mark(RebuildMarking::MustRun)) {
+    if (mark()) {
       LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
     }
   }
@@ -284,22 +284,6 @@ set<shared_ptr<Command>> Command::collectCommands() noexcept {
   return result;
 }
 
-// Get a set of all commands that may run from this command and its descendants
-set<shared_ptr<Command>> Command::collectMayRun() noexcept {
-  set<shared_ptr<Command>> result;
-  if (mayRun()) {
-    result.insert(shared_from_this());
-  }
-
-  for (const auto& child : getChildren()) {
-    for (const auto& include : child->collectMayRun()) {
-      result.insert(include);
-    }
-  }
-
-  return result;
-}
-
 // Get a set of all commands that must run from this command and its descendants
 set<shared_ptr<Command>> Command::collectMustRun() noexcept {
   set<shared_ptr<Command>> result;
@@ -316,109 +300,34 @@ set<shared_ptr<Command>> Command::collectMustRun() noexcept {
   return result;
 }
 
-// Assign a marking to this command. Return true if the marking is new.
-bool Command::mark(RebuildMarking m) noexcept {
-  // See rebuild planning rules in docs/new-rebuild.md
+// Mark this command for execution. Return true if the marking is new.
+bool Command::mark() noexcept {
+  // If this command already has to run, the marking is not new
+  if (_must_run) return false;
 
-  // Check the new marking
-  if (m == RebuildMarking::MustRun) {
-    // If this command already had an equivalent or higher marking, return false.
-    // There's no need to propagate this marking because it is not new.
-    if (_marking == RebuildMarking::MustRun) {
-      return false;
+  // Mark the command to run
+  _must_run = true;
+
+  // For each command D that produces uncached input V to C: D must run.
+  //   (C must run, so produce all of its uncached inputs)
+  for (const auto& weak_producer : _previous_run._needs_output_from) {
+    auto producer = weak_producer.lock();
+    if (producer->mark()) {
+      LOGF(rebuild, "{} must run: {} requires output for its run", producer, this);
     }
-
-    // Update the marking
-    _marking = RebuildMarking::MustRun;
-
-    // Rule 3: For each command D that produces uncached input V to C: mark D as MustRun
-    for (const auto& weak_producer : _previous_run._needs_output_from) {
-      auto producer = weak_producer.lock();
-      if (producer->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: {} requires output for its run", producer, this);
-      }
-    }
-
-    // Rule 4: For each command D that produces input V to C: if D is marked MayRun, mark D as
-    // MustRun
-    /*for (const auto& [weak_producer, info] : _previous_run._uses_output_from) {
-      auto producer = weak_producer.lock();
-      auto [a, v] = info;
-      if (producer->_marking == RebuildMarking::MayRun) {
-        producer->mark(RebuildMarking::MustRun);
-        LOGF(
-            rebuild,
-            "{} must run: may change output {} of {} needed by {}, which is already marked for run",
-            producer, v, a, this);
-      }
-    }*/
-
-    // Rule 5: For each command D that consumes output V from C: if V is cached mark D as MayRun. If
-    // not, mark D as MustRun.
-
-    // Mark the MustRun commands first to avoid marking them a second time
-    for (const auto& weak_user : _previous_run._output_needed_by) {
-      auto user = weak_user.lock();
-      if (user->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: {} may change uncached input during its run", user, this);
-      }
-    }
-
-    // Now do the MayRun markings
-    for (const auto& weak_user : _previous_run._output_used_by) {
-      auto user = weak_user.lock();
-      if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} may change input during its run", user, this);
-      }
-    }
-
-    // The marking was new, so return true
-    return true;
-
-  } else if (m == RebuildMarking::MayRun) {
-    // If this command already had an equivalent or higher marking, return false.
-    // There's no need to propagate this marking becasue it is not new.
-    if (_marking == RebuildMarking::MayRun || _marking == RebuildMarking::MustRun) {
-      return false;
-    }
-
-    // Update the marking
-    _marking = RebuildMarking::MayRun;
-
-    // Rule 6: For each command D that produces uncached input V to C: mark D as MayRun.
-    for (const auto& weak_producer : _previous_run._needs_output_from) {
-      auto producer = weak_producer.lock();
-      if (producer->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} will require output if it runs", producer, this);
-      }
-    }
-
-    // Rule 7: For each command D that consumes output V from C: mark D as MayRun
-    for (const auto& weak_user : _previous_run._output_used_by) {
-      auto user = weak_user.lock();
-      if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} may change input if it runs", user, this);
-      }
-    }
-
-    // Rule 8: For each command D that consumes output V from C: if D is marked MustRun, mark C as
-    // MustRun
-    /*for (const auto& [weak_user, info] : _previous_run._output_used_by) {
-      auto user = weak_user.lock();
-      auto [a, v] = info;
-      if (user->_marking == RebuildMarking::MustRun) {
-        mark(RebuildMarking::MustRun);
-        LOGF(rebuild, "{} must run: output {} of {} is needed by command {}", this, v, a, user);
-      }
-    }*/
-
-    // The marking was new, so return true
-    return true;
-
-  } else {
-    // Emulate and AlreadyRun are never new markings
-    return false;
   }
+
+  // For each command D that consumes uncached output V from C: D must run.
+  //   (C must run, so also run anything that consumes its uncached outputs)
+  for (const auto& weak_user : _previous_run._output_needed_by) {
+    auto user = weak_user.lock();
+    if (user->mark()) {
+      LOGF(rebuild, "{} must run: {} may change uncached input during its run", user, this);
+    }
+  }
+
+  // The marking was new, so return true
+  return true;
 }
 
 /******************** Current Run Data ********************/

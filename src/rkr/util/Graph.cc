@@ -124,14 +124,8 @@ ostream& operator<<(ostream& o, Graph& g) noexcept {
     o << "tooltip=\"" << escape(c->getFullName()) << "\" ";
     o << "fontname=Courier ";
 
-    // Color the command based on its marking state
-    if (c->getMarking() == RebuildMarking::MayRun) {
-      // Commands that may run are yellow
-      o << "style=\"filled\" ";
-      o << "fillcolor=\"yellow\" ";
-
-    } else if (c->getMarking() == RebuildMarking::MustRun) {
-      // Commands that must run are red
+    // Commands that must run are red
+    if (c->mustRun()) {
       o << "style=\"filled\" ";
       o << "fillcolor=\"red\" ";
     }

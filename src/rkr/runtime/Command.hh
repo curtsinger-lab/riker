@@ -23,21 +23,6 @@ class MetadataVersion;
 class Process;
 class Version;
 
-/// The set of possible markings for a command that determine how it is executed during rebuild
-enum class RebuildMarking {
-  Emulate,  // The Emulate marking indicates that the command has not run, and can be emulated. This
-            // is the initial state for all commands. During the rebuild planning process, a command
-            // may move from Emulate to MayRun or MustRun.
-
-  MayRun,  // The MayRun marking indicates that the command may need to run. This could be promoted
-           // to MustRun during rebuild planning. Commands marked MayRun will not be executed on the
-           // current build iteration, but the possibility that they might need to run in the future
-           // is important for planning the build correctly.
-
-  MustRun  // The MustRun marking indicates that we are certain a command will need to run, so it
-           // will be executed on the next build iteration.
-};
-
 /**
  * Predicates are tagged with specific scenarios where they apply.
  *
@@ -156,29 +141,20 @@ class Command : public std::enable_shared_from_this<Command> {
   void planBuild() noexcept;
 
   /// Check if this command can be emulated for the current build iteration
-  bool canEmulate() const noexcept { return _marking != RebuildMarking::MustRun; }
-
-  /// Check if this command may run on a future build iteration
-  bool mayRun() const noexcept { return _marking == RebuildMarking::MayRun; }
+  bool canEmulate() const noexcept { return !_must_run; }
 
   /// Check if this command should run on the current build iteration
-  bool mustRun() const noexcept { return _marking == RebuildMarking::MustRun; }
-
-  /// Get the marking for this command
-  RebuildMarking getMarking() const noexcept { return _marking; }
+  bool mustRun() const noexcept { return _must_run; }
 
   /// Directly set a marking on this command without propagating it. Used to mark new commands as
   /// they are launched
-  void setMarking(RebuildMarking marking) noexcept { _marking = marking; }
+  void setRunning() noexcept { _must_run = true; }
 
   /// Does this command or any of its descendants need to run? If not, return true.
   bool allFinished() const noexcept;
 
   /// Get a set of all commands including this one and its descendants
   std::set<std::shared_ptr<Command>> collectCommands() noexcept;
-
-  /// Get a set of all commands that may run from this command and its descendants
-  std::set<std::shared_ptr<Command>> collectMayRun() noexcept;
 
   /// Get a set of all commands that must run from this command and its descendants
   std::set<std::shared_ptr<Command>> collectMustRun() noexcept;
@@ -383,8 +359,8 @@ class Command : public std::enable_shared_from_this<Command> {
   }
 
  private:
-  /// Assign a marking to this command for the next build. Returns true if this is a new marking.
-  bool mark(RebuildMarking marking) noexcept;
+  /// Mark this command to run on the next phase of the build. Returns true if the marking is new.
+  bool mark() noexcept;
 
  private:
   /// The arguments passed to this command on startup
@@ -402,8 +378,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Transient data for the last run
   Run _previous_run;
 
-  /// The marking state for this command that determines how the command is run
-  RebuildMarking _marking = RebuildMarking::Emulate;
+  /// Does this command need to run during the next phase?
+  bool _must_run = false;
 
   /// Short names of different lengths for this command
   mutable std::map<size_t, std::optional<std::string>> _short_names;
