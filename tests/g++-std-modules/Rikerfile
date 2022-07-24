@@ -1,0 +1,17 @@
+#!/bin/sh
+
+CXX="g++-11"
+CXXFLAGS="--std=c++20 -fmodules-ts -fmodule-mapper=mapper.txt"
+
+# Set up for modules
+rm -rf modules mapper.txt
+mkdir -p modules
+
+# Precompile system includes
+for name in iostream string; do
+  echo "/usr/include/c++/11/$name modules/$name.gcm" >> mapper.txt
+  $CXX $CXXFLAGS -c -x c++-system-header $name
+done
+
+# Build the program
+$CXX $CXXFLAGS -o program *.cc
