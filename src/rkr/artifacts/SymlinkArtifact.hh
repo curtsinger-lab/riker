@@ -109,4 +109,4 @@ class SymlinkArtifact : public Artifact {
 };
 
 template <>
-struct fmt::formatter<SymlinkArtifact> : ostream_formatter {};
+struct fmt::formatter<SymlinkArtifact> : fmt::ostream_formatter {};

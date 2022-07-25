@@ -126,4 +126,4 @@ class SpecialArtifact : public Artifact {
 };
 
 template <>
-struct fmt::formatter<SpecialArtifact> : ostream_formatter {};
+struct fmt::formatter<SpecialArtifact> : fmt::ostream_formatter {};

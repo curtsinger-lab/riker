@@ -141,4 +141,4 @@ class Process : public std::enable_shared_from_this<Process> {
 };
 
 template <>
-struct fmt::formatter<Process> : ostream_formatter {};
+struct fmt::formatter<Process> : fmt::ostream_formatter {};

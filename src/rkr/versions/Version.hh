@@ -40,4 +40,4 @@ class Version {
 };
 
 template <>
-struct fmt::formatter<Version> : ostream_formatter {};
+struct fmt::formatter<Version> : fmt::ostream_formatter {};

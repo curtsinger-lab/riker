@@ -131,4 +131,4 @@ class FileArtifact : public Artifact {
 };
 
 template <>
-struct fmt::formatter<FileArtifact> : ostream_formatter {};
+struct fmt::formatter<FileArtifact> : fmt::ostream_formatter {};

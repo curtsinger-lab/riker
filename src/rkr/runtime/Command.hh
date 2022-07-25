@@ -438,4 +438,4 @@ class Command : public std::enable_shared_from_this<Command> {
 };
 
 template <>
-struct fmt::formatter<Command> : ostream_formatter {};
+struct fmt::formatter<Command> : fmt::ostream_formatter {};

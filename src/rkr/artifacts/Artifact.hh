@@ -353,4 +353,4 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
 };
 
 template <>
-struct fmt::formatter<Artifact> : ostream_formatter {};
+struct fmt::formatter<Artifact> : fmt::ostream_formatter {};

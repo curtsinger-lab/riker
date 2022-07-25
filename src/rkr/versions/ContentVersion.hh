@@ -77,4 +77,4 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
 };
 
 template <>
-struct fmt::formatter<ContentVersion> : ostream_formatter {};
+struct fmt::formatter<ContentVersion> : fmt::ostream_formatter {};

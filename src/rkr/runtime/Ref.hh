@@ -115,4 +115,4 @@ class Ref final {
 };
 
 template <>
-struct fmt::formatter<Ref> : ostream_formatter {};
+struct fmt::formatter<Ref> : fmt::ostream_formatter {};

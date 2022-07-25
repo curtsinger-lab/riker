@@ -141,4 +141,4 @@ class PipeArtifact : public Artifact {
 };
 
 template <>
-struct fmt::formatter<PipeArtifact> : ostream_formatter {};
+struct fmt::formatter<PipeArtifact> : fmt::ostream_formatter {};

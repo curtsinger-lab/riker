@@ -39,7 +39,7 @@ class at_fd {
 };
 
 template <>
-struct fmt::formatter<at_fd> : ostream_formatter {};
+struct fmt::formatter<at_fd> : fmt::ostream_formatter {};
 
 class mode_flags {
  public:
@@ -118,7 +118,7 @@ class mode_flags {
 };
 
 template <>
-struct fmt::formatter<mode_flags> : ostream_formatter {};
+struct fmt::formatter<mode_flags> : fmt::ostream_formatter {};
 
 /// A wrapper for O_* flags provided to system calls
 class o_flags {
@@ -208,7 +208,7 @@ class o_flags {
 };
 
 template <>
-struct fmt::formatter<o_flags> : ostream_formatter {};
+struct fmt::formatter<o_flags> : fmt::ostream_formatter {};
 
 class at_flags {
  public:
@@ -258,7 +258,7 @@ class at_flags {
 };
 
 template <>
-struct fmt::formatter<at_flags> : ostream_formatter {};
+struct fmt::formatter<at_flags> : fmt::ostream_formatter {};
 
 class rename_flags {
  public:
@@ -302,4 +302,4 @@ class rename_flags {
 };
 
 template <>
-struct fmt::formatter<rename_flags> : ostream_formatter {};
+struct fmt::formatter<rename_flags> : fmt::ostream_formatter {};

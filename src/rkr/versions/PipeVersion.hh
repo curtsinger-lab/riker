@@ -28,7 +28,7 @@ class PipeWriteVersion : public ContentVersion {
 };
 
 template <>
-struct fmt::formatter<PipeWriteVersion> : ostream_formatter {};
+struct fmt::formatter<PipeWriteVersion> : fmt::ostream_formatter {};
 
 class PipeCloseVersion : public PipeWriteVersion {
  public:
@@ -47,7 +47,7 @@ class PipeCloseVersion : public PipeWriteVersion {
 };
 
 template <>
-struct fmt::formatter<PipeCloseVersion> : ostream_formatter {};
+struct fmt::formatter<PipeCloseVersion> : fmt::ostream_formatter {};
 
 class PipeReadVersion : public ContentVersion {
  public:
@@ -67,4 +67,4 @@ class PipeReadVersion : public ContentVersion {
 };
 
 template <>
-struct fmt::formatter<PipeReadVersion> : ostream_formatter {};
+struct fmt::formatter<PipeReadVersion> : fmt::ostream_formatter {};

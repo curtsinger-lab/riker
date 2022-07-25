@@ -567,4 +567,4 @@ class Thread {
 };
 
 template <>
-struct fmt::formatter<Thread> : ostream_formatter {};
+struct fmt::formatter<Thread> : fmt::ostream_formatter {};

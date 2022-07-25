@@ -198,4 +198,4 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
 };
 
 template <>
-struct fmt::formatter<DirArtifact> : ostream_formatter {};
+struct fmt::formatter<DirArtifact> : fmt::ostream_formatter {};

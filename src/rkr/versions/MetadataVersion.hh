@@ -64,4 +64,4 @@ class MetadataVersion : public Version {
 };
 
 template <>
-struct fmt::formatter<MetadataVersion> : ostream_formatter {};
+struct fmt::formatter<MetadataVersion> : fmt::ostream_formatter {};
