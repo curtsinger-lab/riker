@@ -351,3 +351,6 @@ class Artifact : public std::enable_shared_from_this<Artifact> {
   /// unless they have been unlinked in the model but that unlink has not been committed.
   LinkSet _modeled_links;
 };
+
+template <>
+struct fmt::formatter<Artifact> : ostream_formatter {};

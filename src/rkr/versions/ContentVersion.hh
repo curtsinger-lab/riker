@@ -75,3 +75,6 @@ class ContentVersion : public Version, public std::enable_shared_from_this<Conte
   ContentVersion::ID _id;
   size_t _buffer_id;
 };
+
+template <>
+struct fmt::formatter<ContentVersion> : ostream_formatter {};

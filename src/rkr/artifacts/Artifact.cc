@@ -280,8 +280,8 @@ void Artifact::matchMetadata(const shared_ptr<Command>& c,
   // Compare versions
   if (!observed.matches(expected)) {
     // Report the mismatch
-    LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
-         c, scenario, expected, observed);
+    LOGF(artifact, "Metadata mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}",
+         *this, c, scenario, expected, observed);
     c->inputChanged(shared_from_this(), observed, expected, scenario);
   }
 }

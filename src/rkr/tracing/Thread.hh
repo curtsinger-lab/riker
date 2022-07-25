@@ -565,3 +565,6 @@ class Thread {
   /// Which channel is this thread using for the current trace event? Set to -1 if not using one.
   ssize_t _channel = -1;
 };
+
+template <>
+struct fmt::formatter<Thread> : ostream_formatter {};

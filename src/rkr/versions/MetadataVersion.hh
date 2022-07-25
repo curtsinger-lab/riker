@@ -62,3 +62,6 @@ class MetadataVersion : public Version {
   /// The file mode bits for this metadata version
   mode_t _mode;
 };
+
+template <>
+struct fmt::formatter<MetadataVersion> : ostream_formatter {};

@@ -113,3 +113,6 @@ class Ref final {
   /// If this Ref has a valid file descriptor, it is saved here
   std::optional<int> _fd;
 };
+
+template <>
+struct fmt::formatter<Ref> : ostream_formatter {};

@@ -12,12 +12,14 @@
 #include <vector>
 
 #include <elf.h>
-#include <fmt/format.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
+
+#include <fmt/format.h>
+#include <fmt/std.h>
 
 #include "artifacts/Artifact.hh"
 #include "artifacts/PipeArtifact.hh"
@@ -381,7 +383,7 @@ void Thread::_openat(Build& build,
                      fs::path filename,
                      o_flags flags,
                      mode_flags mode) noexcept {
-  LOGF(trace, "{}: openat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, flags, mode);
+  LOGF(trace, "{}: openat({}={}, {}, {}, {})", *this, dfd, getPath(dfd), filename, flags, mode);
 
   // If the O_CREAT was specified and filename has a trailing slash, the result is EISDIR and we
   // do not need to trace any interaction here
@@ -466,7 +468,7 @@ void Thread::_mknodat(Build& build,
                       fs::path filename,
                       mode_flags mode,
                       unsigned dev) noexcept {
-  LOGF(trace, "{}: mknodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, dev);
+  LOGF(trace, "{}: mknodat({}={}, {}, {}, {})", *this, dfd, getPath(dfd), filename, mode, dev);
 
   if (mode.isRegularFile()) {
     // Handle regular file creation with openat
@@ -514,7 +516,7 @@ void Thread::_mknodat(Build& build,
 }
 
 void Thread::_close(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: close({})", this, fd);
+  LOGF(trace, "{}: close({})", *this, fd);
 
   // Resume the process
   resume();
@@ -526,7 +528,7 @@ void Thread::_close(Build& build, const IRSource& source, int fd) noexcept {
 /************************ Pipes ************************/
 
 void Thread::_pipe2(Build& build, const IRSource& source, int* fds, o_flags flags) noexcept {
-  LOGF(trace, "{}: pipe2({}, {})", this, (void*)fds, flags);
+  LOGF(trace, "{}: pipe2({}, {})", *this, (void*)fds, flags);
 
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     // There is nothing to do if the syscall fails, but why would that ever happen?
@@ -559,7 +561,7 @@ void Thread::_pipe2(Build& build, const IRSource& source, int* fds, o_flags flag
 /************************ File Descriptor Manipulation ************************/
 
 void Thread::_dup(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: dup({})", this, fd);
+  LOGF(trace, "{}: dup({})", *this, fd);
 
   // Is the provided file descriptor valid?
   if (_process->hasFD(fd)) {
@@ -587,7 +589,7 @@ void Thread::_dup3(Build& build,
                    int oldfd,
                    int newfd,
                    o_flags flags) noexcept {
-  LOGF(trace, "{}: dup3({}, {}, {})", this, oldfd, newfd, flags);
+  LOGF(trace, "{}: dup3({}, {}, {})", *this, oldfd, newfd, flags);
 
   // If newfd and oldfd are equal, dup2/dup3 just checks if the fd is valid. No need to trace.
   if (newfd == oldfd) {
@@ -625,7 +627,7 @@ void Thread::_fcntl(Build& build,
                     int fd,
                     int cmd,
                     unsigned long arg) noexcept {
-  LOGF(trace, "{}: fcntl({}, {}, {})", this, fd, cmd, arg);
+  LOGF(trace, "{}: fcntl({}, {}, {})", *this, fd, cmd, arg);
 
   if (cmd == F_DUPFD) {
     // Handle fcntl(F_DUPFD) as a dup call. The return value is the new fd.
@@ -657,7 +659,7 @@ void Thread::_faccessat(Build& build,
                         fs::path pathname,
                         int mode,
                         at_flags flags) noexcept {
-  LOGF(trace, "{}: faccessat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname, mode,
+  LOGF(trace, "{}: faccessat({}={}, {}, {}, {})", *this, dirfd, getPath(dirfd), pathname, mode,
        flags);
 
   // Create a reference
@@ -675,7 +677,7 @@ void Thread::_fstatat(Build& build,
                       fs::path pathname,
                       struct stat* statbuf,
                       at_flags flags) noexcept {
-  LOGF(trace, "{}: fstatat({}={}, {}, {}, {})", this, dirfd, getPath(dirfd), pathname,
+  LOGF(trace, "{}: fstatat({}={}, {}, {}, {})", *this, dirfd, getPath(dirfd), pathname,
        (void*)statbuf, flags);
 
   // TODO: Trust the model when running in release mode. Otherwise finish the syscall and validate
@@ -772,7 +774,7 @@ void Thread::_fchown(Build& build,
                      int fd,
                      uid_t user,
                      gid_t group) noexcept {
-  LOGF(trace, "{}: fchown({}, {}, {})", this, fd, user, group);
+  LOGF(trace, "{}: fchown({}, {}, {})", *this, fd, user, group);
 
   // Get the reference for the given file descriptor
   auto ref_id = _process->getFD(fd);
@@ -802,8 +804,8 @@ void Thread::_fchownat(Build& build,
                        uid_t user,
                        gid_t group,
                        at_flags flags) noexcept {
-  LOGF(trace, "{}: fchownat({}={}, {}, {}, {}, {})", this, dfd, getPath(dfd), filename, user, group,
-       flags);
+  LOGF(trace, "{}: fchownat({}={}, {}, {}, {}, {})", *this, dfd, getPath(dfd), filename, user,
+       group, flags);
 
   // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no
   // effects
@@ -841,7 +843,7 @@ void Thread::_fchownat(Build& build,
 }
 
 void Thread::_fchmod(Build& build, const IRSource& source, int fd, mode_flags mode) noexcept {
-  LOGF(trace, "{}: fchmod({}, {})", this, fd, mode);
+  LOGF(trace, "{}: fchmod({}, {})", *this, fd, mode);
 
   // Get the file descriptor entry
   auto ref_id = _process->getFD(fd);
@@ -869,7 +871,7 @@ void Thread::_fchmodat(Build& build,
                        fs::path filename,
                        mode_flags mode,
                        at_flags flags) noexcept {
-  LOGF(trace, "{}: fchmodat({}={}, {}, {}, {})", this, dfd, getPath(dfd), filename, mode, flags);
+  LOGF(trace, "{}: fchmodat({}={}, {}, {}, {})", *this, dfd, getPath(dfd), filename, mode, flags);
 
   // If the path is empty but AT_EMPTY_PATH was not passed in, the syscall will fail with no
   // effects
@@ -909,7 +911,7 @@ void Thread::_fchmodat(Build& build,
 /************************ File Content Operations ************************/
 
 void Thread::_read(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: read({})", this, fd);
+  LOGF(trace, "{}: read({})", *this, fd);
 
   // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do,
   // but files do not.
@@ -933,7 +935,7 @@ void Thread::_read(Build& build, const IRSource& source, int fd) noexcept {
 }
 
 void Thread::_write(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: write({})", this, fd);
+  LOGF(trace, "{}: write({})", *this, fd);
 
   // Get a reference to the artifact being written
   auto ref_id = _process->getFD(fd);
@@ -962,13 +964,13 @@ void Thread::_mmap(Build& build,
                    int flags,
                    int fd,
                    off_t off) noexcept {
-  LOGF(trace, "{}: mmap({})", this, fd);
+  LOGF(trace, "{}: mmap({})", *this, fd);
 
   // Skip anonymous mappings. We never need to handle these because they only allow communication
   // within a single command.
   // NOTE: The BPF program currently excludes these
   if (fd < 0) {
-    LOGF(trace, "{}: skipped anonymous mmap({})", this, fd);
+    LOGF(trace, "{}: skipped anonymous mmap({})", *this, fd);
     resume();
     return;
   }
@@ -986,7 +988,7 @@ void Thread::_mmap(Build& build,
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
 
-    LOGF(trace, "{}: finished mmap({})", this, fd);
+    LOGF(trace, "{}: finished mmap({})", *this, fd);
     void* result = (void*)rc;
 
     // If the map failed there's nothing to log
@@ -1013,7 +1015,7 @@ void Thread::_truncate(Build& build,
                        const IRSource& source,
                        fs::path pathname,
                        long length) noexcept {
-  LOGF(trace, "{}: truncate({}, {})", this, pathname, length);
+  LOGF(trace, "{}: truncate({}, {})", *this, pathname, length);
 
   // Make an access to the reference that will be truncated
   auto ref_id = makePathRef(build, source, pathname, WriteAccess);
@@ -1059,7 +1061,7 @@ void Thread::_truncate(Build& build,
 }
 
 void Thread::_ftruncate(Build& build, const IRSource& source, int fd, long length) noexcept {
-  LOGF(trace, "{}: ftruncate({}, {})", this, fd, length);
+  LOGF(trace, "{}: ftruncate({}, {})", *this, fd, length);
 
   // Get the reference to the artifact being written
   auto ref_id = _process->getFD(fd);
@@ -1088,7 +1090,7 @@ void Thread::_ftruncate(Build& build, const IRSource& source, int fd, long lengt
 }
 
 void Thread::_tee(Build& build, const IRSource& source, int fd_in, int fd_out) noexcept {
-  LOGF(trace, "{}: tee({}, {})", this, fd_in, fd_out);
+  LOGF(trace, "{}: tee({}, {})", *this, fd_in, fd_out);
 
   // Does the process have the input FD?
   if (_process->hasFD(fd_in)) {
@@ -1130,7 +1132,7 @@ void Thread::_mkdirat(Build& build,
                       at_fd dfd,
                       fs::path pathname,
                       mode_flags mode) noexcept {
-  LOGF(trace, "{}: mkdirat({}={}, {}, {})", this, dfd, getPath(dfd), pathname, mode);
+  LOGF(trace, "{}: mkdirat({}={}, {}, {})", *this, dfd, getPath(dfd), pathname, mode);
 
   // Strip a trailing slash from the pathname if it has one
   if (pathname.filename().empty()) pathname = pathname.parent_path();
@@ -1180,7 +1182,7 @@ void Thread::_renameat2(Build& build,
                         at_fd new_dfd,
                         fs::path new_path,
                         rename_flags flags) noexcept {
-  LOGF(trace, "{}: renameat({}={}, {}, {}={}, {}, {})", this, old_dfd, getPath(old_dfd), old_path,
+  LOGF(trace, "{}: renameat({}={}, {}, {}={}, {}, {})", *this, old_dfd, getPath(old_dfd), old_path,
        new_dfd, getPath(new_dfd), new_path, flags);
 
   // Strip a trailing slash from the old path if it has one
@@ -1277,7 +1279,7 @@ void Thread::_renameat2(Build& build,
 }
 
 void Thread::_getdents(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: getdents({})", this, fd);
+  LOGF(trace, "{}: getdents({})", *this, fd);
 
   // Get a reference to the artifact being read
   auto ref_id = _process->getFD(fd);
@@ -1305,7 +1307,7 @@ void Thread::_linkat(Build& build,
                      at_fd new_dfd,
                      fs::path newpath,
                      at_flags flags) noexcept {
-  LOGF(trace, "{}: linkat({}={}, {}, {}={}, {}, {})", this, old_dfd, getPath(old_dfd), oldpath,
+  LOGF(trace, "{}: linkat({}={}, {}, {}={}, {}, {})", *this, old_dfd, getPath(old_dfd), oldpath,
        new_dfd, getPath(new_dfd), newpath, flags);
 
   // Strip a trailing slash from the new path if it has one
@@ -1364,7 +1366,7 @@ void Thread::_symlinkat(Build& build,
                         fs::path target,
                         at_fd dfd,
                         fs::path newpath) noexcept {
-  LOGF(trace, "{}: symlinkat({}, {}={}, {})", this, target, dfd, getPath(dfd), newpath);
+  LOGF(trace, "{}: symlinkat({}, {}={}, {})", *this, target, dfd, getPath(dfd), newpath);
 
   // Strip a trailing slash from newpath if it has one
   if (newpath.filename().empty()) newpath = newpath.parent_path();
@@ -1411,7 +1413,7 @@ void Thread::_readlinkat(Build& build,
                          const IRSource& source,
                          at_fd dfd,
                          fs::path pathname) noexcept {
-  LOGF(trace, "{}: readlinkat({}={}, {})", this, dfd, getPath(dfd), pathname);
+  LOGF(trace, "{}: readlinkat({}={}, {})", *this, dfd, getPath(dfd), pathname);
 
   // We need a better way to blacklist /proc/self tracking, but this is enough to make the self
   // build work
@@ -1455,7 +1457,7 @@ void Thread::_unlinkat(Build& build,
                        at_fd dfd,
                        fs::path pathname,
                        at_flags flags) noexcept {
-  LOGF(trace, "{}: unlinkat({}={}, {}, {})", this, dfd, getPath(dfd), pathname, flags);
+  LOGF(trace, "{}: unlinkat({}={}, {}, {})", *this, dfd, getPath(dfd), pathname, flags);
 
   // Strip a trailing slash from pathname if it has one
   if (pathname.filename().empty()) pathname = pathname.parent_path();
@@ -1558,14 +1560,14 @@ void Thread::_socketpair(Build& build,
 /************************ Process State Operations ************************/
 
 void Thread::_umask(Build& build, const IRSource& source, mode_t mask) noexcept {
-  LOGF(trace, "{}: umask({:o})", this, mask);
+  LOGF(trace, "{}: umask({:o})", *this, mask);
   resume();
 
   getProcess()->setUmask(mask);
 }
 
 void Thread::_chdir(Build& build, const IRSource& source, fs::path filename) noexcept {
-  LOGF(trace, "{}: chdir({})", this, filename);
+  LOGF(trace, "{}: chdir({})", *this, filename);
 
   auto ref = makePathRef(build, source, filename, ExecAccess);
 
@@ -1582,7 +1584,7 @@ void Thread::_chdir(Build& build, const IRSource& source, fs::path filename) noe
 }
 
 void Thread::_chroot(Build& build, const IRSource& source, fs::path filename) noexcept {
-  LOGF(trace, "{}: chroot({})", this, filename);
+  LOGF(trace, "{}: chroot({})", *this, filename);
   FAIL << "Builds that use chroot are not supported.";
 }
 
@@ -1590,12 +1592,12 @@ void Thread::_pivot_root(Build& build,
                          const IRSource& source,
                          fs::path new_root,
                          fs::path put_old) noexcept {
-  LOGF(trace, "{}: pivot_root({}, {})", this, new_root, put_old);
+  LOGF(trace, "{}: pivot_root({}, {})", *this, new_root, put_old);
   FAIL << "Builds that use pivot_root are not supported.";
 }
 
 void Thread::_fchdir(Build& build, const IRSource& source, int fd) noexcept {
-  LOGF(trace, "{}: fchdir({})", this, fd);
+  LOGF(trace, "{}: fchdir({})", *this, fd);
 
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
@@ -1612,7 +1614,7 @@ void Thread::_execveat(Build& build,
                        at_fd dfd,
                        fs::path filename,
                        vector<string> args) noexcept {
-  LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", this, dfd, getPath(dfd), filename,
+  LOGF(trace, "{}: execveat({}={}, {}, [\"{}\"])", *this, dfd, getPath(dfd), filename,
        fmt::join(args, "\", \""));
 
   // The parent command needs execute access to the exec-ed path
@@ -1679,7 +1681,7 @@ void Thread::_wait4(Build& build,
                     pid_t pid,
                     int* wstatus,
                     int options) noexcept {
-  LOGF(trace, "{}: wait4({}, {}, {})", this, pid, (void*)wstatus, options);
+  LOGF(trace, "{}: wait4({}, {}, {})", *this, pid, (void*)wstatus, options);
 
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     int status = 0;
@@ -1713,7 +1715,7 @@ void Thread::_waitid(Build& build,
                      id_t id,
                      siginfo_t* infop,
                      int options) noexcept {
-  LOGF(trace, "{}: waitid(...)", this);
+  LOGF(trace, "{}: waitid(...)", *this);
   FAIL << "waitid syscall is not handled yet";
   resume();
 }

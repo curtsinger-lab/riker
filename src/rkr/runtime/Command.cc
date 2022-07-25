@@ -247,7 +247,7 @@ void Command::planBuild() noexcept {
   // Rules 1 & 2: If this command observe a change on its previous run, mark it for rerun
   if (_previous_run._changed == Scenario::Both) {
     if (mark(RebuildMarking::MustRun)) {
-      LOGF(rebuild, "{} must run: input changed or output is missing/modified", this);
+      LOGF(rebuild, "{} must run: input changed or output is missing/modified", *this);
     }
   }
 
@@ -335,7 +335,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& weak_producer : _previous_run._needs_output_from) {
       auto producer = weak_producer.lock();
       if (producer->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: {} requires output for its run", producer, this);
+        LOGF(rebuild, "{} must run: {} requires output for its run", producer, *this);
       }
     }
 
@@ -360,7 +360,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& weak_user : _previous_run._output_needed_by) {
       auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MustRun)) {
-        LOGF(rebuild, "{} must run: {} may change uncached input during its run", user, this);
+        LOGF(rebuild, "{} must run: {} may change uncached input during its run", user, *this);
       }
     }
 
@@ -368,7 +368,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& weak_user : _previous_run._output_used_by) {
       auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} may change input during its run", user, this);
+        LOGF(rebuild, "{} may run: {} may change input during its run", user, *this);
       }
     }
 
@@ -389,7 +389,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& weak_producer : _previous_run._needs_output_from) {
       auto producer = weak_producer.lock();
       if (producer->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} will require output if it runs", producer, this);
+        LOGF(rebuild, "{} may run: {} will require output if it runs", producer, *this);
       }
     }
 
@@ -397,7 +397,7 @@ bool Command::mark(RebuildMarking m) noexcept {
     for (const auto& weak_user : _previous_run._output_used_by) {
       auto user = weak_user.lock();
       if (user->mark(RebuildMarking::MayRun)) {
-        LOGF(rebuild, "{} may run: {} may change input if it runs", user, this);
+        LOGF(rebuild, "{} may run: {} may change input if it runs", user, *this);
       }
     }
 
@@ -736,7 +736,7 @@ void Command::outputChanged(shared_ptr<Artifact> artifact,
   // If the expected output could be committed, there's no need to mark this command for rerun
   if (expected->canCommit()) return;
 
-  LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})", this,
+  LOGF(rebuild, "{} must rerun: on-disk state of {} has changed (expected {}, observed {})", *this,
        artifact, expected, ondisk);
 
   _current_run._changed |= Scenario::Both;

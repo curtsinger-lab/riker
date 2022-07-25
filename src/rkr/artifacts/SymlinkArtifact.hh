@@ -107,3 +107,6 @@ class SymlinkArtifact : public Artifact {
   /// The content of this artifact, both committed and uncommitted
   VersionState<SymlinkVersion> _content;
 };
+
+template <>
+struct fmt::formatter<SymlinkArtifact> : ostream_formatter {};

@@ -26,7 +26,7 @@ If you want to use Riker on an existing Linux machine, the following steps shoul
 
 First, install Riker's build and test dependencies (package names for Ubuntu 20.04):
 ```
-$ sudo apt install make clang llvm libfmt-dev git gcc python3-cram file graphviz
+$ sudo apt install make clang llvm git gcc python3-cram file graphviz
 ```
 
 Riker's test suite relies on the [cram](https://bitheap.org/cram/) tool.

@@ -139,3 +139,6 @@ class Process : public std::enable_shared_from_this<Process> {
   /// The callback to force this process to exit
   std::function<void(int)> _force_exit_callback;
 };
+
+template <>
+struct fmt::formatter<Process> : ostream_formatter {};

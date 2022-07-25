@@ -124,3 +124,6 @@ class SpecialArtifact : public Artifact {
   /// The content of this artifact
   VersionState<SpecialVersion> _content;
 };
+
+template <>
+struct fmt::formatter<SpecialArtifact> : ostream_formatter {};

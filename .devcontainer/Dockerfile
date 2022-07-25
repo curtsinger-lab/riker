@@ -14,7 +14,7 @@ RUN apt-get -y install --no-install-recommends apt-utils dialog 2>&1
 # Install packages
 RUN apt-get -y install --no-install-recommends \
     # dev dependencies
-    make clang llvm-dev libfmt-dev gdb git \
+    make clang llvm-dev gdb git \
     # test dependencies
     gcc python3-cram file graphviz texlive-latex-base \
     # bench dependencies

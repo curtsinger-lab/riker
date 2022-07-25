@@ -129,3 +129,6 @@ class FileArtifact : public Artifact {
   /// The committed and uncommitted state that represent this file's content
   VersionState<FileVersion> _content;
 };
+
+template <>
+struct fmt::formatter<FileArtifact> : ostream_formatter {};
