@@ -159,8 +159,8 @@ $(DEBUG_DIR)/bin/platform-config $(RELEASE_DIR)/bin/platform-config: src/platfor
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
-$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile $(DEBUG_DIR)/platform-config.h .submodules
-$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile $(RELEASE_DIR)/platform-config.h .submodules
+$(RKR_DEBUG_OBJS): $(DEBUG_DIR)/.obj/%.o: src/%.cc Makefile $(DEBUG_DIR)/platform-config.h
+$(RKR_RELEASE_OBJS): $(RELEASE_DIR)/.obj/%.o: src/%.cc Makefile $(RELEASE_DIR)/platform-config.h
 $(RKR_DEBUG_OBJS) $(RKR_RELEASE_OBJS):
 	@mkdir -p `dirname $@`
 	$(CXX) -MMD -MP $(CXXFLAGS) -o $@ -c $<
@@ -194,15 +194,6 @@ $(BLAKE_RELEASE_S_OBJS): $(RELEASE_DIR)/.obj/blake3/%.o: $(BLAKE3)/%.S Makefile
 $(BLAKE_DEBUG_C_OBJS) $(BLAKE_DEBUG_S_OBJS) $(BLAKE_RELEASE_C_OBJS) $(BLAKE_RELEASE_S_OBJS):
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -o $@ -c $<
-
-$(BLAKE_C_SRCS) $(BLAKE_S_SRCS): .submodules
-
-.submodules:
-	@if git submodule status | egrep -q '^[-]|^[+]' ; then \
-		echo "Updating git submodules"; \
-		git submodule update --init; \
-		touch .submodules; \
-	fi
 
 -include $(RKR_DEBUG_DEPS)
 -include $(RKR_RELEASE_DEPS)
