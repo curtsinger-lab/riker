@@ -27,6 +27,9 @@ class PipeWriteVersion : public ContentVersion {
   }
 };
 
+template <>
+struct fmt::formatter<PipeWriteVersion> : fmt::ostream_formatter {};
+
 class PipeCloseVersion : public PipeWriteVersion {
  public:
   /// Get a short name for thsi version type
@@ -42,6 +45,9 @@ class PipeCloseVersion : public PipeWriteVersion {
     return o << "[pipe close]";
   }
 };
+
+template <>
+struct fmt::formatter<PipeCloseVersion> : fmt::ostream_formatter {};
 
 class PipeReadVersion : public ContentVersion {
  public:
@@ -59,3 +65,6 @@ class PipeReadVersion : public ContentVersion {
     return o << "[pipe read]";
   }
 };
+
+template <>
+struct fmt::formatter<PipeReadVersion> : fmt::ostream_formatter {};

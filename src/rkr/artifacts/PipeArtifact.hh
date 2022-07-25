@@ -139,3 +139,6 @@ class PipeArtifact : public Artifact {
   /// File descriptors for an actual opened pipe
   std::optional<std::tuple<int, int>> _fds;
 };
+
+template <>
+struct fmt::formatter<PipeArtifact> : fmt::ostream_formatter {};

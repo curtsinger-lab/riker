@@ -9,10 +9,11 @@
 #include <experimental/source_location>
 
 #include <fcntl.h>
-#include <fmt/core.h>
-#include <fmt/ostream.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 #include "util/options.hh"
 #include "util/terminate.hh"
@@ -50,6 +51,19 @@ template <class T>
 static std::ostream& operator<<(std::ostream& o, const std::unique_ptr<T>& p) {
   return o << p.get();
 }
+
+// Format shared pointers by dereference
+template <typename T>
+struct fmt::formatter<std::shared_ptr<T>> : fmt::formatter<T> {
+  template <typename FormatContext>
+  auto format(std::shared_ptr<T> p, FormatContext& ctx) const {
+    if (p) {
+      return fmt::formatter<T>::format(*p, ctx);
+    } else {
+      return fmt::format_to(ctx.out(), "null");
+    }
+  }
+};
 
 /**
  * This class is used for logging to the console. The macros defined below return an instance of

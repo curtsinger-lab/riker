@@ -136,7 +136,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
                                 shared_ptr<ContentVersion> expected) noexcept {
   // If nothing has been read from this pipe, there can be no match
   if (!_last_read) {
-    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", *this,
          c, scenario, expected, _last_read);
     c->inputChanged(shared_from_this(), nullptr, expected, scenario);
     return;
@@ -147,7 +147,7 @@ void PipeArtifact::matchContent(const shared_ptr<Command>& c,
 
   // Compare the current content version to the expected version
   if (!_last_read->matches(expected)) {
-    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", *this,
          c, scenario, expected, _last_read);
     // Report the mismatch
     c->inputChanged(shared_from_this(), _last_read, expected, scenario);

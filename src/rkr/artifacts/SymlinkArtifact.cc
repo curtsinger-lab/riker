@@ -65,7 +65,7 @@ void SymlinkArtifact::matchContent(const shared_ptr<Command>& c,
 
   // Compare the symlink version to the expected version
   if (!observed->matches(expected)) {
-    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", *this,
          c, scenario, expected, observed);
 
     // Report the mismatch

@@ -24,13 +24,13 @@ IncludeCategories:
   # Experimental C++ includes
   - Regex: '<experimental/[[:alnum:]_]+>'
     Priority: 2
-  
-  # Cereal files
-  - Regex: '^<(cereal)/[[:alnum:]._/]+>'
-    Priority: 4
     
   # CLI11 files
   - Regex: '^<(CLI)/[[:alnum:]._/]+>'
+    Priority: 4
+  
+  # fmt files
+  - Regex: '^<(fmt)/[[:alnum:]._/]+>'
     Priority: 5
   
   # C include files

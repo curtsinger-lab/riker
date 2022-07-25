@@ -331,7 +331,7 @@ void FileArtifact::matchContent(const shared_ptr<Command>& c,
       if (version->matches(expected)) return;
     }
 
-    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", this,
+    LOGF(artifact, "Content mismatch in {} ({} scenario {}): \n  expected {}\n  observed {}", *this,
          c, scenario, expected, observed);
     // Report the mismatch
     c->inputChanged(shared_from_this(), observed, expected, scenario);

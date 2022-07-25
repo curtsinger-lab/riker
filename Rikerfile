@@ -5,7 +5,7 @@ PREFIX="self-build"
 ARCH=`uname -p`
 BLAKE3="$PWD/deps/BLAKE3/c"
 CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3 -I$PREFIX"
-CXXFLAGS="$CFLAGS --std=c++17 -Ideps/CLI11/include"
+CXXFLAGS="$CFLAGS --std=c++17 -Ideps/CLI11/include -Ideps/fmt/include -DFMT_HEADER_ONLY"
 
 # Create output directories
 mkdir -p $PREFIX/bin

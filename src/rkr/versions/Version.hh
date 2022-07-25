@@ -3,6 +3,9 @@
 #include <ostream>
 #include <string>
 
+#include <fmt/core.h>
+#include <fmt/ostream.h>
+
 #include "util/stats.hh"
 
 class Version {
@@ -35,3 +38,6 @@ class Version {
     return v->print(o);
   }
 };
+
+template <>
+struct fmt::formatter<Version> : fmt::ostream_formatter {};

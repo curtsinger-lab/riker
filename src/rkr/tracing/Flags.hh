@@ -3,9 +3,11 @@
 #include <ostream>
 
 #include <fcntl.h>
-#include <fmt/core.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 /****** Pretty Printers for Syscall Arguments ******/
 
@@ -35,6 +37,9 @@ class at_fd {
  private:
   int _fd;
 };
+
+template <>
+struct fmt::formatter<at_fd> : fmt::ostream_formatter {};
 
 class mode_flags {
  public:
@@ -111,6 +116,9 @@ class mode_flags {
  private:
   mode_t _mode;
 };
+
+template <>
+struct fmt::formatter<mode_flags> : fmt::ostream_formatter {};
 
 /// A wrapper for O_* flags provided to system calls
 class o_flags {
@@ -199,6 +207,9 @@ class o_flags {
   int _flags;
 };
 
+template <>
+struct fmt::formatter<o_flags> : fmt::ostream_formatter {};
+
 class at_flags {
  public:
   at_flags() noexcept : _flags(0) {}
@@ -246,6 +257,9 @@ class at_flags {
   int _flags;
 };
 
+template <>
+struct fmt::formatter<at_flags> : fmt::ostream_formatter {};
+
 class rename_flags {
  public:
   rename_flags() noexcept : _flags(0) {}
@@ -286,3 +300,6 @@ class rename_flags {
  private:
   int _flags;
 };
+
+template <>
+struct fmt::formatter<rename_flags> : fmt::ostream_formatter {};

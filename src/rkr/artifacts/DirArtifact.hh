@@ -196,3 +196,6 @@ class DirEntry : public std::enable_shared_from_this<DirEntry> {
   /// The committed and uncommitted state of this entry
   VersionState<DirEntryVersion> _state;
 };
+
+template <>
+struct fmt::formatter<DirArtifact> : fmt::ostream_formatter {};

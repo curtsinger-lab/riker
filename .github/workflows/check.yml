@@ -1,0 +1,30 @@
+name: check
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on:
+      - self-hosted
+      - linux
+      - ${{ matrix.arch }}
+    strategy:
+      matrix:
+        mode: [debug, release]
+        #arch: [x64, arm64]
+        arch: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      
+      - name: Build
+        run: make ${{ matrix.mode }}
+      
+      - name: Test
+        run: make test-${{ matrix.mode }}
+      
+      - name: Self-Build
+        run: ${{ matrix.mode }}/bin/rkr --show
+      
+      - name: Test Self-Build
+        run: PATH=$PWD/self-build/bin:$PATH scripts/runtests.py

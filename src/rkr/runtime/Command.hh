@@ -31,6 +31,24 @@ class Version;
  */
 enum class Scenario : uint8_t { None = 0, Build = 1, PostBuild = 2, Both = 3 };
 
+template <>
+struct fmt::formatter<Scenario> : fmt::formatter<std::string> {
+  template <typename FormatContext>
+  auto format(Scenario s, FormatContext& ctx) const {
+    if (s == Scenario::None) {
+      return fmt::formatter<std::string>::format("None", ctx);
+    } else if (s == Scenario::Build) {
+      return fmt::formatter<std::string>::format("Build", ctx);
+    } else if (s == Scenario::PostBuild) {
+      return fmt::formatter<std::string>::format("PostBuild", ctx);
+    } else if (s == Scenario::Both) {
+      return fmt::formatter<std::string>::format("Both", ctx);
+    } else {
+      return fmt::formatter<std::string>::format("<invalid>", ctx);
+    }
+  }
+};
+
 inline bool operator&(Scenario s1, Scenario s2) noexcept {
   return (static_cast<uint8_t>(s1) & static_cast<uint8_t>(s2)) != 0;
 }
@@ -62,9 +80,9 @@ inline Scenario& operator|=(Scenario& lhs, Scenario rhs) noexcept {
 
 /**
  * Representation of a command that runs as part of the build.
- * Commands correspond to exec() calls during the build process; these are commands we can directly
- * re-execute on a future build. We need to track the paths that commands reference, and their
- * interactions through those paths.
+ * Commands correspond to exec() calls during the build process; these are commands we can
+ * directly re-execute on a future build. We need to track the paths that commands reference,
+ * and their interactions through those paths.
  */
 class Command : public std::enable_shared_from_this<Command> {
  public:
@@ -185,8 +203,8 @@ class Command : public std::enable_shared_from_this<Command> {
     /// The children launched by this command
     std::list<std::shared_ptr<Command>> _children;
 
-    /// Has this command run been launched by its parent yet? This is set to true whether the launch
-    /// is emulated or traced.
+    /// Has this command run been launched by its parent yet? This is set to true whether the
+    /// launch is emulated or traced.
     bool _launched = false;
 
     /// The process this command's run was launched in, or nullptr if there is no process
@@ -311,7 +329,8 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Track a directory version output from this command
   void addDirectoryOutput(std::shared_ptr<Artifact> a, std::shared_ptr<DirVersion> v) noexcept;
 
-  /// An output from this command does not match the on-disk state (checked at the end of the build)
+  /// An output from this command does not match the on-disk state (checked at the end of the
+  /// build)
   void outputChanged(std::shared_ptr<Artifact> artifact,
                      std::shared_ptr<ContentVersion> ondisk,
                      std::shared_ptr<ContentVersion> expected) noexcept;
@@ -325,9 +344,10 @@ class Command : public std::enable_shared_from_this<Command> {
   const WeakCommandSet& getInputProducers() const noexcept;
 
   /**
-   * Does this command match a given set of launch arguments? If so, return a set of substitutions
-   * required to make the match work. These substitutions should be applied if the match is used,
-   * and paths from the command should be substituted using substitutePath when emulating.
+   * Does this command match a given set of launch arguments? If so, return a set of
+   * substitutions required to make the match work. These substitutions should be applied if the
+   * match is used, and paths from the command should be substituted using substitutePath when
+   * emulating.
    *
    * \param args  The arguments for the command being launched
    * \returns nullopt if there is not a match, or a map of substitutions required for the match
@@ -385,3 +405,6 @@ class Command : public std::enable_shared_from_this<Command> {
   Command::ID _id;
   size_t _buffer_id;
 };
+
+template <>
+struct fmt::formatter<Command> : fmt::ostream_formatter {};
