@@ -27,4 +27,4 @@ jobs:
         run: ${{ matrix.mode }}/bin/rkr --show
       
       - name: Test Self-Build
-        run: PATH=${{ matrix.mode }}/bin:$PATH scripts/runtests.py
+        run: PATH=$PWD/self-build/bin:$PATH scripts/runtests.py
