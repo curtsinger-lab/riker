@@ -9,14 +9,17 @@ ARG USER_GID=$USER_UID
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
-RUN apt-get -y install --no-install-recommends apt-utils dialog 2>&1
+RUN apt-get -y install --no-install-recommends apt-utils dialog software-properties-common 2>&1
+
+# Add the repo for g++-11
+RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 
 # Install packages
 RUN apt-get -y install --no-install-recommends \
     # dev dependencies
-    make clang llvm-dev gdb git \
+    make clang clang-format llvm-dev gdb git \
     # test dependencies
-    gcc python3-cram file graphviz texlive-latex-base \
+    gcc python3-cram file graphviz texlive-latex-base g++-11 \
     # bench dependencies
     cmake wget m4 \
     # misc
