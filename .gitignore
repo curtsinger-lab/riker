@@ -4,6 +4,7 @@
 debug
 release
 self-build
+.submodules
 .rkr
 core
 out.png
