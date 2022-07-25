@@ -4,3 +4,6 @@
 [submodule "deps/BLAKE3"]
 	path = deps/BLAKE3
 	url = https://github.com/BLAKE3-team/BLAKE3.git
+[submodule "deps/fmt"]
+	path = deps/fmt
+	url = https://github.com/fmtlib/fmt.git
