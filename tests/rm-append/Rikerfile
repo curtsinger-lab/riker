@@ -1,0 +1,4 @@
+#!/bin/sh
+
+rm -f output.txt
+sh make-output.sh >> output.txt
