@@ -43,7 +43,7 @@ void FileArtifact::commitContentTo(fs::path path) noexcept {
   if (_content.hasCommittedState()) {
     // Yes. Just commit the content version
     auto [version, writer] = _content.getLatest();
-    ASSERT(version->canCommit()) << "Cannot commit content " << _content;
+    ASSERT(version->canCommit()) << "Cannot commit content to " << path << ": " << _content;
 
     // Commit the uncommitted content only
     version->commit(path);
