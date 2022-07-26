@@ -37,5 +37,4 @@ Run the program again
   $ ./program
   Hello modules.
 
-Clean up
-  $ rm -rf .rkr program mapper.txt modules
+Leave the build state in place for the next test.
