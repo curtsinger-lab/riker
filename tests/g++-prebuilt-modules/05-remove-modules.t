@@ -20,13 +20,14 @@ Make sure the program still works
   $ ./program
   Hello modules.
 
-Now remove and recreate the iostream module.
+Now remove the iostream module.
   $ rm gcm.cache/usr/include/c++/11/iostream.gcm
-  $ g++-11 --std=c++20 -fmodules-ts -c -x c++-system-header iostream
 
 Run a rebuild. This will do actual work becuase the module was used.
   $ rkr --show-full
   *cc1plus * (glob)
+  as * (glob)
+  *ld * (glob)
 
 Run the program
   $ ./program
