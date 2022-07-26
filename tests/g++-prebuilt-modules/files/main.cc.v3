@@ -1,0 +1,11 @@
+import<iostream>;
+import<string>;
+
+int main() {
+  std::string s = "Hello modules.\n";
+  for (auto& c : s) {
+    c = std::toupper(c);
+  }
+  std::cout << s;
+  return 0;
+}
