@@ -2,7 +2,7 @@
 
 # Set up compilation options
 PREFIX="self-build"
-ARCH=`uname -p`
+ARCH=`uname -m`
 BLAKE3="$PWD/deps/BLAKE3/c"
 CFLAGS="-O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I$BLAKE3 -I$PREFIX"
 CXXFLAGS="$CFLAGS --std=c++17 -Ideps/CLI11/include -Ideps/fmt/include -DFMT_HEADER_ONLY"
