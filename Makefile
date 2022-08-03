@@ -2,7 +2,7 @@ CC  = clang
 CXX = clang++
 AR = ar
 MAKEFLAGS += -j$(shell ls /sys/devices/system/cpu | grep -E cpu\[0-9\]+ | wc -l)
-ARCH := $(shell uname -p)
+ARCH := $(shell uname -m)
 
 # Install prefix
 PREFIX ?= /usr
