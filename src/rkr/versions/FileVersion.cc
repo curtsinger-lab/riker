@@ -228,50 +228,7 @@ void FileVersion::makeEmptyFingerprint() noexcept {
   _empty = true;
 }
 
-/// Restores a file to the given path from the cache.
-/// Returns true if the cache file exists and restoration was successful.
-/// The exact error message can be printed by the caller by inspecting errno.
-bool FileVersion::stage(fs::path path, mode_t mode) noexcept {
-  // Make sure we have a hash and that this version is cached
-  ASSERT(_hash.has_value()) << "Un-hashed file version " << this << " cannot be staged from cache";
-  ASSERT(_cached) << "Attempted to stage un-cached file version " << this << " from cache.";
-
-  // Path to cached file
-  fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
-
-  // does the cached file exist, and if so, how big is it in bytes?
-  off_t len = fileLength(hash_file);
-  bool file_exists = len != -1;
-
-  // the call to stage must succeed
-  FAIL_IF(!file_exists) << "Unable to stage in cached file " << path << " from cached file "
-                        << hash_file << ": " << ERR;
-
-  // Open source and destination fds
-  int src_fd = ::open(hash_file.c_str(), O_RDONLY);
-  FAIL_IF(src_fd == -1) << "Unable to open cache file " << hash_file << ": " << ERR;
-  int dst_fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, mode);
-  FAIL_IF(dst_fd == -1) << "Unable to create stage file " << path << ": " << ERR;
-
-  // copy file to cache using non-POSIX fast copy
-  loff_t bytes_cp;
-  do {
-    bytes_cp = ::copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
-    FAIL_IF(bytes_cp == -1) << "Could not copy cache file " << hash_file << " to stage location "
-                            << path << ": " << ERR;
-
-    len -= bytes_cp;
-  } while (len > 0 && bytes_cp > 0);
-
-  close(src_fd);
-  close(dst_fd);
-
-  LOG(cache) << "Staged in file version at path " << path << " from cache file " << hash_file;
-
-  return true;
-}
-
-bool fast_copy(fs::path src, fs::path dest) noexcept {
+bool fast_copy(fs::path src, fs::path dest, mode_t mode = 0600) noexcept {
   // Get the length of the src file
   loff_t len = fileLength(src);
   if (len == -1) {
@@ -282,13 +239,13 @@ bool fast_copy(fs::path src, fs::path dest) noexcept {
   // Open source and destination fds
   int src_fd = ::open(src.c_str(), O_RDONLY);
   if (src_fd == -1) {
-    WARN << "Unable to open file " << src << " for caching: " << ERR;
+    WARN << "Unable to open source file " << src << ": " << ERR;
     return false;
   }
 
-  int dst_fd = ::open(dest.c_str(), O_CREAT | O_EXCL | O_WRONLY, 0600);
+  int dst_fd = ::open(dest.c_str(), O_CREAT | O_TRUNC | O_WRONLY, mode);
   if (dst_fd == -1) {
-    WARN << "Unable to create cache file '" << dest << " for file " << src << ": " << ERR;
+    WARN << "Unable to create file " << dest << ": " << ERR;
     return false;
   }
 
@@ -333,6 +290,25 @@ bool fast_copy(fs::path src, fs::path dest) noexcept {
 
   close(src_fd);
   close(dst_fd);
+
+  return true;
+}
+
+/// Restores a file to the given path from the cache.
+/// Returns true if the cache file exists and restoration was successful.
+/// The exact error message can be printed by the caller by inspecting errno.
+bool FileVersion::stage(fs::path path, mode_t mode) noexcept {
+  // Make sure we have a hash and that this version is cached
+  ASSERT(_hash.has_value()) << "Un-hashed file version " << this << " cannot be staged from cache";
+  ASSERT(_cached) << "Attempted to stage un-cached file version " << this << " from cache.";
+
+  // Path to cached file
+  fs::path hash_file = constants::CacheDir / hashPath(_hash.value());
+
+  // Copy the cached file into place
+  FAIL_IF(!fast_copy(hash_file, path, mode)) << "Failed to stage file " << path << " from cache";
+
+  LOG(cache) << "Staged in file version at path " << path << " from cache file " << hash_file;
 
   return true;
 }
@@ -408,8 +384,7 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
   }
 
   // If fingerprinting is disabled but the hashes match, print some info
-  if (_hash.has_value() && other->_hash.has_value() &&
-      _hash.value() == other->_hash.value()) {
+  if (_hash.has_value() && other->_hash.has_value() && _hash.value() == other->_hash.value()) {
   }
 
   return false;
