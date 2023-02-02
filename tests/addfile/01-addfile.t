@@ -11,11 +11,11 @@ Run the first build
   $ rkr --show-full
   rkr-launch
   Rikerfile
-  clang -o program helper1.c main.c
-  clang -o /tmp/* -c helper1.c (glob)
-  clang -o /tmp/* -c main.c (glob)
-  clang -o program * * (glob)
-  *ld * (glob)
+  **clang -o program helper1.c main.c (glob)
+  **clang -o /tmp/* -c helper1.c (glob)
+  **clang -o /tmp/* -c main.c (glob)
+  **clang -o program * * (glob)
+  **ld * (glob)
 
 Check the output
   $ ./program
@@ -28,11 +28,11 @@ Move in the new file and modified main.c
 Update the build
   $ rkr --show-full
   Rikerfile
-  clang -o program helper1.c helper2.c main.c
-  clang -o /tmp/* -c helper2.c (glob)
-  clang -o /tmp/* -c main.c (glob)
-  clang -o program /tmp/* /tmp/* /tmp/* (glob)
-  *ld * (glob)
+  **clang -o program helper1.c helper2.c main.c (glob)
+  **clang -o /tmp/* -c helper2.c (glob)
+  **clang -o /tmp/* -c main.c (glob)
+  **clang -o program /tmp/* /tmp/* /tmp/* (glob)
+  **ld * (glob)
 
 Check the output
   $ ./program
