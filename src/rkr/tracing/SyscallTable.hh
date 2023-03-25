@@ -30,6 +30,9 @@ typedef void (*handler_t)(Build& b,
 constexpr handler_t default_handler =
     [](Build& b, const IRSource& source, Thread& t, const user_regs_struct& regs) {};
 
+//ERIC
+constexpr struct block_syscall_tag {} block_syscall;
+
 /**
  * A system call entry records the name of a system call, whether or not it should be traced, and
  * the handler that should run if it is traced.
@@ -47,11 +50,18 @@ class SyscallEntry {
   constexpr SyscallEntry(const char* name, handler_t handler) :
       _name(name), _traced(true), _handler(handler) {}
 
+  /// Create an entry for a blocked syscall. ERIC
+  constexpr SyscallEntry(const char* name, block_syscall_tag) :
+      _name(name), _traced(false), _handler(default_handler), _blocked(true)/**/ {}
+
   /// Get the name of this system call
   const char* getName() const { return _name; }
 
   /// Check if this system call should be traced
   bool isTraced() const { return _traced; }
+
+  /// Check if this system call should be blocked ERIC
+  bool isBlocked() const { return _blocked; }
 
   /// Run the handler for this system call
   void runHandler(Build& b, const IRSource& source, Thread& t, const user_regs_struct& regs) const {
@@ -62,6 +72,7 @@ class SyscallEntry {
   const char* _name;
   bool _traced;
   handler_t _handler;
+  bool _blocked = false; //ERIC
 };
 
 /// The maximum number of system calls
@@ -74,6 +85,10 @@ class SyscallEntry {
         stats::syscalls++;                                                                      \
         t.invokeHandler(&Thread::_##name, out, source, regs);                                   \
       });
+
+// ERIC
+#define BLOCK(constant, name) \
+  _syscalls[constant] = SyscallEntry(#name, block_syscall);
 
 /**
  * Create a system call table that specifies names and handlers for traced system calls

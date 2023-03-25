@@ -45,7 +45,8 @@
 /* 038 */ // skip setitimer (__NR_setitimer)
 /* 039 */ // skip getpid (__NR_getpid)
 /* 040 */ TRACE(__NR_sendfile, sendfile);
-/* 041 */ TRACE(__NR_socket, socket);
+/* 041 */ // ERIC TRACE(__NR_socket, socket);
+/* 041 */ BLOCK(__NR_socket, socket);
 /* 042 */ // skip connect (__NR_connect)
 /* 043 */ // skip accept (__NR_accept)
 /* 044 */ TRACE(__NR_sendto, sendto);
