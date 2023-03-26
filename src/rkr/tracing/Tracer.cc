@@ -556,7 +556,8 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
       } else if (SyscallTable<Build>::get(i).isBlocked()) {
           bpf.push_back(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, i, 0, 1));
           //bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW));
-          bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (EPERM & SECCOMP_RET_DATA)));
+          //bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (SIGSYS & SECCOMP_RET_DATA)));
+          bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_KILL_PROCESS));
           //bpf.push_back(BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE));
       } else {
         if (SyscallTable<Build>::get(i).isTraced()) {
