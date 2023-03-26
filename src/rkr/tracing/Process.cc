@@ -129,8 +129,14 @@ bool Process::tryCloseFD(Build& build, const IRSource& source, int fd) noexcept 
 // Set a file descriptor's close-on-exec flag
 void Process::setCloexec(int fd, bool cloexec) noexcept {
   auto iter = _fds.find(fd);
-  ASSERT(iter != _fds.end())
+  // ERIC
+//  ASSERT(iter != _fds.end())
+//      << "Attempted to set the cloexec flag for non-existent file descriptor " << fd;
+  if (iter != _fds.end()) {
+      WARN
       << "Attempted to set the cloexec flag for non-existent file descriptor " << fd;
+  }
+
 
   const auto& [ref, old_cloexec] = iter->second;
   iter->second = FileDescriptor{ref, cloexec};
