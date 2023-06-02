@@ -251,6 +251,11 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
       } else if (child_id == 0) {
         // In the child
         execvp_untraced(new_args);
+
+        // Print an error message if the compiler did not exec
+        fprintf(stderr, "rkr-wrapper failed to launch %s: ", new_args[0].c_str());
+        perror("");
+
         exit(EXIT_FAILURE);
       }
 
@@ -294,8 +299,13 @@ optional<int> link(vector<string> args, vector<string>& tempfiles) {
 
   } else if (child_id == 0) {
     // In the child. Use execvp to run the linker
-    int rc = execvp_untraced(args);
-    exit(rc);
+    execvp_untraced(args);
+
+    // Print an error message if the linker did not exec
+    fprintf(stderr, "rkr-wrapper failed to launch %s: ", args[0].c_str());
+    perror("");
+
+    exit(EXIT_FAILURE);
 
   } else {
     // In the parent. Wait for the linking stage to finish
