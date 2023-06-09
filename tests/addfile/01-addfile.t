@@ -8,13 +8,12 @@ Prepare for a clean run
   $ cp files/main.c.original main.c
 
 Run the first build
-  $ rkr --show-full
+  $ rkr --show-full --no-wrapper
   rkr-launch
   Rikerfile
   **clang -o program helper1.c main.c (glob)
-  **clang -o /tmp/* -c helper1.c (glob)
-  **clang -o /tmp/* -c main.c (glob)
-  **clang -o program * * (glob)
+  **clang -cc1 ** helper1.c (glob)
+  **clang -cc1 ** main.c (glob)
   **ld * (glob)
 
 Check the output
@@ -26,12 +25,11 @@ Move in the new file and modified main.c
   $ cp files/main.c.modified main.c
 
 Update the build
-  $ rkr --show-full
+  $ rkr --show-full --no-wrapper
   Rikerfile
   **clang -o program helper1.c helper2.c main.c (glob)
-  **clang -o /tmp/* -c helper2.c (glob)
-  **clang -o /tmp/* -c main.c (glob)
-  **clang -o program /tmp/* /tmp/* /tmp/* (glob)
+  **clang -cc1 ** helper2.c (glob)
+  **clang -cc1 ** main.c (glob)
   **ld * (glob)
 
 Check the output
