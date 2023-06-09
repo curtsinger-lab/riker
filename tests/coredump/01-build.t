@@ -4,7 +4,7 @@ Move to test directory
   $ cd $TESTDIR
 
 Prepare for a clean run
-  $ rm -rf .rkr core abort
+  $ rm -rf .rkr core core.* abort
   $ clang -g -o abort abort.c
 
 Does running the program actually produce a core file? If not, skip this test
@@ -12,8 +12,8 @@ Does running the program actually produce a core file? If not, skip this test
   $ ./abort
   Aborted (core dumped)
   [134]
-  $ test -f core || exit 80
-  $ rm -f core
+  $ test -f core.* || test -f core || exit 80
+  $ rm -f core core.*
 
 Run the abort program; riker should eventually print 'core exists' and not die beforehand
   $ rkr --show
@@ -24,4 +24,4 @@ Run the abort program; riker should eventually print 'core exists' and not die b
   core exists
 
 Clean up
-  $ rm -rf .rkr core abort
+  $ rm -rf .rkr core core.* abort
