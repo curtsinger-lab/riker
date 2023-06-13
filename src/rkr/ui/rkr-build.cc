@@ -60,7 +60,7 @@ void do_build(vector<string> args,
   LOG(phase) << "Starting build phase 0";
 
   // Is there a trace to load?
-  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded) {
+  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded && !options::refresh) {
     // Yes. Remember the root command
     root_cmd = loaded->getRootCommand();
 

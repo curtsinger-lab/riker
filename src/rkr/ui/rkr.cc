@@ -126,6 +126,8 @@ int main(int argc, char* argv[]) noexcept {
       "Do not inject the faster shared memory tracing library");
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
+  
+  build->add_flag("--fresh", options::refresh, "Run full buid");
 
   // Flags to turn the parallel compiler wrapper on/off
   build
@@ -151,7 +153,7 @@ int main(int argc, char* argv[]) noexcept {
 
   audit->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
-
+                    
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
