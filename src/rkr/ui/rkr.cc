@@ -129,7 +129,7 @@ int main(int argc, char* argv[]) noexcept {
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
   
   bool refresh = false;
-  build->add_flag("--fresh", refresh, "Run full buid");
+  build->add_flag("--fresh", refresh, "Run full build");
   
   // Flags to turn the parallel compiler wrapper on/off
   build
