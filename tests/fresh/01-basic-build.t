@@ -28,7 +28,7 @@ Run the build with the fresh flag
   as * (glob)
   collect2 * (glob)
   ld * (glob)
-  
+
 Rerun the build with the fresh flag
   $ rkr --show --no-wrapper --fresh
   rkr-launch
@@ -38,11 +38,11 @@ Rerun the build with the fresh flag
   as * (glob)
   collect2 * (glob)
   ld * (glob)
-  
+
 Run the hello executable
   $ ./hello
   Hello world
-  
+
 Rerun the build without the fresh flag
   $ rkr --show --no-wrapper
 
