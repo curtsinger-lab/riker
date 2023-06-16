@@ -82,7 +82,7 @@ debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/bin/rkr-launch \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS) \
-			 $(DEBUG_DIR)/share/rkr/ssh-wrapper
+			 $(DEBUG_DIR)/share/rkr/wrappers/ssh
 
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
@@ -91,7 +91,7 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_DIR)/bin/rkr-launch \
          $(RELEASE_DIR)/share/rkr/rkr-inject.so \
          $(RELEASE_WRAPPERS) \
-	 $(RELEASE_DIR)/share/rkr/ssh-wrapper
+	 $(RELEASE_DIR)/share/rkr/wrappers/ssh
 
 install: install-debug
 
@@ -179,7 +179,7 @@ $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wra
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
 	
-$(DEBUG_DIR)/share/rkr/ssh-wrapper $(RELEASE_DIR)/share/rkr/ssh-wrapper: src/ssh-wrapper/ssh-wrapper.cc Makefile
+$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/ssh-wrapper/ssh-wrapper.cc -ldl
 
