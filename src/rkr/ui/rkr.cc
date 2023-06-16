@@ -113,6 +113,7 @@ int main(int argc, char* argv[]) noexcept {
   auto build = app.add_subcommand("build", "Perform a build (default)");
 
   build->add_flag("--show", options::print_on_run, "Show commands as they are run");
+
   build->add_flag_callback(
       "--show-full",
       [] {
@@ -126,7 +127,10 @@ int main(int argc, char* argv[]) noexcept {
       "Do not inject the faster shared memory tracing library");
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
-
+  
+  bool refresh = false;
+  build->add_flag("--fresh", refresh, "Run full build");
+  
   // Flags to turn the parallel compiler wrapper on/off
   build
       ->add_flag_callback(
@@ -151,7 +155,7 @@ int main(int argc, char* argv[]) noexcept {
 
   audit->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
-
+                    
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
@@ -191,7 +195,7 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] { do_build(args, stats_log, command_output); });
+  build->final_callback([&] { do_build(args, stats_log, command_output, refresh); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
