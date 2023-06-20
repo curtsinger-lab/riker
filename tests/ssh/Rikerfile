@@ -1,0 +1,3 @@
+#!/bin/sh
+
+ssh nelson.cs.grinnell.edu ls
