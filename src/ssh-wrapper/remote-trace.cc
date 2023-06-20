@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,33 +7,33 @@
 #include <unistd.h>
 
 int main(int agrc, char* argv[]) {
-	int rc = fork();
-	if (rc < 0) {
-    	fprintf(stderr, "fork failed\n");
-  	} 
-  	else if (rc == 0) {
-		char command[50];  // random space, may fix later
-		for (int i = 1; i < agrc; i++) {
-		  strcat(command, argv[i]);
-		  strcat(command, " ");
-    	}
+  int rc = fork();
+  if (rc < 0) {
+    fprintf(stderr, "fork failed\n");
+  } else if (rc == 0) {
+    std::string commandbuild = "";
 
-    	system(command);
-  	} 
-  	else {
-		int rc_wait = wait(NULL);
-		if (rc_wait == -1) {
-			fprintf(stderr, "fork failed\n");
-    	}
-		FILE* fptr;
-		fptr = fopen("sshtest.txt", "w");
+    for (int i = 1; i < agrc; i++) {
+      commandbuild = commandbuild + argv[i] + " ";
+    }
 
-		char str[] = "successfully copied!\n";
+    const char* command = commandbuild.c_str();
+    system(command);
 
-		fwrite(str, 1, sizeof(str), fptr);
+  } else {
+    int rc_wait = wait(NULL);
+    if (rc_wait == -1) {
+      fprintf(stderr, "fork failed\n");
+    }
+    FILE* fptr;
+    fptr = fopen("sshtest.txt", "w");
 
-		fclose(fptr);
-  	}
+    char str[] = "successfully copied!\n";
 
-  	return 0;
+    fwrite(str, 1, sizeof(str), fptr);
+
+    fclose(fptr);
+  }
+
+  return 0;
 }

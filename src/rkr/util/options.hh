@@ -12,7 +12,7 @@ namespace options {
 
   /// Should full commands be printed instead of abbreviations?
   inline bool print_full = false;
-  
+
   /// Which files, if any, should be fingerprinted?
   inline FingerprintLevel fingerprint_level = FingerprintLevel::Local;
 
@@ -27,6 +27,10 @@ namespace options {
 
   /// When set, gather system call stats and report them at the end of a build
   inline bool syscall_stats = false;
+
+  /****** Remote Connections ******/
+  /// Store path to Riker on remote depository
+  inline std::string remote_path = "/riker";
 
   /****** Optimization ******/
   /// Enable file-staging cache

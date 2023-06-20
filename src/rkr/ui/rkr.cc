@@ -127,10 +127,10 @@ int main(int argc, char* argv[]) noexcept {
       "Do not inject the faster shared memory tracing library");
 
   build->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
-  
+
   bool refresh = false;
   build->add_flag("--fresh", refresh, "Run full build");
-  
+
   // Flags to turn the parallel compiler wrapper on/off
   build
       ->add_flag_callback(
@@ -150,12 +150,20 @@ int main(int argc, char* argv[]) noexcept {
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
 
+  // Flags for rkr with remote connections
+  // string remote_path = "-";
+  build->add_option("--remote", options::remote_path,
+                    "Path to riker on remote system (default: -)");
+  // options::remote_path = remote_path;
+
+  printf("\nremote_path = %s\n", options::remote_path.c_str());
+
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
 
   audit->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
-                    
+
   /************* Check Subcommand *************/
   auto check = app.add_subcommand("check", "Check which commands must be rerun");
 
