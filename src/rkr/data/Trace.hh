@@ -35,6 +35,9 @@ struct TraceFile {
   size_t pos = 0;           //< The current position in the mapped file
   uint8_t* data = nullptr;  //< A pointer to the beginning of the mapped file
 
+  /// A path to this file that should be unlinked when the object is destroyed
+  std::optional<std::string> tmp_path;
+
   /// Open a trace file at a given path for reading
   static TraceFile open(std::string path) noexcept;
 

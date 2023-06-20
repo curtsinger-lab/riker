@@ -32,7 +32,8 @@ using std::vector;
  */
 void do_build(vector<string> args,
               optional<fs::path> stats_log_path,
-              string command_output) noexcept {
+              string command_output,
+              bool refresh) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
 
@@ -60,7 +61,7 @@ void do_build(vector<string> args,
   LOG(phase) << "Starting build phase 0";
 
   // Is there a trace to load?
-  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded) {
+  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded && !refresh) {
     // Yes. Remember the root command
     root_cmd = loaded->getRootCommand();
 

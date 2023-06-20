@@ -88,10 +88,8 @@ TraceFile TraceFile::create() noexcept {
         return result;
       }
 
-      // Unlink the temporary file so it is anonymous
-      if (::unlink(tempname)) {
-        WARN << "Failed to unlink temporary file: " << ERR;
-      }
+      // Save the temporary path so we can clean it up later
+      result.tmp_path = tempname;
 
     } else {
       WARN << "Failed to open temporary file: " << ERR;
@@ -212,6 +210,11 @@ void TraceFile::destroy() noexcept {
   if (data != nullptr && data != MAP_FAILED) {
     munmap(data, length);
     data = nullptr;
+  }
+
+  // If there's a leftover temporary file, try to clean it up (no fallback if unlink fails)
+  if (tmp_path.has_value()) {
+    ::unlink(tmp_path.value().c_str());
   }
 
   length = 0;
@@ -777,8 +780,7 @@ struct Record<RecordType::PathRef> {
 template <>
 void TraceReader::handleRecord<RecordType::PathRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::PathRef>();
-  sink.pathRef(*this, _current_command, data.base, getString(data.path), data.flags,
-               data.output);
+  sink.pathRef(*this, _current_command, data.base, getString(data.path), data.flags, data.output);
 }
 
 // Write a PathRef record to the output trace
@@ -985,8 +987,7 @@ struct Record<RecordType::UpdateContent> {
 template <>
 void TraceReader::handleRecord<RecordType::UpdateContent>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::UpdateContent>();
-  sink.updateContent(*this, _current_command, data.ref,
-                     getContentVersion(data.version));
+  sink.updateContent(*this, _current_command, data.ref, getContentVersion(data.version));
 }
 
 // Write an UpdateContent record to the output trace
@@ -1039,8 +1040,7 @@ struct Record<RecordType::RemoveEntry> {
 template <>
 void TraceReader::handleRecord<RecordType::RemoveEntry>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::RemoveEntry>();
-  sink.removeEntry(*this, _current_command, data.dir, getString(data.name),
-                   data.target);
+  sink.removeEntry(*this, _current_command, data.dir, getString(data.name), data.target);
 }
 
 // Write a RemoveEntry record to the output trace
