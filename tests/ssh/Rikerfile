@@ -1,3 +1,3 @@
 #!/bin/sh
 
-ssh nelson.cs.grinnell.edu ls
+scp /home/zim/copyTest.txt furuizhe@nelson.cs.grinnell.edu:/home/furuizhe/work/  
