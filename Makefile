@@ -179,9 +179,10 @@ $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wra
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
 	
-$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc Makefile
+$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc src/ssh-wrapper/remote-trace.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/ssh-wrapper/ssh-wrapper.cc -ldl
+	$(CXX) $(CXXFLAGS) -o src/ssh-wrapper/remote-trace src/ssh-wrapper/remote-trace.cc -ldl    #not sure if it is correct way to comment it
 
 $(DEBUG_WRAPPERS): $(DEBUG_DIR)/share/rkr/rkr-wrapper
 	@mkdir -p `dirname $@`
