@@ -1,0 +1,5 @@
+rkr-launch
+sh Rikerfile
+ssh furuizhe@nelson.cs.grinnell.edu ls
+sh -c /usr/bin/ssh furuizhe@nelson.cs.grinnell.edu -\remote-trace.cc ls
+ssh furuizhe@nelson.cs.grinnell.edu -remote-trace.cc ls

@@ -8,11 +8,11 @@ int main(int argc, char** argv) {
   for (int i = 1; i < argc - 1; ++i) commandbuild = commandbuild + " " + argv[i];
 
   // commandbuild = commandbuild + " " + "\"cd ~/riker/src/ssh-wrapper; ./remote-trace\"";
-  commandbuild = commandbuild + " " + options::remote_path + "\\remote-trace.cc";
+  commandbuild = commandbuild + " " + getenv("RKR_REMOTE_PATH") + "\\remote-trace.cc";
 
   commandbuild = commandbuild + " " + argv[argc - 1];
   const char* command = commandbuild.c_str();
-  printf("%s", command);
+  printf("Command: %s\n", command);
   system(command);
 
   return 0;

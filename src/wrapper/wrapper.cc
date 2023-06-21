@@ -152,6 +152,10 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
   // The path to the output file, if one was provided
   optional<string> output_option;
 
+  // The path to the remote riker file, if one was provided
+  string remote_path = "-";
+  setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
+
   // Start processing arguments
   auto arg_iter = args.begin();
 
@@ -170,6 +174,13 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
 
       // Save the output file option for later
       output_option = *arg_iter;
+
+    } else if (arg == "-r") {
+      // Skip over -r and the following entry
+      arg_iter++;
+
+      // Save the output file option for later
+      remote_path = *arg_iter;
 
     } else if (arg == "-c") {
       // This is a compilation command, not a full linking command
@@ -227,6 +238,11 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
         output_files[i] = fs::path(source_files[i]).filename().stem().string() + ".o";
       }
     }
+  }
+
+  // Handle remote path. Was one provided?
+  if (remote_path != "-") {
+    setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
   }
 
   size_t launched = 0;

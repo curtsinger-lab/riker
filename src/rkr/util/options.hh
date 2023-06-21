@@ -28,10 +28,6 @@ namespace options {
   /// When set, gather system call stats and report them at the end of a build
   inline bool syscall_stats = false;
 
-  /****** Remote Connections ******/
-  /// Store path to Riker on remote depository
-  inline std::string remote_path = "/riker";
-
   /****** Optimization ******/
   /// Enable file-staging cache
   inline bool enable_cache = true;

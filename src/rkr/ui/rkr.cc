@@ -149,14 +149,13 @@ int main(int argc, char* argv[]) noexcept {
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
+  std::cout << "test2: " << command_output << "\n";
 
   // Flags for rkr with remote connections
-  // string remote_path = "-";
-  build->add_option("--remote", options::remote_path,
-                    "Path to riker on remote system (default: -)");
-  // options::remote_path = remote_path;
-
-  printf("\nremote_path = %s\n", options::remote_path.c_str());
+  string remote_path = "-";
+  build->add_option("-r", remote_path, "Path to riker on remote system (default: -)");
+  std::cout << "test: " << remote_path << "\n";
+  setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
 
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
