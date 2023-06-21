@@ -11,8 +11,8 @@ int main(int agrc, char* argv[]) {
   if (rc < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc == 0) {
+    // Build the commands sent to run over ssh connection
     std::string commandbuild = "";
-
     for (int i = 1; i < agrc; i++) {
       commandbuild = commandbuild + argv[i] + " ";
     }
@@ -22,17 +22,10 @@ int main(int agrc, char* argv[]) {
 
   } else {
     int rc_wait = wait(NULL);
+    // TODO: Add trace to parent
     if (rc_wait == -1) {
       fprintf(stderr, "fork failed\n");
     }
-    FILE* fptr;
-    fptr = fopen("sshtest.txt", "w");
-
-    char str[] = "successfully copied!\n";
-
-    fwrite(str, 1, sizeof(str), fptr);
-
-    fclose(fptr);
   }
 
   return 0;

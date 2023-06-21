@@ -149,13 +149,10 @@ int main(int argc, char* argv[]) noexcept {
   string command_output = "-";
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
-  std::cout << "test2: " << command_output << "\n";
 
   // Flags for rkr with remote connections
   string remote_path = "-";
-  build->add_option("-r", remote_path, "Path to riker on remote system (default: -)");
-  std::cout << "test: " << remote_path << "\n";
-  setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
+  build->add_option("-r,--remote", remote_path, "Path to riker on remote system (default: -)");
 
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
@@ -201,8 +198,8 @@ int main(int argc, char* argv[]) noexcept {
   // Note: using lambdas with reference capture instead of std::bind, since we'd have to wrap
   // every argument in std::ref to pass values by reference.
 
-  // build subcommand
-  build->final_callback([&] { do_build(args, stats_log, command_output, refresh); });
+  // build subcommandsetenv("RKR_REMOTE_PATH", remote_path.c_str()
+  build->final_callback([&] { do_build(args, stats_log, command_output, refresh, remote_path); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
