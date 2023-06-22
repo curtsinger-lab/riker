@@ -11,6 +11,7 @@ int main(int agrc, char* argv[]) {
   if (rc < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc == 0) {
+  	/*
     // Build the commands sent to run over ssh connection
     std::string commandbuild = "";
     for (int i = 1; i < agrc; i++) {
@@ -18,7 +19,8 @@ int main(int agrc, char* argv[]) {
     }
 
     const char* command = commandbuild.c_str();
-    system(command);
+    */
+    system("rkr --show -o output.txt");
 
   } else {
     int rc_wait = wait(NULL);

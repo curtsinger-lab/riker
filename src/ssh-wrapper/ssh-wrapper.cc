@@ -3,9 +3,12 @@
 #include "util/options.hh"
 
 int main(int argc, char** argv) {
-  // Hacky way to ensure correct ssh is used, need to ensure this is where user's ssh is installed
-  std::string commandbuild = "/usr/bin/ssh";
-  for (int i = 1; i < argc - 1; ++i) commandbuild = commandbuild + " " + argv[i];
+  // Can also use /usr/bin/ssh if slogin is not available
+  std::string commandbuild = "slogin"; 		
+  
+  // right now it only accept only one command line argument
+  for (int i = 1; i < argc - 1; ++i) 
+  	commandbuild = commandbuild + " " + argv[i];
 
   commandbuild = commandbuild + " " + getenv("RKR_REMOTE_PATH") + "/src/ssh-wrapper/\\remote-trace";
 
