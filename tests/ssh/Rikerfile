@@ -1,4 +1,4 @@
 #!/bin/sh
 
-# scp /home/zim/copyTest.txt furuizhe@nelson.cs.grinnell.edu:/home/furuizhe/work/  
-ssh furuizhe@clarke.cs.grinnell.edu ls
+scp /home/zim/copyTest.txt furuizhe@nelson.cs.grinnell.edu:/home/furuizhe/ 
+#ssh uruizhe@nelson.cs.grinnell.edu ls
