@@ -37,6 +37,7 @@ int main(int agrc, char* argv[]) {
 		
 		// TODO: change to the directory where riker is in
 		system("~/riker/debug/bin/rkr --fresh");
+		system("rkr graph");
 
 	} else {
 		int rc_wait = wait(NULL);
