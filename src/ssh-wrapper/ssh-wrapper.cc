@@ -5,7 +5,6 @@
 
 #include "util/options.hh"
 
-<<<<<<< HEAD
 int main(int argc, char* argv[]) {
 	// Can also use /usr/bin/ssh if slogin is not available
 	// std::string commandbuild = "slogin";
@@ -42,23 +41,13 @@ int main(int argc, char* argv[]) {
 	
 	command[index + 2] = NULL;
 	
+	/*
 	std::cout << "This is the command: ";
 	for (int i = 0; i < index + 2; i++) {
 		std::cout << command[i] << " "; 
 	}
 	std::cout << "\n";
-=======
-namespace fs = std::filesystem;
-
-int main(int argc, char** argv) {
-  std::cout << "Current path is " << fs::current_path() << '\n';  // (1)
-  // Can also use /usr/bin/ssh if slogin is not available
-  std::string commandbuild = "slogin";
-
-  // right now it only accept only one command line argument
-  for (int i = 1; i < argc - 1; ++i) commandbuild = commandbuild + " " + argv[i];
->>>>>>> 907ceb228d27231ff6fa1900794ccf8a8190e015
-
+	*/
 	
 	execvp("slogin", command);
 	
@@ -74,10 +63,6 @@ int main(int argc, char** argv) {
 	system(command);
 	*/
 
-<<<<<<< HEAD
 	return 0;
 }
-=======
-  return 0;
-}
->>>>>>> 907ceb228d27231ff6fa1900794ccf8a8190e015
+
