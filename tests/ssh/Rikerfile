@@ -1,5 +1,16 @@
 #!/bin/sh
 
+<<<<<<< HEAD
+# scp furuizhe@shannon.cs.grinnell.edu:/home/furuizhe/copyTests furuizhe@clarke.cs.grinnell.edu:/home/furuizhe/
+# ssh furuizhe@shannon.cs.grinnell.edu ls
+rsync -a /home/furuizhe/rsyncTest shannon:/home/furuizhe/
+=======
 #scp /home/zim/copyTest.txt furuizhe@nelson.cs.grinnell.edu:/home/furuizhe/ 
+<<<<<<< HEAD
 ssh gray.cs.grinnell.edu ls /home/zim/different/
 #rsync -a -v /home/zim/test1/ zim@gray:/home/zim/test1
+=======
+#ssh gray.cs.grinnell.edu ls /home/zim/different/
+rsync -a -v /home/zim/test1/ zim@gray:/home/zim/test1
+>>>>>>> 907ceb228d27231ff6fa1900794ccf8a8190e015
+>>>>>>> 88275d48703924277fa24c2b70fcc17241b8aea8
