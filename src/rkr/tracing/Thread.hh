@@ -236,11 +236,19 @@ class Thread {
                  at_flags flags) noexcept;
 
   // File Content Operations
-  void _read(Build& build, const IRSource& source, int fd) noexcept;
-  void _readv(Build& build, const IRSource& source, int fd) noexcept { _read(build, source, fd); }
-  void _preadv(Build& build, const IRSource& source, int fd) noexcept { _read(build, source, fd); }
-  void _preadv2(Build& build, const IRSource& source, int fd) noexcept { _read(build, source, fd); }
-  void _pread64(Build& build, const IRSource& source, int fd) noexcept { _read(build, source, fd); }
+  void _read(Build& build, const IRSource& source, int fd, bool socket) noexcept;
+  void _readv(Build& build, const IRSource& source, int fd) noexcept {
+    _read(build, source, fd, false);
+  }
+  void _preadv(Build& build, const IRSource& source, int fd) noexcept {
+    _read(build, source, fd, false);
+  }
+  void _preadv2(Build& build, const IRSource& source, int fd) noexcept {
+    _read(build, source, fd, false);
+  }
+  void _pread64(Build& build, const IRSource& source, int fd) noexcept {
+    _read(build, source, fd, false);
+  }
   void _write(Build& build, const IRSource& source, int fd) noexcept;
   void _writev(Build& build, const IRSource& source, int fd) noexcept { _write(build, source, fd); }
   void _pwritev(Build& build, const IRSource& source, int fd) noexcept {
@@ -361,16 +369,16 @@ class Thread {
                  int flags,
                  struct sockaddr* src_addr,
                  socklen_t* addrlen) noexcept {
-    WARN << "recvfrom(2) not yet implemented. Emulating as a read.";
-    _read(build, source, sockfd);
+    WARN << "recvfrom(2) not yet implemented. Emulating as a read. ";
+    _read(build, source, sockfd, true);
   }
   void _recvmsg(Build& build,
                 const IRSource& source,
                 int sockfd,
                 struct msghdr* msg,
                 int flags) noexcept {
-    FAIL << "recvmsg(2) not yet implemented. Emulating as a read.";
-    _read(build, source, sockfd);
+    FAIL << "recvmsg(2) not yet implemented. Emulating as a read. ";
+    _read(build, source, sockfd, true);
   }
   void _sendmsg(Build& build,
                 const IRSource& source,

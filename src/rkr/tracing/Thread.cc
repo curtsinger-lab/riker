@@ -910,7 +910,7 @@ void Thread::_fchmodat(Build& build,
 
 /************************ File Content Operations ************************/
 
-void Thread::_read(Build& build, const IRSource& source, int fd) noexcept {
+void Thread::_read(Build& build, const IRSource& source, int fd, bool socket) noexcept {
   LOGF(trace, "{}: read({})", *this, fd);
 
   // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do,
@@ -919,6 +919,9 @@ void Thread::_read(Build& build, const IRSource& source, int fd) noexcept {
   // Get a reference to the artifact being read
   auto ref_id = _process->getFD(fd);
   const auto& ref = getCommand()->getRef(ref_id);
+  if (socket) {
+    ref->getArtifact()->setName("Socket");
+  }
 
   // Inform the artifact that we are about to read
   ref->getArtifact()->beforeRead(build, source, getCommand(), ref_id);
@@ -1516,7 +1519,7 @@ void Thread::_socket(Build& build,
 
     if (rc >= 0) {
       auto ref = getCommand()->nextRef();
-      build.fileRef(source, getCommand(), 0600, ref);
+      build.fileRef(source, getCommand(), 0600, ref);  // !!!
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
       _process->addFD(build, source, rc, ref, cloexec);
     }
