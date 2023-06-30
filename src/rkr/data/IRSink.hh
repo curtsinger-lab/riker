@@ -50,6 +50,12 @@ class IRSink {
                        mode_t mode,
                        Ref::ID output) noexcept {}
 
+  /// Handle a SocketRef IR step
+  virtual void socketRef(const IRSource& source,
+                         const std::shared_ptr<Command>& command,
+                         mode_t mode,
+                         Ref::ID output) noexcept {}
+
   /// Handle a SymlinkRef IR step
   virtual void symlinkRef(const IRSource& source,
                           const std::shared_ptr<Command>& command,

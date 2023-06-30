@@ -239,6 +239,18 @@ class TracePrinter : public IRSink {
     }
   };
 
+  /// A wrapper struct used to print Socket IR steps
+  struct SocketRefPrinter {
+    std::shared_ptr<Command> c;
+    mode_t mode;
+    Ref::ID output;
+
+    friend std::ostream& operator<<(std::ostream& o, const SocketRefPrinter& p) noexcept {
+      return o << p.c << ": r" << p.output << " = SocketRef(" << std::oct << p.mode << std::dec
+               << ")";
+    }
+  };
+
   /// A wrapper struct used to print SymlinkRef IR steps
   struct SymlinkRefPrinter {
     std::shared_ptr<Command> c;
