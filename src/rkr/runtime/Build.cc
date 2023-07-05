@@ -14,6 +14,7 @@
 #include "artifacts/Artifact.hh"
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "artifacts/SocketArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "data/AccessFlags.hh"
 #include "data/IRSource.hh"
@@ -223,6 +224,40 @@ void Build::fileRef(const IRSource& source,
 
   // Create an IR step and add it to the output trace
   _output.fileRef(source, c, mode, output);
+
+  // Resolve the reference and save the result in output
+  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
+}
+
+// A command references a new socket
+void Build::socketRef(const IRSource& source,
+                      const shared_ptr<Command>& c,
+                      mode_t mode,
+                      Ref::ID output) noexcept {
+  // If the command must run but the step comes from a saved source, skip it
+  if (c->mustRun() && !source.isExecuting()) return;
+
+  // Is this step from a traced command?
+  if (c->mustRun()) {
+    stats::traced_steps++;
+    // Log the traced step
+    LOG(ir) << "traced " << TracePrinter::SocketRefPrinter{c, mode, output};
+
+  } else {
+    stats::emulated_steps++;
+    // Log the emulated step
+    LOG(ir) << "emulated " << TracePrinter::SocketRefPrinter{c, mode, output};
+
+    // If this step comes from a command that hasn't been launched, we need to defer this step
+    if (!c->isLaunched()) {
+      _deferred_commands.emplace(c);
+      _deferred_steps.socketRef(source, c, mode, output);
+      return;
+    }
+  }
+
+  // Create an IR step and add it to the output trace
+  _output.socketRef(source, c, mode, output);
 
   // Resolve the reference and save the result in output
   c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));

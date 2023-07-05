@@ -250,6 +250,7 @@ enum class RecordType : uint8_t {
   String = 22,
   NewStrtab = 23,
   End = 24,
+  SocketRef = 25,
 
   // Content version subtypes
   FileVersion = 32,
@@ -713,6 +714,31 @@ void TraceWriter::fileRef(const IRSource& source,
                           Ref::ID output) noexcept {
   setCommand(c);
   emitRecord<RecordType::FileRef>(mode, output);
+}
+
+/********** SocketRef Record **********/
+
+template <>
+struct Record<RecordType::SocketRef> {
+  RecordType type;
+  mode_t mode;
+  Ref::ID output;
+} __attribute__((packed));
+
+// Read a FileRef record from the input trace
+template <>
+void TraceReader::handleRecord<RecordType::SocketRef>(IRSink& sink) noexcept {
+  const auto& data = takeRecord<RecordType::SocketRef>();
+  sink.socketRef(*this, _current_command, data.mode, data.output);
+}
+
+// Write a SocketRef record to the output trace
+void TraceWriter::socketRef(const IRSource& source,
+                            const shared_ptr<Command>& c,
+                            mode_t mode,
+                            Ref::ID output) noexcept {
+  setCommand(c);
+  emitRecord<RecordType::SocketRef>(mode, output);
 }
 
 /********** SymlinkRef Record **********/
@@ -1511,6 +1537,10 @@ void TraceReader::sendTo(IRSink& sink) noexcept {
 
       case RecordType::FileRef:
         handleRecord<RecordType::FileRef>(sink);
+        break;
+
+      case RecordType::SocketRef:
+        handleRecord<RecordType::SocketRef>(sink);
         break;
 
       case RecordType::SymlinkRef:

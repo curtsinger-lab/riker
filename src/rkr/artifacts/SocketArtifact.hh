@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -13,39 +12,44 @@
 namespace fs = std::filesystem;
 
 class Build;
-class Command;
 class ContentVersion;
-class MetadataVersion;
-class ArtifactVersion;
+class Command;
 class FileVersion;
+class MetadataVersion;
 
 class SocketArtifact : public Artifact {
  public:
   /**
-   * Create a new SocketArtifact with no initial state. This is useful for modeled artifacts that
-   * do not exist on the filesystem. This constructor should be followed-up with calls to
-   * updateMetadata and updateContent to set the initial state.
+   * Create a new FileArtifact with no initial metadata or content. This should be followed by calls
+   * to updateMetadata and updateContent to fully initialize the artifact.
    */
   SocketArtifact() noexcept : Artifact() {}
 
   /**
-   * Create a SocketArtifact that represents an existing socket..
+   * Create a new FileArtifact with existing metadata and content versions. This only appropriate
+   * for artifacts that exist on the filesystem.
    */
-  SocketArtifact(MetadataVersion mv, std::shared_ptr<FileVersion> sv) noexcept;
+  SocketArtifact(MetadataVersion mv, std::shared_ptr<FileVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 
-  /// Get a printable name for this artifact type
+  /// Get the name of this artifact type
   virtual std::string getTypeName() const noexcept override { return "Socket"; }
 
   /// Commit the content of this artifact to a specific path
   virtual void commitContentTo(fs::path path) noexcept override;
+
+  /// Does this artifact have any uncommitted content?
+  virtual bool hasUncommittedContent() noexcept override { return !_content.isCommitted(); }
 
   /// Compare all final versions of this artifact to the filesystem state
   virtual void checkFinalState(fs::path path) noexcept override;
 
   /// Commit any pending versions and save fingerprints for this artifact
   virtual void applyFinalState(fs::path path) noexcept override;
+
+  /// Fingerprint and cache the committed state of this artifact
+  virtual void cacheAll(fs::path path) const noexcept override;
 
   /// Revert this artifact to its committed state
   virtual void rollback() noexcept override;
@@ -59,6 +63,12 @@ class SocketArtifact : public Artifact {
   virtual void commitUnlink(std::shared_ptr<DirEntry> entry) noexcept override;
 
   /************ Traced Operations ************/
+
+  /// A traced command is about to stat this artifact
+  virtual void beforeStat(Build& build,
+                          const IRSource& source,
+                          const std::shared_ptr<Command>& c,
+                          Ref::ID ref) noexcept override;
 
   /// A traced command is about to (possibly) read from this artifact
   virtual void beforeRead(Build& build,
@@ -84,6 +94,18 @@ class SocketArtifact : public Artifact {
                           const std::shared_ptr<Command>& c,
                           Ref::ID ref) noexcept override;
 
+  /// A traced command is about to (possibly) truncate this artifact to length zero
+  virtual void beforeTruncate(Build& build,
+                              const IRSource& source,
+                              const std::shared_ptr<Command>& c,
+                              Ref::ID ref) noexcept override;
+
+  /// A trace command just truncated this artifact to length zero
+  virtual void afterTruncate(Build& build,
+                             const IRSource& source,
+                             const std::shared_ptr<Command>& c,
+                             Ref::ID ref) noexcept override;
+
   /************ Content Operations ************/
 
   /// Get this artifact's current content
@@ -95,10 +117,18 @@ class SocketArtifact : public Artifact {
                             Scenario scenario,
                             std::shared_ptr<ContentVersion> expected) noexcept override;
 
-  /// Set the content of this socket
+  /// Apply a new content version to this artifact
   virtual void updateContent(const std::shared_ptr<Command>& c,
                              std::shared_ptr<ContentVersion> writing) noexcept override;
+
+ protected:
+  /// Cache and fingerprint this file's content if necessary
+  void fingerprintAndCache(const std::shared_ptr<Command>& reader) const noexcept;
+
+ private:
+  /// The committed and uncommitted state that represent this file's content
+  VersionState<FileVersion> _content;
 };
-/************ Socket Operations ************/
+
 template <>
 struct fmt::formatter<SocketArtifact> : fmt::ostream_formatter {};
