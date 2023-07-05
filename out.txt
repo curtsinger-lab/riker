@@ -1,0 +1,51 @@
+Welcome to Ubuntu 22.04.2 LTS (GNU/Linux 5.15.0-76-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Fri Jun 30 03:44:00 PM CDT 2023
+
+  System load:                 1.0185546875
+  Usage of /:                  31.2% of 116.07GB
+  Memory usage:                60%
+  Swap usage:                  5%
+  Temperature:                 49.0 C
+  Processes:                   307
+  Users logged in:             2
+  IPv4 address for enp0s31f6:  132.161.196.226
+  IPv4 address for tailscale0: 100.115.49.124
+  IPv6 address for tailscale0: fd7a:115c:a1e0:ab12:4843:cd96:6273:317c
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+1 device has a firmware upgrade available.
+Run `fwupdmgr get-upgrades` for more information.
+
+
+Expanded Security Maintenance for Applications is not enabled.
+
+1 update can be applied immediately.
+To see these additional updates run: apt list --upgradable
+
+2 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+
+
+1 device has a firmware upgrade available.
+Run `fwupdmgr get-upgrades` for more information.
+
+Last login: Fri Jun 30 15:14:26 2023 from 132.161.196.112
+[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ ^C[?2004l[?2004h[?2004l
+[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ vexit
+[?2004l
+vexit: command not found
+[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ 
+[?2004l[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ 
+[?2004l[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ 
+[?2004l[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ 
+[?2004l[?2004h]0;furuizhe@shannon: ~[01;32mfuruizhe@shannon[00m:[01;34m~[00m$ 

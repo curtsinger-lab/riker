@@ -13,14 +13,31 @@ int main(int argc, char* argv[]) {
 	
 	char* command[argc + 10];  
 	command[0] = strdup("slogin");
-	int index = 1;
+	int cIndex = 1;
+	int aIndex = 1;
+	int dashCount = 0;
 	
 	// std::cout << "The command is following: " << command[0] << "\n"; 
 	
-	for (; index < argc - 1; index++)  
-	{  
-		command[index] = strdup(argv[index]);
+	for (; aIndex < argc; aIndex++)  {  
+		if (argv[aIndex][0] != '-') {
+			dashCount++;
+		}
+		
+		if (dashCount == 2) {
+			command[cIndex] = strdup(getenv("RKR_REMOTE_PATH"));
+			strcat(command[cIndex], strdup("/src/ssh-wrapper/\\remote-trace"));
+			cIndex++;
+			command[cIndex] = strdup(argv[aIndex]);
+			cIndex++;
+			dashCount++;
+		}
+		else {
+			command[cIndex] = strdup(argv[aIndex]);
+			cIndex++;
+		}
 	}  		
+  	
   	
   	
   	/*
@@ -29,19 +46,21 @@ int main(int argc, char* argv[]) {
 		commandbuild = commandbuild + " " + argv[i];
 	*/
 	
-	
+	/*
 	command[index] = strdup(getenv("RKR_REMOTE_PATH"));
 	strcat(command[index], strdup("/src/ssh-wrapper/\\remote-trace"));
 	
 	// printf("%s\n", argv[argc - 1]);
 	
 	command[index + 1] = strdup(argv[argc - 1]);
+	*/
 	
+	command[cIndex] = (char*)NULL;
 	
-	command[index + 2] = NULL;
+	printf("cIndex: %d; argc: %d\n", cIndex, argc);
 	
 	std::cout << "This is the command: ";
-	for (int i = 0; i < index + 2; i++) {
+	for (int i = 0; i < cIndex + 1; i++) {
 		std::cout << command[i] << " "; 
 	}
 	std::cout << "\n";
