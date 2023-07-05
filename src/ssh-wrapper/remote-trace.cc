@@ -19,20 +19,22 @@ int main(int argc, char* argv[]) {
 	} else if (rc == 0) {  	
 		// Build the commands sent to run over ssh connection
 		char* command[argc + 10];
-		// std::string commandbuild = "";
 		
+		// copy the comment to the array
 		for (int i = 1; i < argc; i++) {
 			command[i] = strdup(argv[i]);
 		}
 
-		// const char* command = commandbuild.c_str();
-		
+
+		// open the Rikerfile		
 		std::ofstream outdata;
 		outdata.open("Rikerfile");
 		if( !outdata ) { // file couldn't be opened
 			cerr << "Error: file could not be opened" << endl;
 			exit(1);
 	   	}
+	   	
+	   	// write command to the Rikerfile
 	   	outdata << "#!/bin/sh\n\n";
 	   	for (int i = 1; i < argc; i++) {
 			outdata << command[i] << " ";
