@@ -1516,7 +1516,7 @@ void Thread::_socket(Build& build,
 
     if (rc >= 0) {
       auto ref = getCommand()->nextRef();
-      build.socketRef(source, getCommand(), 0600, ref);  // !!!
+      build.socketRef(source, getCommand(), 0600, ref);
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
       _process->addFD(build, source, rc, ref, cloexec);
     }

@@ -10,7 +10,7 @@ using std::cerr;
 using std::endl;
 #include <fstream>
 using std::ofstream;
-#include <cstdlib>  // for exit function
+#include <cstdlib> // for exit function
 
 int main(int argc, char* argv[]) {
 	int rc = fork();
@@ -44,12 +44,11 @@ int main(int argc, char* argv[]) {
 		system("~/riker/debug/bin/rkr --fresh");
 		system("rkr graph");
 
-
 	} else {
 		int rc_wait = wait(NULL);
 		// TODO: Add trace to parent
 		if (rc_wait == -1) {
-			fprintf(stderr, "fork failed\n");
+		  fprintf(stderr, "fork failed\n");
 		}
 	}
 

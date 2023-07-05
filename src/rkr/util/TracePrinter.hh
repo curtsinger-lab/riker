@@ -59,6 +59,13 @@ class TracePrinter : public IRSink {
     _out << FileRefPrinter{c, mode, output} << std::endl;
   }
 
+  virtual void socketRef(const IRSource& source,
+                         const std::shared_ptr<Command>& c,
+                         mode_t mode,
+                         Ref::ID output) noexcept override {
+    _out << SocketRefPrinter{c, mode, output} << std::endl;
+  }
+
   virtual void symlinkRef(const IRSource& source,
                           const std::shared_ptr<Command>& c,
                           fs::path target,
