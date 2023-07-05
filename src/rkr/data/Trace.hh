@@ -226,7 +226,7 @@ class TraceWriter : public IRSink {
                        mode_t mode,
                        Ref::ID output) noexcept override;
 
-  /// Handle a FileRef IR step
+  /// Handle a SocketRef IR step
   virtual void socketRef(const IRSource& source,
                          const std::shared_ptr<Command>& command,
                          mode_t mode,

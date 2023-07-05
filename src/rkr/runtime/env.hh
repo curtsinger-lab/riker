@@ -94,9 +94,9 @@ namespace env {
 
   /**
    * Create a socket artifact
-   * \param creator   The command that creates this file
-   * \param mode      The permission bits to be set on the new file (will be modified by umask)
-   * \param committed If true, the file is already committed
+   * \param creator   The command that creates this socket
+   * \param mode      The permission bits to be set on the new socket (will be modified by umask)
+   * \param committed If true, the socket is already committed
    * \returns a socket artifact
    */
   std::shared_ptr<Artifact> createSocket(const std::shared_ptr<Command>& creator,
