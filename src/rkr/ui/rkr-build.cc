@@ -61,6 +61,7 @@ void do_build(vector<string> args,
 
   LOG(phase) << "Starting build phase 0";
 
+  // Set the remote path variable to path specified in flag.
   setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
 
   // Is there a trace to load?
