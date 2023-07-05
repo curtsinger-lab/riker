@@ -260,7 +260,7 @@ void Build::socketRef(const IRSource& source,
   _output.socketRef(source, c, mode, output);
 
   // Resolve the reference and save the result in output
-  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createFile(c, mode)));
+  c->setRef(output, make_shared<Ref>(ReadAccess + WriteAccess, env::createSocket(c, mode)));
 }
 
 // A command references a new anonymous symlink
