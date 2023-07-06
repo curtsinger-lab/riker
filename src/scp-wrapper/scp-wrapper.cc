@@ -10,10 +10,11 @@ int main(int argc, char** argv) {
   // Use option -S to use riker's ssh instead of scp's auto use of system ssh
   commandbuild = commandbuild + " -S ssh";
 
-  // TODO: right now it only accepts one command line argument
+  // TODO: Allow multiple command line arguments for scp
   for (int i = 1; i < argc; ++i) commandbuild = commandbuild + " " + argv[i];
 
   const char* command = commandbuild.c_str();
+  // TODO: Switch this to an exec call with PATH handling
   system(command);
 
   return 0;
