@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     if (dashCount == 2 && remote_path != NULL) {
       // parse in the path to remote-trace
       command[cIndex] = strdup(remote_path);
-      strcat(command[cIndex], strdup("/src/ssh-wrapper/\\remote-trace"));
+      strcat(command[cIndex], strdup("/debug/share/rkr/\\remote-trace"));
       cIndex++;
       dashCount++;
 
