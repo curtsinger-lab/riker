@@ -12,7 +12,7 @@ main = rattleRun rattleOptions $ do
   cmd Shell "cd  .."
   cmd Shell "clang  -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I/Users/dbarowy/Documents/Code/riker/utils/rewrite_shell/deps/BLAKE3/c  -fPIC  -shared  -o  self-build/share/rkr/rkr-inject.so  src/inject/inject.c src/inject/syscall-amd64.s  -ldl  -lpthread"
   cmd Shell "clang  -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I/Users/dbarowy/Documents/Code/riker/utils/rewrite_shell/deps/BLAKE3/c  -o  self-build/bin/rkr-launch  src/rkr-launch/launch.c"
-  cmd Shell "clang++  -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I/Users/dbarowy/Documents/Code/riker/utils/rewrite_shell/deps/BLAKE3/c --std=c++17 --std=c++17 -Ideps/CLI11/include  -o  self-build/share/rkr/rkr-wrapper  src/wrapper/wrapper.cc  -ldl"
+  cmd Shell "clang++  -O3 -g -fstandalone-debug -Wall -Wfatal-errors -Isrc/common -Isrc/rkr -I/Users/dbarowy/Documents/Code/riker/utils/rewrite_shell/deps/BLAKE3/c --std=c++17 --std=c++17 -Ideps/CLI11/include  -o  self-build/share/rkr/rkr-wrapper  src/compiler-wrapper/compiler-wrapper.cc  -ldl"
   cmd Shell "for WRAPPER in $WRAPPERS"
   cmd Shell "do"
 
