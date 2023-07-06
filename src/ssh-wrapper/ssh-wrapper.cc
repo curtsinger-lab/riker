@@ -56,9 +56,10 @@ void init_path() {
 }
 
 int main(int argc, char* argv[]) {
-  init_path();
-
+  
   const char* remote_path = getenv("RKR_REMOTE_PATH");
+  
+  init_path();
 
   char* command[argc + 2];  // save space for commands given + trace command
 
@@ -98,6 +99,7 @@ int main(int argc, char* argv[]) {
 
   // end the array with null
   command[cIndex] = (char*)NULL;
+
 
   // execute the command
   execvp("ssh", command);
