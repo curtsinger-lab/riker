@@ -62,6 +62,12 @@ $ make
 $ sudo make install
 ```
 
+You can also install it without sudo to a different location by overriding the PREFIX in the Makefile:
+
+```
+$ make PREFIX=~/.local/ install
+```
+
 The above commands will build and install a debug version of Riker.
 We recommend using the debug build because it is only marginally slower than a release build, but collects more information to help track down bugs if they do come up.
 You can install a release build with `make release` and `sudo make install-release`.
