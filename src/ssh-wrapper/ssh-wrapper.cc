@@ -56,12 +56,12 @@ void init_path() {
 }
 
 int main(int argc, char* argv[]) {
-  
-  const char* remote_path = getenv("RKR_REMOTE_PATH");
-  
+  // Combine machine specific called remot
+  char* remote_riker_path = getenv("RKR_REMOTE_PATH");
+
   init_path();
 
-  char* command[argc + 2];  // save space for commands given + trace command
+  char* command[argc + 10];  // save space for commands given + trace command
 
   // TODO: Handle PATH so that we can call the user's ssh instead of slogin
   command[0] = strdup("ssh");
@@ -75,14 +75,18 @@ int main(int argc, char* argv[]) {
       // add to the count
       dashCount++;
     }
-
     // The first two arguments without a dash (-) at the front should represent the address for the
     // ssh and the requested command. The tracing program must thus be inserted between these, if it
     // has been called by the -r flag.
-    if (dashCount == 2 && remote_path != NULL) {
-      // parse in the path to remote-trace
-      command[cIndex] = strdup(remote_path);
-      strcat(command[cIndex], strdup("/debug/share/rkr/\\remote-trace"));
+    if (dashCount == 2 && remote_riker_path != NULL) {
+      // bring in the path to remote-trace within riker and combine with path to riker on remote
+      const char* remote_detail_path = "/debug/share/rkr/\\remote-trace";
+      char full_path[strlen(remote_riker_path) + strlen(remote_detail_path)];
+      strcpy(full_path, remote_riker_path);
+      strcat(full_path, remote_detail_path);
+
+      // add argument to run remote-trace
+      command[cIndex] = strdup(full_path);
       cIndex++;
       dashCount++;
 
@@ -100,9 +104,11 @@ int main(int argc, char* argv[]) {
   // end the array with null
   command[cIndex] = (char*)NULL;
 
-
   // execute the command
   execvp("ssh", command);
 
+  for (int i = 0; i < cIndex; i++) {
+    free(command[i]);
+  }
   return 0;
 }
