@@ -44,6 +44,6 @@ int main(int argc, char* argv[]) {
 
   // TODO: ensure we are in the correct directory for riker to be called.
   // TODO: Pass along arguments from local to remote side (particularly --fresh)
-  system("~/riker/debug/bin/rkr --fresh");
+  system("~/riker/debug/bin/rkr");
   return 0;
 }
