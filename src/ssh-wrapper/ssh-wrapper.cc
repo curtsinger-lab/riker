@@ -57,13 +57,14 @@ void init_path() {
 
 int main(int argc, char* argv[]) {
   // Combine machine specific called remot
+  // If remote path is not set, null will be returned
+  // and remote tracing deactivated
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
 
   init_path();
 
   char* command[argc + 10];  // save space for commands given + trace command
 
-  // TODO: Handle PATH so that we can call the user's ssh instead of slogin
   command[0] = strdup("ssh");
   int cIndex = 1;  // index for custom arguments
   int aIndex = 1;  // index for command line arguments
