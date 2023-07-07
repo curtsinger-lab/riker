@@ -1,5 +1,10 @@
 #!/bin/sh
 
+<<<<<<< HEAD
 # scp furuizhe@shannon.cs.grinnell.edu:/home/furuizhe/copyTests furuizhe@clarke.cs.grinnell.edu:/home/furuizhe/
 ssh gray ls
+=======
+# scp /home/furuizhe/copyTest.txt furuizhe@clarke.cs.grinnell.edu:/home/furuizhe/
+ssh furuizhe@clarke.cs.grinnell.edu ls
+>>>>>>> 20f653c8ef0b10eeb7d830f00b5d2c21f8e31997
 # rsync -a /home/furuizhe/rsyncTest shannon:/home/furuizhe/
