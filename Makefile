@@ -180,11 +180,14 @@ $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(R
 $(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrapper/wrapper.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
+	
+$(DEBUG_DIR)/share/rkr/remote-trace $(RELEASE_DIR)/share/rkr/remote-trace: src/ssh-wrapper/remote-trace.cc Makefile
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ src/ssh-wrapper/remote-trace.cc -ldl
 
-$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc src/ssh-wrapper/remote-trace.cc Makefile
+$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/ssh-wrapper/ssh-wrapper.cc -ldl
-	$(CXX) $(CXXFLAGS) -o debug/share/rkr/remote-trace src/ssh-wrapper/remote-trace.cc -ldl
 
 $(DEBUG_DIR)/share/rkr/wrappers/scp $(RELEASE_DIR)/share/rkr/wrappers/scp: src/scp-wrapper/scp-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
