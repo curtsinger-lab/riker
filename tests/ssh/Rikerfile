@@ -1,5 +1,6 @@
-!/bin/sh
+#!/bin/sh
+
 
 # scp /home/furuizhe/copyTest.txt furuizhe@shannon.cs.grinnell.edu:/home/furuizhe/
-# ssh shannon.cs.grinnell.edu ls
-rsync -a /home/furuizhe/rsyncTest shannon:/home/furuizhe/
+ssh clarke.cs.grinnell.edu ls
+# rsync -a /home/furuizhe/rsyncTest clarke:/home/furuizhe/

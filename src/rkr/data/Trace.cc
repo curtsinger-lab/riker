@@ -725,7 +725,7 @@ struct Record<RecordType::SocketRef> {
   Ref::ID output;
 } __attribute__((packed));
 
-// Read a FileRef record from the input trace
+// Read a SocketRef record from the input trace
 template <>
 void TraceReader::handleRecord<RecordType::SocketRef>(IRSink& sink) noexcept {
   const auto& data = takeRecord<RecordType::SocketRef>();

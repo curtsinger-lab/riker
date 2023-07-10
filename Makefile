@@ -83,7 +83,8 @@ debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS) \
 			 $(DEBUG_DIR)/share/rkr/wrappers/ssh \
-			 $(DEBUG_DIR)/share/rkr/wrappers/scp
+			 $(DEBUG_DIR)/share/rkr/wrappers/scp \
+			 $(DEBUG_DIR)/share/rkr/remote-trace
 
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
@@ -93,7 +94,8 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_DIR)/share/rkr/rkr-inject.so \
          $(RELEASE_WRAPPERS) \
 		 $(RELEASE_DIR)/share/rkr/wrappers/ssh \
-		 $(RELEASE_DIR)/share/rkr/wrappers/scp
+		 $(RELEASE_DIR)/share/rkr/wrappers/scp \
+		 $(RELEASE_DIR)/share/rkr/remote-trace
 
 install: install-debug
 
@@ -177,18 +179,22 @@ $(DEBUG_DIR)/share/rkr/rkr-inject.so $(RELEASE_DIR)/share/rkr/rkr-inject.so: $(R
 	@mkdir -p `dirname $@`
 	$(CC) $(CFLAGS) -fPIC -shared -Isrc/ -o $@ $(RKR_INJECT_SRCS) -ldl -lpthread
 
-$(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrapper/wrapper.cc Makefile
+$(DEBUG_DIR)/share/rkr/rkr-wrapper $(RELEASE_DIR)/share/rkr/rkr-wrapper: src/wrappers/compiler-wrapper/compiler-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/wrapper/wrapper.cc -ldl
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/compiler-wrapper/compiler-wrapper.cc -ldl
 
-$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/ssh-wrapper/ssh-wrapper.cc src/ssh-wrapper/remote-trace.cc Makefile
+$(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/wrappers/ssh-wrapper/ssh-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/ssh-wrapper/ssh-wrapper.cc -ldl
-	$(CXX) $(CXXFLAGS) -o src/ssh-wrapper/remote-trace src/ssh-wrapper/remote-trace.cc -ldl    #not sure if it is correct way to comment it
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/ssh-wrapper.cc -ldl
+	
+$(DEBUG_DIR)/share/rkr/remote-trace $(RELEASE_DIR)/share/rkr/remote-trace: src/wrappers/ssh-wrapper/remote-trace.cc Makefile
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/remote-trace.cc -ldl
 
-$(DEBUG_DIR)/share/rkr/wrappers/scp $(RELEASE_DIR)/share/rkr/wrappers/scp: src/scp-wrapper/scp-wrapper.cc Makefile
+$(DEBUG_DIR)/share/rkr/wrappers/scp $(RELEASE_DIR)/share/rkr/wrappers/scp: src/wrappers/scp-wrapper/scp-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/scp-wrapper/scp-wrapper.cc -ldl
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/scp-wrapper/scp-wrapper.cc -ldl
+
 
 $(DEBUG_WRAPPERS): $(DEBUG_DIR)/share/rkr/rkr-wrapper
 	@mkdir -p `dirname $@`

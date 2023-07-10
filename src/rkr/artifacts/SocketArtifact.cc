@@ -35,7 +35,7 @@ void SocketArtifact::rollback() noexcept {
   Artifact::rollback();
 }
 
-// Commit the content of this artifact to the filesystem
+// Commit the content of this artifact to the socketsystem
 void SocketArtifact::commitContentTo(fs::path path) noexcept {
   // If content is already committed, do nothing
   if (_content.isCommitted()) return;
@@ -52,7 +52,7 @@ void SocketArtifact::commitContentTo(fs::path path) noexcept {
   } else {
     // No committed content yet. Commit metadata along with the content
     ASSERT(_metadata.isUncommitted())
-        << "File with no committed content does not have uncommitted metadata";
+        << "Socket with no committed content does not have uncommitted metadata";
 
     // Commit the content with initial metadata
     auto [version, writer] = _content.getLatest();
@@ -79,9 +79,9 @@ void SocketArtifact::commitLink(shared_ptr<DirEntry> entry) noexcept {
   auto new_path = dir_path / entry->getName();
 
   // Committing a new path to this artifact has three cases:
-  // 1. The file has a temporary path. Move it into place
-  // 2. The file has an existing committed path. Create a hard link
-  // 3. The file has no committed paths. Commit its content to create the file
+  // 1. The socket has a temporary path. Move it into place
+  // 2. The socket has an existing committed path. Create a hard link
+  // 3. The socket has no committed paths. Commit its content to create the socket
   if (auto temp_path = takeTemporaryPath(); temp_path.has_value()) {
     // This artifact has a temporary path. We can move it to its new committed location
     LOG(artifact) << "Moving " << this << " from temporary location to " << new_path;
@@ -120,19 +120,19 @@ void SocketArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
   auto dir_path = maybe_dir_path.value();
   auto unlink_path = dir_path / entry->getName();
 
-  // Committing an unlink of a file has two cases:
+  // Committing an unlink of a socket has two cases:
   // 1. There are uncommitted links, but no other committed links. Move to a temporary path.
   // 2. Otherwise just unlink
   if (_committed_links.size() == 1 && _modeled_links.size() > 0) {
-    // Get a temporary path for this file
+    // Get a temporary path for this socket
     auto temp_path = assignTemporaryPath();
 
-    // Move the file
+    // Move the socket
     int rc = ::rename(unlink_path.c_str(), temp_path.c_str());
     FAIL_IF(rc != 0) << "Failed to move " << this << " to a temporary location: " << ERR;
 
   } else {
-    // It's safe to just unlink the file.
+    // It's safe to just unlink the socket.
     int rc = ::unlink(unlink_path.c_str());
     FAIL_IF(rc != 0) << "Failed to unlink " << this << " from " << unlink_path << ": " << ERR;
   }
@@ -144,12 +144,12 @@ void SocketArtifact::commitUnlink(shared_ptr<DirEntry> entry) noexcept {
 
 /// Compare all final versions of this artifact to the filesystem state
 void SocketArtifact::checkFinalState(fs::path path) noexcept {
-  // Get the command that wrote this file. If there was no writer, no need to check
+  // Get the command that wrote this socket. If there was no writer, no need to check
   auto [version, weak_creator] = _content.getLatest();
   auto creator = weak_creator.lock();
   if (!creator) return;
 
-  // Is there an uncommitted update to this file?
+  // Is there an uncommitted update to this socket?
   if (_content.isUncommitted()) {
     // Get the committed state
     auto [committed_version, committed_creator] = _content.getCommitted();
@@ -249,7 +249,7 @@ void SocketArtifact::afterRead(Build& build,
                                const IRSource& source,
                                const shared_ptr<Command>& c,
                                Ref::ID ref) noexcept {
-  // The command now depends on the content of this file
+  // The command now depends on the content of this socket
   build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
@@ -258,7 +258,7 @@ void SocketArtifact::beforeWrite(Build& build,
                                  const IRSource& source,
                                  const shared_ptr<Command>& c,
                                  Ref::ID ref) noexcept {
-  // The command now depends on the content of this file
+  // The command now depends on the content of this socket
   build.matchContent(source, c, Scenario::Build, ref, getContent(c));
 }
 
@@ -270,7 +270,7 @@ void SocketArtifact::afterWrite(Build& build,
   // Create a new version
   auto writing = make_shared<FileVersion>();
 
-  // The command wrote to this file
+  // The command wrote to this socket
   build.updateContent(source, c, ref, writing);
 }
 
@@ -346,7 +346,7 @@ void SocketArtifact::updateContent(const shared_ptr<Command>& c,
   appendVersion(writing);
   auto fv = writing->as<FileVersion>();
 
-  FAIL_IF(!fv) << "Attempted to apply version " << writing << " to file artifact " << this;
+  FAIL_IF(!fv) << "Attempted to apply version " << writing << " to socket artifact " << this;
 
   // Update the content version(s)
   _content.update(c, fv);

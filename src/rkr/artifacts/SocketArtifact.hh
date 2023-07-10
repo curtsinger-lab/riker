@@ -17,17 +17,20 @@ class Command;
 class FileVersion;
 class MetadataVersion;
 
+// TODO: Currently, socket artifact is essentially a file artifact, including not having its own
+// version code. This needs to be addressed, as some functions are unnecessary for a socket.
+
 class SocketArtifact : public Artifact {
  public:
   /**
-   * Create a new FileArtifact with no initial metadata or content. This should be followed by calls
-   * to updateMetadata and updateContent to fully initialize the artifact.
+   * Create a new SocketArtifact with no initial metadata or content. This should be followed by
+   * calls to updateMetadata and updateContent to fully initialize the artifact.
    */
   SocketArtifact() noexcept : Artifact() {}
 
   /**
-   * Create a new FileArtifact with existing metadata and content versions. This only appropriate
-   * for artifacts that exist on the filesystem.
+   * Create a new SocketArtifact with existing metadata and content versions. This only appropriate
+   * for artifacts that exist on the socketsystem.
    */
   SocketArtifact(MetadataVersion mv, std::shared_ptr<FileVersion> cv) noexcept;
 
@@ -122,11 +125,11 @@ class SocketArtifact : public Artifact {
                              std::shared_ptr<ContentVersion> writing) noexcept override;
 
  protected:
-  /// Cache and fingerprint this file's content if necessary
+  /// Cache and fingerprint this socket's content if necessary
   void fingerprintAndCache(const std::shared_ptr<Command>& reader) const noexcept;
 
  private:
-  /// The committed and uncommitted state that represent this file's content
+  /// The committed and uncommitted state that represent this socket's content
   VersionState<FileVersion> _content;
 };
 

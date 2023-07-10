@@ -343,7 +343,7 @@ namespace env {
   }
 
   shared_ptr<Artifact> createSocket(const shared_ptr<Command>& c, mode_t mode) noexcept {
-    // Create uid, gid, and mode values for this new file
+    // Create uid, gid, and mode values for this new socket
     uid_t uid = getuid();
     gid_t gid = getgid();
     mode_t stat_mode = S_IFSOCK | (mode & 0777);
@@ -355,11 +355,11 @@ namespace env {
     // Create the artifact and return it
     auto artifact = make_shared<SocketArtifact>();
 
-    // Set the metadata and content for the new file artifact
+    // Set the metadata and content for the new socket artifact
     artifact->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
     artifact->updateContent(c, cv);
 
-    // Observe output to metadata and content for the new file
+    // Observe output to metadata and content for the new socket
     c->addContentOutput(artifact, cv);
 
     _artifacts.push_back(artifact);
