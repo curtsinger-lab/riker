@@ -151,8 +151,9 @@ int main(int argc, char* argv[]) noexcept {
                     "Output file where commands should be printed (default: -)");
 
   // Flags for rkr with remote connections
-  string remote_path = "-";
-  build->add_option("-r,--remote", remote_path, "Path to riker on remote system (default: -)");
+
+  optional<string> remote_path;
+  build->add_option("-r,--remote", remote_path, "Path to riker on remote system");
 
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");

@@ -34,7 +34,7 @@ void do_build(vector<string> args,
               optional<fs::path> stats_log_path,
               string command_output,
               bool refresh,
-              string remote_path) noexcept {
+              optional<string> remote_path) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
 
@@ -62,7 +62,7 @@ void do_build(vector<string> args,
   LOG(phase) << "Starting build phase 0";
 
   // Set the remote path variable to path specified in flag.
-  setenv("RKR_REMOTE_PATH", remote_path.c_str(), 1);
+  if (remote_path.has_value()) setenv("RKR_REMOTE_PATH", remote_path->c_str(), 1);
 
   // Is there a trace to load?
   if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded && !refresh) {

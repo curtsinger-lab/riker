@@ -11,7 +11,7 @@ void do_build(std::vector<std::string> args,
               std::optional<fs::path> stats_log_path,
               std::string command_output,
               bool refresh,
-              std::string remote_path) noexcept;
+              std::optional<std::string> remote_path) noexcept;
 
 void do_audit(std::vector<std::string> args, std::string command_output) noexcept;
 
