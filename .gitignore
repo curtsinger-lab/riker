@@ -14,3 +14,4 @@ graphs/*.pdf
 .old-*
 rkr-commands
 default-commands
+remote-trace
