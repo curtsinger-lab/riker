@@ -60,8 +60,12 @@ int main(int argc, char* argv[]) {
   // If remote path is not set, null will be returned
   // and remote tracing deactivated
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
+  char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   init_path();
+
+  std::cout << "remote_args: " << remote_riker_args << "\n";
+  std::cout << "remote_path: " << remote_riker_path << "\n";
 
   char* command[argc + 10];  // save space for commands given + trace command
 
