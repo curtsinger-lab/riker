@@ -83,7 +83,8 @@ debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_DIR)/share/rkr/rkr-inject.so \
 			 $(DEBUG_WRAPPERS) \
 			 $(DEBUG_DIR)/share/rkr/wrappers/ssh \
-			 $(DEBUG_DIR)/share/rkr/wrappers/scp
+			 $(DEBUG_DIR)/share/rkr/wrappers/scp \
+			 $(DEBUG_DIR)/share/rkr/remote-trace
 
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
@@ -93,7 +94,8 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_DIR)/share/rkr/rkr-inject.so \
          $(RELEASE_WRAPPERS) \
 		 $(RELEASE_DIR)/share/rkr/wrappers/ssh \
-		 $(RELEASE_DIR)/share/rkr/wrappers/scp
+		 $(RELEASE_DIR)/share/rkr/wrappers/scp \
+		 $(DEBUG_DIR)/share/rkr/remote-trace
 
 install: install-debug
 
