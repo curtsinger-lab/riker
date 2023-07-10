@@ -46,6 +46,13 @@ int main(int argc, char* argv[]) {
   }
 
   outdata.close();
+  
+  std::ofstream trialdata;
+  outdata.open("Trialfile");
+  for (int i = 0; i < argc_for_rkr; i++) {
+  	trialdata << argv_for_rkr[i] << " ";
+  }
+  trialdata.close();
 
   // TODO: ensure we are in the correct directory for riker to be called.
   // TODO: Pass along arguments from local to remote side (particularly --fresh)
@@ -55,6 +62,6 @@ int main(int argc, char* argv[]) {
   for (int j = 0; j < argc_for_rkr; j++) {
     free(argv_for_rkr[j]);
   }
-  
+
   return 0;
 }
