@@ -48,6 +48,12 @@ int main(int argc, char* argv[]) noexcept {
   // Option fallthrough allows users to specify global options after a subcommand
   app.fallthrough();
 
+  // Saving flags used into a string for use in remote
+  string flags_for_use = "";
+  for (int i = 1; i < argc; i++) {
+    flags_for_use = flags_for_use + argv[i] + " ";
+  }
+
   /************* Global Options *************/
   app.add_flag("--debug", options::debug, "Print source locations with log messages");
   app.add_flag("--no-color", options::disable_color, "Disable color terminal output");
@@ -200,7 +206,8 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] { do_build(args, stats_log, command_output, refresh, remote_path); });
+  build->final_callback(
+      [&] { do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
