@@ -64,9 +64,6 @@ int main(int argc, char* argv[]) {
 
   init_path();
 
-  std::cout << "remote_args: " << remote_riker_args << "\n";
-  std::cout << "remote_path: " << remote_riker_path << "\n";
-
   char* command[argc + 10];  // save space for commands given + trace command
 
   command[0] = strdup("ssh");
@@ -95,6 +92,16 @@ int main(int argc, char* argv[]) {
       cIndex++;
       dashCount++;
 
+      // pass the flags if user spicify in local machines
+      if (remote_riker_args != NULL) {
+        char option_arg[strlen(remote_riker_args)];
+        strcpy(option_arg, remote_riker_args);
+
+        // add argument to run remote-trace
+        command[cIndex] = strdup(option_arg);
+        cIndex++;
+      }
+
       // parse argument normally
       command[cIndex] = strdup(argv[aIndex]);
       cIndex++;
@@ -108,6 +115,12 @@ int main(int argc, char* argv[]) {
 
   // end the array with null
   command[cIndex] = (char*)NULL;
+
+  std::cout << "command:\n";
+  for (int i = 0; i < cIndex; i++) {
+    std::cout << command[i] << " ";
+  }
+  std::cout << "\n";
 
   // execute the command
   execvp("ssh", command);

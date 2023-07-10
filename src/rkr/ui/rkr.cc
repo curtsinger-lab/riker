@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) noexcept {
   // Saving flags used into a string for use in remote
   string flags_for_use = "";
   for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--remote")) {
+    if (strcmp(argv[i], "-r") == 0 || strcmp(argv[i], "--remote") == 0) {
       i += 1;
       continue;
     }
