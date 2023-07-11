@@ -137,11 +137,37 @@ fs::path Thread::getPath(at_fd fd) const noexcept {
   return "<no path>";
 }
 
+bool path_starts_with(fs::path p, fs::path prefix) {
+  auto p_iter = p.begin();
+  auto prefix_iter = prefix.begin();
+
+  while (p_iter != p.end() && prefix_iter != prefix.end() && *p_iter == *prefix_iter) {
+    p_iter++;
+    prefix_iter++;
+  }
+
+  return prefix_iter == prefix.end();
+}
+
 Ref::ID Thread::makePathRef(Build& build,
                             const IRSource& source,
                             fs::path p,
                             AccessFlags flags,
                             at_fd at) noexcept {
+  // Handle /proc/self/fd/ references
+  if (path_starts_with(p, "/proc/self/fd")) {
+    auto p_iter = p.begin();
+    std::advance(p_iter, 3);
+    if (p_iter == p.end()) {
+      WARN << "Attempted reference to /proc/self/fd directory";
+
+    } else {
+      p_iter++;
+      int fd = atoi(p_iter->c_str());
+      return getProcess()->getFD(fd);
+    }
+  }
+
   // Absolute paths are resolved relative to the process' current root
   if (p.is_absolute()) {
     // HACK: Remove the O_EXCL flag when creating files in /tmp
