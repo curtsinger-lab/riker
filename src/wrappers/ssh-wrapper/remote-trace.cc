@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 
   // Seperate list of arguments that will be passed to rkr
   char* argv_for_rkr[argc];
-  
+
   // TODO: Path to riker
   argv_for_rkr[0] = strdup("riker/debug/bin/rkr");
   int argc_for_rkr = 1;
@@ -41,6 +41,11 @@ int main(int argc, char* argv[]) {
     if (argv[i][0] == '-' && dashCount == 0) {
       argv_for_rkr[argc_for_rkr] = strdup(argv[i]);
       argc_for_rkr++;
+      if (strcmp(argv[i], "--log") == 0) {
+        i++;
+        argv_for_rkr[argc_for_rkr] = strdup(argv[i]);
+        argc_for_rkr++;
+      }
     } else {
       outdata << argv[i] << " ";
       dashCount++;
