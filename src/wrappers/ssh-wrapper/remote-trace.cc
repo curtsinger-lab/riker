@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 
   // Seperate list of arguments that will be passed to rkr
   char* argv_for_rkr[argc];
-  argv_for_rkr[0] = strdup("~/riker/debug/bin/rkr");
+  argv_for_rkr[0] = strdup("riker/debug/bin/rkr");
   int argc_for_rkr = 1;
 
   // open the Rikerfile
@@ -47,8 +47,10 @@ int main(int argc, char* argv[]) {
 
   outdata.close();
   
+  argv_for_rkr[argc_for_rkr] = (char*)NULL;
+  
   std::ofstream trialdata;
-  outdata.open("Trialfile");
+  trialdata.open("Trialfile");
   for (int i = 0; i < argc_for_rkr; i++) {
   	trialdata << argv_for_rkr[i] << " ";
   }
@@ -57,7 +59,7 @@ int main(int argc, char* argv[]) {
   // TODO: ensure we are in the correct directory for riker to be called.
   // TODO: Pass along arguments from local to remote side (particularly --fresh)
   // system("~/riker/debug/bin/rkr --fresh --show");
-  execvp("~/riker/debug/bin/rkr", argv_for_rkr);
+  execvp("riker/debug/bin/rkr", argv_for_rkr);
 
   for (int j = 0; j < argc_for_rkr; j++) {
     free(argv_for_rkr[j]);
