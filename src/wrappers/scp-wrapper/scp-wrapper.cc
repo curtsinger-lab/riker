@@ -59,7 +59,6 @@ int main(int argc, char** argv) {
   string full_path = getenv("PATH");
   size_t sep = full_path.find(':', 0);
   string riker_path = full_path.substr(0, sep);
-  printf("path: %s\n", riker_path.c_str());
 
   init_path();
 

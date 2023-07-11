@@ -62,6 +62,8 @@ int main(int argc, char* argv[]) {
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
   char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
+  std::cout << "\nget to here\n";
+
   init_path();
 
   char* command[argc + 10];  // save space for commands given + trace command
@@ -116,7 +118,7 @@ int main(int argc, char* argv[]) {
   // end the array with null
   command[cIndex] = (char*)NULL;
 
-  std::cout << "command:\n";
+  std::cout << "command: ";
   for (int i = 0; i < cIndex; i++) {
     std::cout << command[i] << " ";
   }
