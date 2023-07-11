@@ -40,6 +40,11 @@ int main(int argc, char* argv[]) {
     if (argv[i][0] == '-' && dashCount == 0) {
       argv_for_rkr[argc_for_rkr] = strdup(argv[i]);
       argc_for_rkr++;
+      if (strcmp(argv[i], "--log") == 0) {
+        i++;
+        argv_for_rkr[argc_for_rkr] = strdup(argv[i]);
+        argc_for_rkr++;
+      }
     } else {
       outdata << argv[i] << " ";
       dashCount++;
