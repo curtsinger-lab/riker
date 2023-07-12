@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/src/rkr",
+                "${workspaceFolder}/src/wrappers",
                 "${workspaceFolder}/deps/CLI11/include",
                 "${workspaceFolder}/deps/BLAKE3/c"
             ],
