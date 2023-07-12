@@ -18,7 +18,6 @@ int main(int argc, char* argv[]) {
 
   // Seperate list of arguments that will be passed to rkr
   char* argv_for_rkr[argc];
-
   // TODO: Path to riker
   argv_for_rkr[0] = strdup("riker/debug/bin/rkr");
   int argc_for_rkr = 1;
@@ -53,7 +52,9 @@ int main(int argc, char* argv[]) {
   }
 
   outdata.close();
+
   argv_for_rkr[argc_for_rkr] = (char*)NULL;
+
 
   // TODO: ensure we are in the correct directory for riker to be called.
   // TODO: Pass along arguments from local to remote side (particularly --fresh)
