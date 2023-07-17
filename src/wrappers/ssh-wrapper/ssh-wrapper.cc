@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
     // has been called by the -r flag.
     if (dashCount == 2 && remote_riker_path != NULL) {
       // bring in the path to remote-trace within riker and combine with path to riker on remote
-      const char* remote_detail_path = "/debug/share/rkr/\\remote-trace";
+      const char* remote_detail_path = "/../share/rkr/\\remote-trace";
       char full_path[strlen(remote_riker_path) + strlen(remote_detail_path)];
       strcpy(full_path, remote_riker_path);
       strcat(full_path, remote_detail_path);
