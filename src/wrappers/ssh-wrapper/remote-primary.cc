@@ -17,7 +17,8 @@ int main(int argc, char* argv[]) {
 
   int rc = fork();
   if (rc == 0) {
-    printf("%ld", strlen(remote_pid_ch));
+    // printf("%ld", strlen(remote_pid_ch));
+    printf("7");
     printf("%d", remote_pid_i);
   }
   if (rc > 0) {

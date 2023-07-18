@@ -47,7 +47,9 @@ int main(int argc, char* argv[]) {
 
   int dashCount = 0;
   if (thru_channel) {
-    // TODO: implement this function
+    for (int i = 2; i < argc; i++) {
+      // TODO: to right here
+    }
   } else {
     for (int i = 2; i < argc; i++) {
       // Check if commandline argument is meant for riker or for program started by user

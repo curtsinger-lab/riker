@@ -84,7 +84,8 @@ debug: $(DEBUG_DIR)/bin/rkr \
 			 $(DEBUG_WRAPPERS) \
 			 $(DEBUG_DIR)/share/rkr/wrappers/ssh \
 			 $(DEBUG_DIR)/share/rkr/wrappers/scp \
-			 $(DEBUG_DIR)/share/rkr/remote-trace
+			 $(DEBUG_DIR)/share/rkr/remote-primary \
+			 $(DEBUG_DIR)/share/rkr/remote-secondary
 
 release: CFLAGS = $(RELEASE_CFLAGS)
 release: CXXFLAGS = $(RELEASE_CXXFLAGS)
@@ -95,7 +96,8 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_WRAPPERS) \
 		 $(RELEASE_DIR)/share/rkr/wrappers/ssh \
 		 $(RELEASE_DIR)/share/rkr/wrappers/scp \
-		 $(RELEASE_DIR)/share/rkr/remote-trace
+		 $(RELEASE_DIR)/share/rkr/remote-primary \
+		 $(RELEASE_DIR)/share/rkr/remote-secondary
 
 install: install-debug
 
@@ -187,9 +189,13 @@ $(DEBUG_DIR)/share/rkr/wrappers/ssh $(RELEASE_DIR)/share/rkr/wrappers/ssh: src/w
 	@mkdir -p `dirname $@`
 	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/ssh-wrapper.cc -ldl
 	
-$(DEBUG_DIR)/share/rkr/remote-trace $(RELEASE_DIR)/share/rkr/remote-trace: src/wrappers/ssh-wrapper/remote-trace.cc Makefile
+$(DEBUG_DIR)/share/rkr/remote-primary $(RELEASE_DIR)/share/rkr/remote-primary: src/wrappers/ssh-wrapper/remote-primary.cc Makefile
 	@mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/remote-trace.cc -ldl
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/remote-primary.cc -ldl
+	
+$(DEBUG_DIR)/share/rkr/remote-secondary $(RELEASE_DIR)/share/rkr/remote-secondary: src/wrappers/ssh-wrapper/remote-secondary.cc Makefile
+	@mkdir -p `dirname $@`
+	$(CXX) $(CXXFLAGS) -o $@ src/wrappers/ssh-wrapper/remote-secondary.cc -ldl
 
 $(DEBUG_DIR)/share/rkr/wrappers/scp $(RELEASE_DIR)/share/rkr/wrappers/scp: src/wrappers/scp-wrapper/scp-wrapper.cc Makefile
 	@mkdir -p `dirname $@`
