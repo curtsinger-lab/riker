@@ -85,15 +85,22 @@ int main(int argc, char* argv[]) {
     // parse argument normally
     else {
       commandp[pIndex] = strdup(argv[aIndex]);
-      commandp[sIndex] = strdup(argv[aIndex]);
+      commands[sIndex] = strdup(argv[aIndex]);
       pIndex++;
       sIndex++;
     }
   }
 
   // end the array with null
-  commands[sIndex] = (char*)NULL;
-  commands[pIndex] = (char*)NULL;
+  commandp[pIndex] = (char*)NULL;
+
+  /*
+  printf("command:\n");
+  for (int i = 0; i < pIndex; i++) {
+    printf("%s ", commandp[i]);
+  }
+  printf("\n");
+  */
   /*
     std::cout << "commands: ";
     for (int i = 0; i < sIndex; i++) {
@@ -110,18 +117,20 @@ int main(int argc, char* argv[]) {
     */
 
   // execute the command
-  printf("test\n");
-  printf("\n");
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
     close(fds[0]);  // close reading end in the child
 
-    printf("Command1: ");
+    /*
+    printf("Command1:\n");
     for (int i = 0; i < pIndex; i++) {
       printf("%s ", commandp[i]);
     }
+    printf("\n");
+    */
+
     dup2(fds[1], 1);  // send stdout to the pipe
     dup2(fds[1], 2);  // send stderr to the pipe
 
@@ -156,15 +165,26 @@ int main(int argc, char* argv[]) {
       commands[sIndex] = strdup(argv[aIndex]);
       sIndex++;
     }
+    commands[sIndex] = (char*)NULL;
+
+    /*
+    printf("Commands:\n");
+    for (int i = 0; i < sIndex; i++) {
+      printf("%s ", commands[i]);
+    }
+    printf("\n");
+    */
+
     int rc2 = fork();
     if (rc2 == 0) {
       // TODO: make better method than sleeping to ensure ssh-primary has connected
+      printf("We run to here!\n");
       sleep(3);
       execvp("ssh", commands);
     }
     sleep(10);
     close(fds[0]);
-    wait(NULL);
+    // wait(NULL);
   }
   // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
   // their own index values?
