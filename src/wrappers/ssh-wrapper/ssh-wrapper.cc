@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
       commandp[pIndex] = strdup(full_path_primary);
       commands[sIndex] = strdup(full_path_secondary);
-
+      // commands[sIndex] = strdup("/home/furuizhe/\\channels-test-remote2");
       pIndex++;
       sIndex++;
       break;
@@ -85,15 +85,14 @@ int main(int argc, char* argv[]) {
     // parse argument normally
     else {
       commandp[pIndex] = strdup(argv[aIndex]);
-      commandp[sIndex] = strdup(argv[aIndex]);
+      commands[sIndex] = strdup(argv[aIndex]);
       pIndex++;
       sIndex++;
     }
   }
 
   // end the array with null
-  commands[sIndex] = (char*)NULL;
-  commands[pIndex] = (char*)NULL;
+  commandp[pIndex] = (char*)NULL;
   /*
     std::cout << "commands: ";
     for (int i = 0; i < sIndex; i++) {
@@ -110,31 +109,23 @@ int main(int argc, char* argv[]) {
     */
 
   // execute the command
-  printf("test\n");
-  printf("\n");
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
-    close(fds[0]);  // close reading end in the child
-
-    printf("Command1: ");
-    for (int i = 0; i < pIndex; i++) {
-      printf("%s ", commandp[i]);
-    }
+    close(fds[0]);    // close reading end in the child
     dup2(fds[1], 1);  // send stdout to the pipe
     dup2(fds[1], 2);  // send stderr to the pipe
 
     close(fds[1]);  // this descriptor is no longer needed
     execvp("ssh", commandp);
   } else if (rc1 > 0) {
-    sleep(5);
-    char saved_pid[8];
-
     close(fds[1]);  // Close writing end of second pipe
 
     // Read string from child, print it and close
     // reading end.
+
+    char saved_pid[8];
     char strlength[2];
     read(fds[0], strlength, sizeof(char));
     strlength[1] = '\0';
@@ -156,13 +147,18 @@ int main(int argc, char* argv[]) {
       commands[sIndex] = strdup(argv[aIndex]);
       sIndex++;
     }
+    printf("PID: %d\n", getpid());
+    commands[sIndex] = (char*)NULL;
     int rc2 = fork();
+    if (rc2 < 0) {
+      fprintf(stderr, "fork failed\n");
+    }
     if (rc2 == 0) {
       // TODO: make better method than sleeping to ensure ssh-primary has connected
-      sleep(3);
       execvp("ssh", commands);
     }
-    sleep(10);
+    char end_sig[10];
+    read(fds[0], end_sig, 10);
     close(fds[0]);
     wait(NULL);
   }
