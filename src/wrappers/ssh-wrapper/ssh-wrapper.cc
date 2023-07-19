@@ -21,8 +21,11 @@ int main(int argc, char* argv[]) {
   // Combine machine specific called remot
   // If remote path is not set, null will be returned
   // and remote tracing deactivated
-  char* remote_riker_path = getenv("RKR_REMOTE_PATH");
-  char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
+  // char* remote_riker_path = getenv("RKR_REMOTE_PATH");
+
+  char* remote_riker_path = "/home/furuizhe/riker";
+  char* remote_riker_args = "--fresh --log trace";
+  // char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
 
@@ -77,7 +80,7 @@ int main(int argc, char* argv[]) {
 
       commandp[pIndex] = strdup(full_path_primary);
       commands[sIndex] = strdup(full_path_secondary);
-
+      // commands[sIndex] = strdup("/home/furuizhe/\\channels-test-remote2");
       pIndex++;
       sIndex++;
       break;
@@ -93,57 +96,28 @@ int main(int argc, char* argv[]) {
 
   // end the array with null
   commandp[pIndex] = (char*)NULL;
-
-  /*
-  printf("command:\n");
+  // execute the command
+  printf("Command: ");
   for (int i = 0; i < pIndex; i++) {
     printf("%s ", commandp[i]);
   }
-  printf("\n");
-  */
-  /*
-    std::cout << "commands: ";
-    for (int i = 0; i < sIndex; i++) {
-      std::cout << commands[i] << " ";
-    }
-    std::cout << "\n";
-
-    std::cout << "commandp: ";
-
-    for (int i = 0; i < pIndex; i++) {
-      std::cout << commandp[i] << " ";
-    }
-    std::cout << "\n";
-    */
-
-  // execute the command
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
-    close(fds[0]);  // close reading end in the child
-
-    /*
-    printf("Command1:\n");
-    for (int i = 0; i < pIndex; i++) {
-      printf("%s ", commandp[i]);
-    }
-    printf("\n");
-    */
-
-    dup2(fds[1], 1);  // send stdout to the pipe
-    dup2(fds[1], 2);  // send stderr to the pipe
+    close(fds[0]);                // close reading end in the child
+    dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
+    dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
 
     close(fds[1]);  // this descriptor is no longer needed
     execvp("ssh", commandp);
   } else if (rc1 > 0) {
-    sleep(5);
-    char saved_pid[8];
-
     close(fds[1]);  // Close writing end of second pipe
 
     // Read string from child, print it and close
     // reading end.
+
+    char saved_pid[8];
     char strlength[2];
     read(fds[0], strlength, sizeof(char));
     strlength[1] = '\0';
@@ -165,26 +139,35 @@ int main(int argc, char* argv[]) {
       commands[sIndex] = strdup(argv[aIndex]);
       sIndex++;
     }
+    printf("PID: %d\n", getpid());
     commands[sIndex] = (char*)NULL;
-
-    /*
-    printf("Commands:\n");
+    printf("Command2: ");
     for (int i = 0; i < sIndex; i++) {
       printf("%s ", commands[i]);
     }
     printf("\n");
-    */
-
     int rc2 = fork();
-    if (rc2 == 0) {
-      // TODO: make better method than sleeping to ensure ssh-primary has connected
-      printf("We run to here!\n");
-      sleep(3);
-      execvp("ssh", commands);
+    if (rc2 < 0) {
+      fprintf(stderr, "fork failed\n");
     }
-    sleep(10);
-    close(fds[0]);
-    // wait(NULL);
+    if (rc2 == 0) {
+      sleep(2);
+      // TODO: make better method than sleeping to ensure ssh-primary has connected
+      execvp("ssh", commands);
+    } else {
+      sleep(2);
+      // char end_sig[10];
+      char buffer[2];
+      buffer[1] = '\0';
+      size_t count;
+      while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+        printf("%s", buffer);
+      }
+      // read(fds[0], end_sig, 10);
+      close(fds[0]);
+      wait(NULL);
+      printf("Done?\n");
+    }
   }
   // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
   // their own index values?

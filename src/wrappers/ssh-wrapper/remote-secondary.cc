@@ -25,12 +25,11 @@ int main(int argc, char* argv[]) {
   argv_for_rkr[0] = strdup("riker/debug/bin/rkr");
   int argc_for_rkr = 1;
 
-  printf("we run to remote-secondary!\n");
   // open the Rikerfile
   // TODO: Delete newly made Rikerfile at end. Also maybe handle if there is already a rikerfile in
   // this directory.
   std::ofstream outdata;
-  outdata.open("/home/furuizhe/Rikerfile");
+  outdata.open("Rikerfile");
   if (!outdata) {  // file couldn't be opened
     cerr << "Error: file could not be opened" << endl;
     exit(1);
