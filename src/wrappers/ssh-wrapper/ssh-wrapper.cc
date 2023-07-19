@@ -21,7 +21,9 @@ int main(int argc, char* argv[]) {
   // Combine machine specific called remot
   // If remote path is not set, null will be returned
   // and remote tracing deactivated
-  char* remote_riker_path = getenv("RKR_REMOTE_PATH");
+  // char* remote_riker_path = getenv("RKR_REMOTE_PATH");
+
+  char* remote_riker_path = "/home/furuizhe/riker";
   char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
@@ -93,29 +95,18 @@ int main(int argc, char* argv[]) {
 
   // end the array with null
   commandp[pIndex] = (char*)NULL;
-  /*
-    std::cout << "commands: ";
-    for (int i = 0; i < sIndex; i++) {
-      std::cout << commands[i] << " ";
-    }
-    std::cout << "\n";
-
-    std::cout << "commandp: ";
-
-    for (int i = 0; i < pIndex; i++) {
-      std::cout << commandp[i] << " ";
-    }
-    std::cout << "\n";
-    */
-
   // execute the command
+  printf("Command: ");
+  for (int i = 0; i < pIndex; i++) {
+    printf("%s ", commandp[i]);
+  }
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
-    close(fds[0]);    // close reading end in the child
-    dup2(fds[1], 1);  // send stdout to the pipe
-    dup2(fds[1], 2);  // send stderr to the pipe
+    close(fds[0]);                // close reading end in the child
+    dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
+    dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
 
     close(fds[1]);  // this descriptor is no longer needed
     execvp("ssh", commandp);
@@ -154,13 +145,17 @@ int main(int argc, char* argv[]) {
       fprintf(stderr, "fork failed\n");
     }
     if (rc2 == 0) {
+      sleep(2);
       // TODO: make better method than sleeping to ensure ssh-primary has connected
       execvp("ssh", commands);
+    } else {
+      sleep(2);
+      char end_sig[10];
+      read(fds[0], end_sig, 10);
+      close(fds[0]);
+      wait(NULL);
+      printf("Done? %s\n", end_sig);
     }
-    char end_sig[10];
-    read(fds[0], end_sig, 10);
-    close(fds[0]);
-    wait(NULL);
   }
   // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
   // their own index values?
