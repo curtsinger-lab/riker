@@ -24,7 +24,8 @@ int main(int argc, char* argv[]) {
   // char* remote_riker_path = getenv("RKR_REMOTE_PATH");
 
   char* remote_riker_path = "/home/furuizhe/riker";
-  char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
+  char* remote_riker_args = "--fresh --log trace";
+  // char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
 
@@ -140,6 +141,11 @@ int main(int argc, char* argv[]) {
     }
     printf("PID: %d\n", getpid());
     commands[sIndex] = (char*)NULL;
+    printf("Command2: ");
+    for (int i = 0; i < sIndex; i++) {
+      printf("%s ", commands[i]);
+    }
+    printf("\n");
     int rc2 = fork();
     if (rc2 < 0) {
       fprintf(stderr, "fork failed\n");
@@ -150,11 +156,17 @@ int main(int argc, char* argv[]) {
       execvp("ssh", commands);
     } else {
       sleep(2);
-      char end_sig[10];
-      read(fds[0], end_sig, 10);
+      // char end_sig[10];
+      char buffer[2];
+      buffer[1] = '\0';
+      size_t count;
+      while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+        printf("%s", buffer);
+      }
+      // read(fds[0], end_sig, 10);
       close(fds[0]);
       wait(NULL);
-      printf("Done? %s\n", end_sig);
+      printf("Done?\n");
     }
   }
   // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
