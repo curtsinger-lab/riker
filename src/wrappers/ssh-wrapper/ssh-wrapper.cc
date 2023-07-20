@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 // TODO: make path non-relative
+#include <dlfcn.h>
 #include <sys/wait.h>
 
 #include "../wrappers/wrapper-utils.hh"
@@ -17,6 +18,44 @@ using std::optional;
 using std::string;
 using std::vector;
 
+bool is_clang = false;
+
+typedef int (*execve_fn_t)(const char*, char* const*, char* const*);
+
+/// Make an untraced execve system call.
+int execv_untraced(const char* pathname, char* const* argv) {
+  // Try to get the untrace execve function from the injected library
+  static execve_fn_t _fn = reinterpret_cast<execve_fn_t>(dlsym(RTLD_NEXT, "execve_untraced"));
+
+  // Did we find the injected library function?
+  if (!is_clang && _fn) {
+    // Yes. Use it.
+    return _fn(pathname, argv, environ);
+
+  } else {
+    // No. Fall back on a regular execve. This will break some unit tests, but works fine.
+    return execve(pathname, argv, environ);
+  }
+}
+
+/// Make an untraced execvpe system call. Loop through PATH entries to issue each exec.
+int execvp_untraced(const char* pathname, char* const* argv) {
+  // Does pathname contain a slash character?
+  if (strchr(pathname, '/') != NULL) {
+    // Yes. Do not search PATH
+    execv_untraced(pathname, argv);
+
+  } else {
+    // Try PATH entries in order
+    for (const auto& entry : path) {
+      auto new_pathname = entry + '/' + pathname;
+      execv_untraced(new_pathname.c_str(), argv);
+    }
+  }
+
+  return -1;
+}
+
 int main(int argc, char* argv[]) {
   // Combine machine specific called remot
   // If remote path is not set, null will be returned
@@ -24,7 +63,7 @@ int main(int argc, char* argv[]) {
   // char* remote_riker_path = getenv("RKR_REMOTE_PATH");
 
   char* remote_riker_path = "/home/furuizhe/riker";
-  char* remote_riker_args = "--fresh --log trace";
+  char* remote_riker_args = "--fresh";
   // char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
@@ -105,6 +144,7 @@ int main(int argc, char* argv[]) {
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
+    printf("%d\n", getpid());
     close(fds[0]);                // close reading end in the child
     dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
     dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
@@ -146,6 +186,7 @@ int main(int argc, char* argv[]) {
       printf("%s ", commands[i]);
     }
     printf("\n");
+
     int rc2 = fork();
     if (rc2 < 0) {
       fprintf(stderr, "fork failed\n");
@@ -154,6 +195,7 @@ int main(int argc, char* argv[]) {
       sleep(2);
       // TODO: make better method than sleeping to ensure ssh-primary has connected
       execvp("ssh", commands);
+
     } else {
       sleep(2);
       // char end_sig[10];
