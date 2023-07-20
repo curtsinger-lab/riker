@@ -353,6 +353,22 @@ class Thread {
                  at_flags flags) noexcept;
 
   // Socket Operations
+
+  void _accept(Build& build,
+               const IRSource& source,
+               int sockfd,
+               struct sockaddr* addr,
+               socklen_t* addrlen) noexcept {
+    _accept4(build, source, sockfd, addr, addrlen, 0);
+  }
+
+  void _accept4(Build& build,
+                const IRSource& source,
+                int sockfd,
+                struct sockaddr* addr,
+                socklen_t* addrlen,
+                int flags) noexcept;
+
   void _recvfrom(Build& build,
                  const IRSource& source,
                  int sockfd,
@@ -369,7 +385,7 @@ class Thread {
                 int sockfd,
                 struct msghdr* msg,
                 int flags) noexcept {
-    FAIL << "recvmsg(2) not yet implemented. Emulating as a read. ";
+    WARN << "recvmsg(2) not yet implemented. Emulating as a read. ";
     _read(build, source, sockfd);
   }
   void _sendmsg(Build& build,
@@ -377,7 +393,7 @@ class Thread {
                 int sockfd,
                 const struct msghdr* msg,
                 int flags) {
-    FAIL << "sendmsg(2) not yet implemented. Emulating as a write.";
+    WARN << "sendmsg(2) not yet implemented. Emulating as a write.";
     _write(build, source, sockfd);
   }
   void _sendto(Build& build,

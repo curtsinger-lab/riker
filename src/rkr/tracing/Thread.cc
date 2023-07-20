@@ -1504,6 +1504,23 @@ void Thread::_unlinkat(Build& build,
 
 /************************ Socket Operations ************************/
 
+void Thread::_accept4(Build& build,
+                      const IRSource& source,
+                      int sockfd,
+                      struct sockaddr* _Nullable addr,
+                      socklen_t* _Nullable addrlen,
+                      int flags) noexcept {
+  finishSyscall([=](Build& build, const IRSource& source, long rc) {
+    resume();
+    if (rc >= 0) {
+      auto ref = getCommand()->nextRef();
+      build.socketRef(source, getCommand(), 0600, ref);
+      bool cloexec = (flags & SOCK_CLOEXEC) == SOCK_CLOEXEC;
+      _process->addFD(build, source, rc, ref, cloexec);
+    }
+  });
+}
+
 void Thread::_socket(Build& build,
                      const IRSource& source,
                      int domain,
