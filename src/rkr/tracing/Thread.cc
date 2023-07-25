@@ -1521,6 +1521,36 @@ void Thread::_accept4(Build& build,
   });
 }
 
+void Thread::_recvmsg(Build& build,
+                      const IRSource& source,
+                      int sockfd,
+                      struct msghdr* msg,
+                      int flags) noexcept {
+  LOGF(trace, "{}: recvmsg({})", *this, sockfd);
+
+  // TODO: Only run after the syscall finishes if the artifact requires it. Pipes generally do,
+  // but files do not.
+
+  // Get a reference to the artifact being read
+  auto ref_id = _process->getFD(sockfd);
+  const auto& ref = getCommand()->getRef(ref_id);
+
+  // Inform the artifact that we are about to read
+  ref->getArtifact()->beforeRead(build, source, getCommand(), ref_id);
+
+  // Finish the syscall and resume
+  finishSyscall([=](Build& build, const IRSource& source, long rc) {
+    resume();
+
+    if (rc >= 0) {
+      // Inform the artifact that the read succeeded
+      ref->getArtifact()->afterRead(build, source, getCommand(), ref_id);
+
+      printf("%s\n", msg->msg_control);
+    }
+  });
+}
+
 void Thread::_socket(Build& build,
                      const IRSource& source,
                      int domain,
@@ -1528,7 +1558,7 @@ void Thread::_socket(Build& build,
                      int protocol) noexcept {
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
-
+    WARN << "Socket called. FD: " << rc;
     if (rc >= 0) {
       auto ref = getCommand()->nextRef();
       build.socketRef(source, getCommand(), 0600, ref);

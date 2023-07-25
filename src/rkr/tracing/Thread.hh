@@ -359,6 +359,7 @@ class Thread {
                int sockfd,
                struct sockaddr* addr,
                socklen_t* addrlen) noexcept {
+    WARN << "accepting socket " << sockfd;
     _accept4(build, source, sockfd, addr, addrlen, 0);
   }
 
@@ -377,23 +378,21 @@ class Thread {
                  int flags,
                  struct sockaddr* src_addr,
                  socklen_t* addrlen) noexcept {
-    WARN << "recvfrom(2) not yet implemented. Emulating as a read. ";
+    WARN << "recvfrom(2) not yet implemented. Emulating as a read. Socket: " << sockfd;
     _read(build, source, sockfd);
   }
   void _recvmsg(Build& build,
                 const IRSource& source,
                 int sockfd,
                 struct msghdr* msg,
-                int flags) noexcept {
-    WARN << "recvmsg(2) not yet implemented. Emulating as a read. ";
-    _read(build, source, sockfd);
-  }
+                int flags) noexcept;
+
   void _sendmsg(Build& build,
                 const IRSource& source,
                 int sockfd,
                 const struct msghdr* msg,
                 int flags) {
-    WARN << "sendmsg(2) not yet implemented. Emulating as a write.";
+    WARN << "sendmsg(2) not yet implemented. Emulating as a write. Socket: " << sockfd;
     _write(build, source, sockfd);
   }
   void _sendto(Build& build,
@@ -404,7 +403,7 @@ class Thread {
                int flags,
                const struct sockaddr* dest_addr,
                socklen_t addrlen) {
-    WARN << "sendto(2) not yet implemented. Emulating as a write.";
+    WARN << "sendto(2) not yet implemented. Emulating as a write. Socket: " << sockfd;
     _write(build, source, sockfd);
   }
   void _socket(Build& build, const IRSource& source, int domain, int type, int protocol) noexcept;
@@ -493,6 +492,8 @@ class Thread {
 
     // Read a vector of strings from the thread's memory
     operator std::vector<std::string>() { return _thread->readArgvArray(_val); }
+
+    operator struct msghdr() { return _thread->readData<struct msghdr>(_val); }
 
     // Cast directly to pointer types
     template <typename T>

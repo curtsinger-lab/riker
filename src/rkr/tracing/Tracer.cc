@@ -379,6 +379,8 @@ string findLibraryOffset(pid_t pid, uintptr_t ptr) {
   return "unknown";
 }
 
+bool accepted = false;
+
 void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
   auto regs = t.getRegisters();
 
@@ -389,6 +391,11 @@ void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
 
   if (entry.isTraced()) {
     LOG(trace) << t << ": stopped on syscall " << entry.getName();
+    if (strcmp(entry.getName(), "accept") == 0 || strcmp(entry.getName(), "accept4") == 0) {
+      accepted = true;
+    }
+
+    if (accepted || (strcmp(entry.getName(), "recvmsg") == 0)) getc(stdin);
 
     if (options::syscall_stats) {
       std::stringstream ss;

@@ -214,10 +214,7 @@ void terminate() noexcept {
   // Print an error backtrace, skipping the first two entries (this function and the backtrace
   // function)
   print_backtrace(2);
-  while (1) {
-    sleep(5);
-  }
-  // In debug mode, dump core and call abort(). Otherwise just exit.
+  //   In debug mode, dump core and call abort(). Otherwise just exit.
   if (options::debug) {
     // Make sure we can save a core file
     struct rlimit limits = {.rlim_cur = RLIM_INFINITY, .rlim_max = RLIM_INFINITY};
