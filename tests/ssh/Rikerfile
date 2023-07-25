@@ -2,5 +2,5 @@
 
 
 # scp /home/furuizhe/copyTest.txt clarke:/home/furuizhe/
-ssh clarke ls
+ssh furuizhe@clarke ls
 # rsync -a /home/furuizhe/rsyncTest clarke:/home/furuizhe/

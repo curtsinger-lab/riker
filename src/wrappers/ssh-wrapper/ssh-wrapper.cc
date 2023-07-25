@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
   // and remote tracing deactivated
   // char* remote_riker_path = getenv("RKR_REMOTE_PATH");
 
-  char* remote_riker_path = "/home/zim/riker";
+  char* remote_riker_path = "/home/furuizhe/riker";
   char* remote_riker_args = "--fresh --show";
   // char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 

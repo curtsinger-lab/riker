@@ -1546,7 +1546,7 @@ void Thread::_recvmsg(Build& build,
       // Inform the artifact that the read succeeded
       ref->getArtifact()->afterRead(build, source, getCommand(), ref_id);
 
-      printf("%s\n", msg->msg_control);
+      printf("recvmsg: %s\n", (char*)(msg->msg_control));
     }
   });
 }

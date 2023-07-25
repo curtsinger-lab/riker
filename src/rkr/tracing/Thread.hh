@@ -495,6 +495,8 @@ class Thread {
 
     operator struct msghdr() { return _thread->readData<struct msghdr>(_val); }
 
+    operator struct cmsghdr() { return _thread->readData<struct cmsghdr>(_val); }
+
     // Cast directly to pointer types
     template <typename T>
     operator T*() {
