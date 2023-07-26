@@ -1540,14 +1540,33 @@ void Thread::_recvmsg(Build& build,
 
   // Finish the syscall and resume
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
-    resume();
-
     if (rc >= 0) {
       // Inform the artifact that the read succeeded
       ref->getArtifact()->afterRead(build, source, getCommand(), ref_id);
 
-      printf("recvmsg: %s\n", (char*)(msg.msg_control));
+      // access to length of cmsg to calculate number of fd in cmsg_data
+      int cmsg_len = readData<int>((uintptr_t)msg.msg_control);
+      int round = (msg.msg_controllen - cmsg_len) / sizeof(int);
+
+      // loop iteratively to add socket fd to trace
+      for (int i = 0; i < round; i++) {
+        int cmsg_data = readData<int>((uintptr_t)(msg.msg_control) + sizeof(cmsghdr));
+        bool cloexec = false;
+
+        // access cmsg level and cmsg type to check if the fd is a socket
+        int cmsg_level = readData<int>((uintptr_t)(msg.msg_control) + sizeof(size_t));
+        int cmsg_type = readData<int>((uintptr_t)(msg.msg_control) + sizeof(size_t) + sizeof(int));
+
+        // if it is a socket
+        if (cmsg_level == SOL_SOCKET && cmsg_type == SCM_RIGHTS) {
+          _process->addFD(build, source, cmsg_data, ref_id, cloexec);
+        } else {
+          WARN << "unexpected usage of recvfrom(2)" << sockfd;
+        }
+      }
     }
+
+    resume();
   });
 }
 

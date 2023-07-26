@@ -395,7 +395,7 @@ void Tracer::handleSyscall(Build& build, Thread& t) noexcept {
       accepted = true;
     }
 
-    if (accepted || (strcmp(entry.getName(), "recvmsg") == 0)) getc(stdin);
+    // if (accepted || (strcmp(entry.getName(), "recvmsg") == 0)) getc(stdin);
 
     if (options::syscall_stats) {
       std::stringstream ss;
