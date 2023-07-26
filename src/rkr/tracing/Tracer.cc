@@ -636,7 +636,7 @@ shared_ptr<Process> Tracer::launchTraced(Build& build, const shared_ptr<Command>
       }
       setenv("LD_PRELOAD", ld_preload.c_str(), 1);
     }
-    // GO HERE LATER
+
     if (options::parallel_wrapper) {
       std::string path =
           readlink("/proc/self/exe").parent_path().string() + "/../share/rkr/wrappers";

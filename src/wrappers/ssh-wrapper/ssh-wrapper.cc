@@ -22,8 +22,6 @@ int main(int argc, char* argv[]) {
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
   char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
-  std::cout << "\nget to here\n";
-
   init_path();
 
   char* command[argc + 10];  // save space for commands given + trace command
