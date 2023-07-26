@@ -1524,7 +1524,7 @@ void Thread::_accept4(Build& build,
 void Thread::_recvmsg(Build& build,
                       const IRSource& source,
                       int sockfd,
-                      struct msghdr* msg,
+                      struct msghdr msg,
                       int flags) noexcept {
   LOGF(trace, "{}: recvmsg({})", *this, sockfd);
 
@@ -1540,14 +1540,25 @@ void Thread::_recvmsg(Build& build,
 
   // Finish the syscall and resume
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
-    resume();
-
     if (rc >= 0) {
       // Inform the artifact that the read succeeded
       ref->getArtifact()->afterRead(build, source, getCommand(), ref_id);
 
-      printf("%s\n", msg->msg_control);
+      // cmsghdr testing = readData<cmsghdr>((uintptr_t)CMSG_FIRSTHDR(&msg));
+      //  unsigned char* sig = readData<unsigned char*>(uintptr_t(CMSG_DATA(&msg.msg_control)));
+      //   vector<unsigned char> actual = readTerminatedArray<unsigned char,
+      //   '\0'>((uintptr_t)(fdptr));
+      int actual = readData<int>((uintptr_t)(msg.msg_control) + sizeof(cmsghdr));
+      // readTerminatedArray<char, '\0'>(tracee_pointer)
+      bool cloexec = false;
+      _process->addFD(build, source, actual, ref_id, cloexec);
+      printf("cmsg_len: %d\n", actual);
+      // for (auto element : actual) {
+      //   std::cout << element << " ";
+      // }
+      // std::cout << "\n";
     }
+    resume();
   });
 }
 

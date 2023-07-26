@@ -196,13 +196,13 @@ int main(int argc, char* argv[]) {
     }
     if (rc2 == 0) {
       printf("Local-Secondary PID: %d\n", getpid());
-      sleep(2);
-      // TODO: make better method than sleeping to ensure ssh-primary has connected
+      // sleep(2);
+      //  TODO: make better method than sleeping to ensure ssh-primary has connected
       execvp("ssh", commands);
 
     } else {
-      sleep(2);
-      // char end_sig[10];
+      // sleep(2);
+      //  char end_sig[10];
       char buffer[2];
       buffer[1] = '\0';
       size_t count;
