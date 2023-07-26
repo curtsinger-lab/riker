@@ -384,7 +384,7 @@ class Thread {
   void _recvmsg(Build& build,
                 const IRSource& source,
                 int sockfd,
-                struct msghdr* msg,
+                struct msghdr msg,
                 int flags) noexcept;
 
   void _sendmsg(Build& build,

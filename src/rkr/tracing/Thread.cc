@@ -1524,7 +1524,7 @@ void Thread::_accept4(Build& build,
 void Thread::_recvmsg(Build& build,
                       const IRSource& source,
                       int sockfd,
-                      struct msghdr* msg,
+                      struct msghdr msg,
                       int flags) noexcept {
   LOGF(trace, "{}: recvmsg({})", *this, sockfd);
 
@@ -1546,7 +1546,7 @@ void Thread::_recvmsg(Build& build,
       // Inform the artifact that the read succeeded
       ref->getArtifact()->afterRead(build, source, getCommand(), ref_id);
 
-      printf("recvmsg: %s\n", (char*)(msg->msg_control));
+      printf("recvmsg: %s\n", (char*)(msg.msg_control));
     }
   });
 }
