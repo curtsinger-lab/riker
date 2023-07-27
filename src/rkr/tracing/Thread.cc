@@ -1503,7 +1503,6 @@ void Thread::_unlinkat(Build& build,
 }
 
 /************************ Socket Operations ************************/
-
 void Thread::_accept4(Build& build,
                       const IRSource& source,
                       int sockfd,
@@ -1512,10 +1511,15 @@ void Thread::_accept4(Build& build,
                       int flags) noexcept {
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
+
+    // Did the call succeed?
     if (rc >= 0) {
+      // Make a socket reference to get a new artifact
       auto ref = getCommand()->nextRef();
       build.socketRef(source, getCommand(), 0600, ref);
       bool cloexec = (flags & SOCK_CLOEXEC) == SOCK_CLOEXEC;
+
+      // Add the file descriptors
       _process->addFD(build, source, rc, ref, cloexec);
     }
   });
@@ -1561,7 +1565,7 @@ void Thread::_recvmsg(Build& build,
         if (cmsg_level == SOL_SOCKET && cmsg_type == SCM_RIGHTS) {
           _process->addFD(build, source, cmsg_data, ref_id, cloexec);
         } else {
-          WARN << "unexpected usage of recvfrom(2)" << sockfd;
+          WARN << "unexpected usage of recvmsg(2)" << sockfd;
         }
       }
     }
@@ -1577,11 +1581,15 @@ void Thread::_socket(Build& build,
                      int protocol) noexcept {
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
-    WARN << "Socket called. FD: " << rc;
+
+    // Did the call succeed?
     if (rc >= 0) {
+      // Make a socket reference to get a new artifact
       auto ref = getCommand()->nextRef();
       build.socketRef(source, getCommand(), 0600, ref);
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
+
+      // Add the file descriptors
       _process->addFD(build, source, rc, ref, cloexec);
     }
   });
