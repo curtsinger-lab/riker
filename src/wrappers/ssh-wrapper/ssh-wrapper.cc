@@ -67,8 +67,14 @@ int main(int argc, char* argv[]) {
   char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
+  int fdo[2];
 
   if (pipe(fds) == -1) {
+    fprintf(stderr, "Pipe Failed");
+    return 1;
+  }
+
+  if (pipe(fdo) == -1) {
     fprintf(stderr, "Pipe Failed");
     return 1;
   }
@@ -136,27 +142,34 @@ int main(int argc, char* argv[]) {
   // end the array with null
   commandp[pIndex] = (char*)NULL;
   // execute the command
-  printf("Command Primary: ");
+  // printf("Command Primary: ");
   for (int i = 0; i < pIndex; i++) {
-    printf("%s ", commandp[i]);
+    // printf("%s ", commandp[i]);
   }
-  printf("\n");
+
+  dup2(fdo[1], STDOUT_FILENO);  // send stdout to the pipe
+
+  // printf("\n");
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
-    printf("Local-Primary PID: %d\n", getpid());
+    // printf("Local-Primary PID: %d\n", getpid());
     close(fds[0]);                // close reading end in the child
     dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
     dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
 
     // printf("Here1\n");
     close(fds[1]);  // this descriptor is no longer needed
+
+    close(fdo[1]);  // Close writing end of second pipe
     // printf("Here2\n");
-    execvp_untraced("ssh", commandp);
+    execvp("ssh", commandp);
     // printf("Here3\n");
   } else if (rc1 > 0) {
     close(fds[1]);  // Close writing end of second pipe
+
+    close(fdo[1]);  // Close writing end of second pipe
 
     // Read string from child, print it and close
     // reading end.
@@ -166,9 +179,12 @@ int main(int argc, char* argv[]) {
     read(fds[0], strlength, sizeof(char));
     strlength[1] = '\0';
     read(fds[0], saved_pid, atoi(strlength));
+
+    dup2(STDOUT_FILENO, fdo[0]);  // send stdout to the pipe
+
     saved_pid[atoi(strlength)] = '\0';
-    printf("PID Length: %s\n", strlength);
-    printf("Remote Primary PID: %s\n", saved_pid);
+    // printf("PID Length: %s\n", strlength);
+    // printf("Remote Primary PID: %s\n", saved_pid);
     commands[sIndex] = strdup(saved_pid);
     sIndex++;
     if (remote_riker_args != NULL) {
@@ -184,20 +200,20 @@ int main(int argc, char* argv[]) {
       sIndex++;
     }
     commands[sIndex] = (char*)NULL;
-    printf("Command Secondary: ");
+    // printf("Command Secondary: ");
     for (int i = 0; i < sIndex; i++) {
-      printf("%s ", commands[i]);
+      // printf("%s ", commands[i]);
     }
-    printf("\n");
+    // printf("\n");
 
     int rc2 = fork();
     if (rc2 < 0) {
       fprintf(stderr, "fork failed\n");
     }
     if (rc2 == 0) {
-      printf("Local-Secondary PID: %d\n", getpid());
-      // sleep(2);
-      //  TODO: make better method than sleeping to ensure ssh-primary has connected
+      // printf("Local-Secondary PID: %d\n", getpid());
+      //  sleep(2);
+      //   TODO: make better method than sleeping to ensure ssh-primary has connected
       execvp("ssh", commands);
 
     } else {
@@ -206,14 +222,14 @@ int main(int argc, char* argv[]) {
       char buffer[2];
       buffer[1] = '\0';
       size_t count;
-      printf("Reading from prim\n");
+      // printf("Reading from prim\n");
       while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
-        printf("%s", buffer);
+        // printf("%s", buffer);
       }
 
       close(fds[0]);
       wait(NULL);
-      printf("Done?\n");
+      // printf("Done?\n");
     }
   }
   // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
