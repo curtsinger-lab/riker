@@ -28,6 +28,7 @@
 #include "versions/DirVersion.hh"
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SocketVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
 using std::list;

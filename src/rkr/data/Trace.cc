@@ -23,6 +23,7 @@
 #include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
 #include "versions/PipeVersion.hh"
+#include "versions/SocketVersion.hh"
 #include "versions/SpecialVersion.hh"
 #include "versions/SymlinkVersion.hh"
 
@@ -260,6 +261,7 @@ enum class RecordType : uint8_t {
   PipeCloseVersion = 36,
   PipeReadVersion = 37,
   SpecialVersion = 38,
+  SocketVersion = 39,
 
   // Control
   SetCommand = 64
@@ -519,6 +521,9 @@ ContentVersion::ID TraceWriter::getContentVersionID(const shared_ptr<ContentVers
 
     } else if (auto sv = v->as<SpecialVersion>(); sv) {
       emitSpecialVersion(sv);
+
+    } else if (auto sv = v->as<SocketVersion>(); sv) {
+      emitSocketVersion(sv);
 
     } else {
       FAIL << "Unrecognized version type " << v;
@@ -1346,6 +1351,46 @@ void TraceWriter::emitFileVersion(const shared_ptr<FileVersion>& v) noexcept {
                                       hash);
 }
 
+/********** SocketVersion Record **********/
+
+template <>
+struct Record<RecordType::SocketVersion> {
+  RecordType type;
+  bool is_empty : 1;
+  bool is_cached : 1;
+  bool has_mtime : 1;
+  bool has_hash : 1;
+  struct timespec mtime;
+  SocketVersion::Hash hash;
+} __attribute__((packed));
+
+// Read a SocketVersion record from the input trace
+template <>
+void TraceReader::handleRecord<RecordType::SocketVersion>(IRSink& sink) noexcept {
+  const auto& data = takeRecord<RecordType::SocketVersion>();
+
+  optional<struct timespec> mtime;
+  if (data.has_mtime) mtime = data.mtime;
+
+  optional<SocketVersion::Hash> hash;
+  if (data.has_hash) hash = data.hash;
+
+  addVersion(make_shared<SocketVersion>(data.is_empty, data.is_cached, mtime, hash));
+}
+
+// Write a SocketVersion record to the output trace
+void TraceWriter::emitSocketVersion(const shared_ptr<SocketVersion>& v) noexcept {
+  // Does the version have an mtime and/or hash?
+  bool has_mtime = v->getModificationTime().has_value();
+  auto mtime = v->getModificationTime().value_or(timespec{0, 0});
+  bool has_hash = v->getHash().has_value();
+  auto hash = v->getHash().value_or(SocketVersion::Hash());
+
+  // Emit the socket version
+  emitRecord<RecordType::SocketVersion>(v->isEmpty(), v->isCached(), has_mtime, has_hash, mtime,
+                                        hash);
+}
+
 /********** SymlinkVersion Record **********/
 
 template <>
@@ -1625,6 +1670,10 @@ void TraceReader::sendTo(IRSink& sink) noexcept {
 
       case RecordType::FileVersion:
         handleRecord<RecordType::FileVersion>(sink);
+        break;
+
+      case RecordType::SocketVersion:
+        handleRecord<RecordType::SocketVersion>(sink);
         break;
 
       case RecordType::SymlinkVersion:

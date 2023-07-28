@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 class Build;
 class ContentVersion;
 class Command;
-class FileVersion;
+class SocketVersion;
 class MetadataVersion;
 
 // TODO: Currently, socket artifact is essentially a file artifact, including not having its own
@@ -32,7 +32,7 @@ class SocketArtifact : public Artifact {
    * Create a new SocketArtifact with existing metadata and content versions. This only appropriate
    * for artifacts that exist on the socketsystem.
    */
-  SocketArtifact(MetadataVersion mv, std::shared_ptr<FileVersion> cv) noexcept;
+  SocketArtifact(MetadataVersion mv, std::shared_ptr<SocketVersion> cv) noexcept;
 
   /************ Core Artifact Operations ************/
 
@@ -130,7 +130,7 @@ class SocketArtifact : public Artifact {
 
  private:
   /// The committed and uncommitted state that represent this socket's content
-  VersionState<FileVersion> _content;
+  VersionState<SocketVersion> _content;
 };
 
 template <>

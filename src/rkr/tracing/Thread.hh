@@ -391,10 +391,7 @@ class Thread {
                 const IRSource& source,
                 int sockfd,
                 const struct msghdr* msg,
-                int flags) {
-    WARN << "sendmsg(2) not yet implemented. Emulating as a write. Socket: " << sockfd;
-    _write(build, source, sockfd);
-  }
+                int flags) noexcept;
   void _sendto(Build& build,
                const IRSource& source,
                int sockfd,

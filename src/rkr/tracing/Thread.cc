@@ -1525,6 +1525,32 @@ void Thread::_accept4(Build& build,
   });
 }
 
+void Thread::_sendmsg(Build& build,
+                      const IRSource& source,
+                      int sockfd,
+                      const struct msghdr* msg,
+                      int flags) noexcept {
+  LOGF(trace, "{}: sendmsg({})", *this, sockfd);
+
+  // Get a reference to the artifact being written
+  auto ref_id = _process->getFD(sockfd);
+  const auto& ref = getCommand()->getRef(ref_id);
+
+  // Inform the artifact that we are about to write
+  ref->getArtifact()->beforeWrite(build, source, getCommand(), ref_id);
+
+  // Finish the syscall and resume the process
+  finishSyscall([=](Build& build, const IRSource& source, long rc) {
+    resume();
+
+    // If the write syscall failed, there's no need to log a write
+    if (rc < 0) return;
+
+    // Inform the artifact that it was written
+    ref->getArtifact()->afterWrite(build, source, getCommand(), ref_id);
+  });
+}
+
 void Thread::_recvmsg(Build& build,
                       const IRSource& source,
                       int sockfd,

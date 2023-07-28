@@ -12,8 +12,8 @@
 #include "util/log.hh"
 #include "util/options.hh"
 #include "versions/ContentVersion.hh"
-#include "versions/FileVersion.hh"
 #include "versions/MetadataVersion.hh"
+#include "versions/SocketVersion.hh"
 
 using std::make_shared;
 using std::optional;
@@ -23,7 +23,7 @@ namespace fs = std::filesystem;
 
 class MetadataVersion;
 
-SocketArtifact::SocketArtifact(MetadataVersion mv, shared_ptr<FileVersion> cv) noexcept :
+SocketArtifact::SocketArtifact(MetadataVersion mv, shared_ptr<SocketVersion> cv) noexcept :
     Artifact(mv) {
   _content.update(cv);
   appendVersion(cv);
@@ -268,7 +268,7 @@ void SocketArtifact::afterWrite(Build& build,
                                 const shared_ptr<Command>& c,
                                 Ref::ID ref) noexcept {
   // Create a new version
-  auto writing = make_shared<FileVersion>();
+  auto writing = make_shared<SocketVersion>();
 
   // The command wrote to this socket
   build.updateContent(source, c, ref, writing);
@@ -288,7 +288,7 @@ void SocketArtifact::afterTruncate(Build& build,
                                    const shared_ptr<Command>& c,
                                    Ref::ID ref) noexcept {
   // The command wrote an empty content version to this artifact
-  auto written = make_shared<FileVersion>();
+  auto written = make_shared<SocketVersion>();
   written->makeEmptyFingerprint();
 
   build.updateContent(source, c, ref, written);
@@ -344,7 +344,7 @@ void SocketArtifact::updateContent(const shared_ptr<Command>& c,
                                    shared_ptr<ContentVersion> writing) noexcept {
   // Add the new version to this artifact
   appendVersion(writing);
-  auto fv = writing->as<FileVersion>();
+  auto fv = writing->as<SocketVersion>();
 
   FAIL_IF(!fv) << "Attempted to apply version " << writing << " to socket artifact " << this;
 

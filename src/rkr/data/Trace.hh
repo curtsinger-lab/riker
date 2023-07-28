@@ -20,6 +20,7 @@ class PipeWriteVersion;
 class PipeCloseVersion;
 class PipeReadVersion;
 class SpecialVersion;
+class SocketVersion;
 
 enum class RecordType : uint8_t;
 
@@ -357,6 +358,9 @@ class TraceWriter : public IRSink {
 
   /// Emit a file version to the trace
   void emitFileVersion(const std::shared_ptr<FileVersion>& v) noexcept;
+
+  /// Emit a socket version to the trace
+  void emitSocketVersion(const std::shared_ptr<SocketVersion>& v) noexcept;
 
   /// Emit a symlink version to the trace
   void emitSymlinkVersion(const std::shared_ptr<SymlinkVersion>& v) noexcept;
