@@ -73,13 +73,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int fdi[2];
-
-  if (pipe(fdi) == -1) {
-    fprintf(stderr, "Pipe Failed");
-    return 1;
-  }
-
   init_path();
 
   char* commandp[argc + 10];  // save space for commands given for primary
@@ -155,11 +148,9 @@ int main(int argc, char* argv[]) {
   } else if (rc1 == 0) {
     // printf("Local-Primary PID: %d\n", getpid());
 
-    close(fdi[0]);
     close(fds[0]);                // close reading end in the child
     dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
     dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
-    dup2(fdi[1], STDIN_FILENO);
 
     // printf("Here1\n");
     close(fds[1]);  // this descriptor is no longer needed
@@ -169,8 +160,6 @@ int main(int argc, char* argv[]) {
     // printf("Here3\n");
   } else if (rc1 > 0) {
     close(fds[1]);  // Close writing end of second pipe
-    close(fdi[1]);  // Close writing end of second pipe
-
     // Read string from child, print it and close
     // reading end.
 
@@ -221,9 +210,9 @@ int main(int argc, char* argv[]) {
       buffer[1] = '\0';
       size_t count;
       // printf("Reading from prim\n");
-      while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
-        // printf("%s", buffer);
-      }
+      // while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
+      // printf("%s", buffer);
+      //}
 
       close(fds[0]);
       wait(NULL);

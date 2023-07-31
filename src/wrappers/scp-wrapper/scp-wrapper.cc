@@ -23,19 +23,30 @@ int main(int argc, char** argv) {
   init_path();
 
   // Can also use /usr/bin/ssh if slogin is not available
-  std::string commandbuild = "scp";
+  char* command[argc + 3];
+  int index = 1;
 
+  command[0] = strdup("scp");
+
+  string pathbuild = riker_path + "/ssh";
   // Use option -S to use riker's ssh instead of scp's auto use of system ssh
   if (getenv("RKR_REMOTE_PATH") != NULL) {
-    commandbuild = commandbuild + " -S " + riker_path + "/ssh";
+    command[1] = strdup("-S");
+    command[2] = strdup(pathbuild.c_str());
+    index += 2;
   }
-
   // TODO: Allow multiple command line arguments for scp
-  for (int i = 1; i < argc; ++i) commandbuild = commandbuild + " " + argv[i];
+  for (int i = 1; i < argc; ++i) {
+    command[index] = strdup(argv[i]);
+    index++;
+  }
+  command[index] = (char*)NULL;
+  execvp("scp", command);
 
-  const char* command = commandbuild.c_str();
-  // TODO: Switch this to an exec call with PATH handling
-  system(command);
+  printf("here\n");
+  for (int i = 0; i < index; i++) {
+    free(command[i]);
+  }
 
   return 0;
 }
