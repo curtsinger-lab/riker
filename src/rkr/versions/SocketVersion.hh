@@ -62,7 +62,7 @@ class SocketVersion final : public ContentVersion {
   virtual bool matches(std::shared_ptr<ContentVersion> other) noexcept override;
 
   /// Can a write of this version be coalesced with another?
-  virtual bool canCoalesceWith(std::shared_ptr<ContentVersion> other) const noexcept override;
+  // virtual bool canCoalesceWith(std::shared_ptr<ContentVersion> other) const noexcept override;
 
   /// Pretty printer
   virtual std::ostream& print(std::ostream& o) const noexcept override;

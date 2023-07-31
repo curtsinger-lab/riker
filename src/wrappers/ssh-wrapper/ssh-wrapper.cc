@@ -146,7 +146,8 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
     printf("Local-Primary PID: %d\n", getpid());
-    close(fds[0]);                // close reading end in the child
+    close(fds[0]);  // close reading end in the child
+    sleep(3);
     dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
     dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
 

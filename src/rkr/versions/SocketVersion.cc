@@ -445,6 +445,7 @@ bool SocketVersion::matches(shared_ptr<ContentVersion> other) noexcept {
   return false;
 }
 
+/*
 bool operator!=(const struct timespec& t1, const struct timespec& t2) noexcept {
   return t1.tv_sec != t2.tv_sec || t1.tv_nsec != t2.tv_nsec;
 }
@@ -467,3 +468,4 @@ bool SocketVersion::canCoalesceWith(std::shared_ptr<ContentVersion> other) const
   // Allow write coalescing
   return true;
 }
+*/
