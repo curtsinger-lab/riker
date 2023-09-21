@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -140,7 +141,8 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < pIndex; i++) {
     // printf("%s ", commandp[i]);
   }
-
+  int null_space = open("/dev/null", O_WRONLY);
+  dup2(null_space, STDIN_FILENO);
   // printf("\n");
   int rc1 = fork();
   if (rc1 < 0) {
@@ -219,8 +221,9 @@ int main(int argc, char* argv[]) {
       // printf("Done?\n");
     }
   }
-  // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone has
-  // their own index values?
+  close(null_space);
+  // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone
+  // has their own index values?
   for (int i = 0; i < pIndex; i++) {
     free(commandp[i]);
   }

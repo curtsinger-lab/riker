@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   init_path();
 
   // Can also use /usr/bin/ssh if slogin is not available
-  char* command[argc + 3];
+  char* command[argc + 4];
   int index = 1;
 
   command[0] = strdup("scp");
