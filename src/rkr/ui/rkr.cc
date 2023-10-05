@@ -185,7 +185,6 @@ int main(int argc, char* argv[]) noexcept {
 
   remote->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
-  bool refresh = false;
   remote->add_flag("--fresh", refresh, "Run full remote build");
 
   // Flags to turn the parallel compiler wrapper on/off
