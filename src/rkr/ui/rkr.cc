@@ -185,7 +185,6 @@ int main(int argc, char* argv[]) noexcept {
 
   remote->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
-  bool refresh = false;
   remote->add_flag("--fresh", refresh, "Run full remote build");
 
   // Flags to turn the parallel compiler wrapper on/off
@@ -203,18 +202,12 @@ int main(int argc, char* argv[]) noexcept {
       // Hide the --no-wrapper flag if it is disabled by default
       ->group(options::parallel_wrapper ? "Options" : "");
 
-  string command_output = "-";
   remote->add_option("-o,--output", command_output,
                      "Output file where commands should be printed (default: -)");
 
   // Flags for rkr with remote connections
 
-  optional<string> remote_path;
-  remote->add_option("-r,--remote", remote_path, "Path to riker on remote system");
-
-  /************* Audit Subcommand *************/
-  auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
-
+  remote->add_option("-r,--remote", remote_path, "Path do_remote
   audit->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
 
@@ -258,20 +251,27 @@ int main(int argc, char* argv[]) noexcept {
 
   // build subcommand
   build->final_callback(
-      [&] { do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+      [&] {
+    do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
   // remote subcommand
   remote->final_callback(
-      [&] { do_remote(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+      [&] {
+    do_remote(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
   // audit subcommand
-  audit->final_callback([&] { do_audit(args, command_output); });
+  audit->final_callback([&] {
+    do_audit(args, command_output); });
   // check subcommand
-  check->final_callback([&] { do_check(args); });
+  check->final_callback([&] {
+    do_check(args); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output); });
+  trace->final_callback([&] {
+    do_trace(args, trace_output); });
   // graph subcommand
-  graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
+  graph->final_callback([&] {
+    do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand
-  stats->final_callback([&] { do_stats(args, list_artifacts); });
+  stats->final_callback([&] {
+    do_stats(args, list_artifacts); });
 
   /************* Argument Parsing *************/
 
