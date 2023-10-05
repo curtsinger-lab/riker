@@ -166,6 +166,52 @@ int main(int argc, char* argv[]) noexcept {
   optional<string> remote_path;
   build->add_option("-r,--remote", remote_path, "Path to riker on remote system");
 
+  /************* Remote Subcommand *************/
+  auto remote = app.add_subcommand("remote", "Perform a remote build (default)");
+
+  remote->add_flag("--show", options::print_on_run, "Show commands as they are run");
+
+  remote->add_flag_callback(
+      "--show-full",
+      [] {
+        options::print_on_run = true;
+        options::print_full = true;
+      },
+      "Show complete command lines for all commands as they run");
+
+  remote->add_flag_callback(
+      "--no-inject", []() { options::inject_tracing_lib = false; },
+      "Do not inject the faster shared memory tracing library");
+
+  remote->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
+
+  bool refresh = false;
+  remote->add_flag("--fresh", refresh, "Run full remote build");
+
+  // Flags to turn the parallel compiler wrapper on/off
+  remote
+      ->add_flag_callback(
+          "--wrapper", []() { options::parallel_wrapper = true; },
+          "Wrap C/C++ compilers for parallel separate compilation")
+      // Hide the --wrapper flag if it is enabled by default
+      ->group(options::parallel_wrapper ? "" : "Options");
+
+  remote
+      ->add_flag_callback(
+          "--no-wrapper", []() { options::parallel_wrapper = false; },
+          "Do not wrap C/C++ compilers for parallel separate compilation")
+      // Hide the --no-wrapper flag if it is disabled by default
+      ->group(options::parallel_wrapper ? "Options" : "");
+
+  string command_output = "-";
+  remote->add_option("-o,--output", command_output,
+                     "Output file where commands should be printed (default: -)");
+
+  // Flags for rkr with remote connections
+
+  optional<string> remote_path;
+  remote->add_option("-r,--remote", remote_path, "Path to riker on remote system");
+
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
 
@@ -213,6 +259,9 @@ int main(int argc, char* argv[]) noexcept {
   // build subcommand
   build->final_callback(
       [&] { do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+  // remote subcommand
+  remote->final_callback(
+      [&] { do_remote(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
