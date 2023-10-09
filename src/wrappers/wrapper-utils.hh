@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <optional>
 #include <string>
@@ -16,11 +17,8 @@ using std::vector;
 /// Keep a vector of entries in the PATH environment variable
 vector<string> path;
 
-/// Is this a wrapper around clang?
-bool is_clang = false;
-
-// STOLEN from wrapper.cc
-void init_path() {
+// Moves working path out of riker. Originally created in compiler-wrapper.
+static void init_path() {
   std::string newpath = "";
 
   if (char* path_str = getenv("PATH"); path_str != NULL) {
@@ -53,30 +51,4 @@ void init_path() {
 
   // Update the PATH environment variable
   setenv("PATH", newpath.c_str(), 1);
-}
-
-int main(int argc, char** argv) {
-  string full_path = getenv("PATH");
-  size_t sep = full_path.find(':', 0);
-  string riker_path = full_path.substr(0, sep);
-  printf("path: %s\n", riker_path.c_str());
-
-  init_path();
-
-  // Can also use /usr/bin/ssh if slogin is not available
-  std::string commandbuild = "scp";
-
-  // Use option -S to use riker's ssh instead of scp's auto use of system ssh
-  if (getenv("RKR_REMOTE_PATH") != NULL) {
-    commandbuild = commandbuild + " -S " + riker_path + "/ssh";
-  }
-
-  // TODO: Allow multiple command line arguments for scp
-  for (int i = 1; i < argc; ++i) commandbuild = commandbuild + " " + argv[i];
-
-  const char* command = commandbuild.c_str();
-  // TODO: Switch this to an exec call with PATH handling
-  system(command);
-
-  return 0;
 }

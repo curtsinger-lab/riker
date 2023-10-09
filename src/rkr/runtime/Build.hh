@@ -72,6 +72,12 @@ class Build : public IRSink {
                        mode_t mode,
                        Ref::ID output) noexcept override;
 
+  /// A command references a new socket
+  virtual void socketRef(const IRSource& source,
+                         const std::shared_ptr<Command>& c,
+                         mode_t mode,
+                         Ref::ID output) noexcept override;
+
   /// A command references a new anonymous symlink
   virtual void symlinkRef(const IRSource& source,
                           const std::shared_ptr<Command>& c,

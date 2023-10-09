@@ -14,6 +14,7 @@ class Command;
 class DirArtifact;
 class PipeArtifact;
 class SymlinkArtifact;
+class SocketArtifact;
 
 /**
  * The env namespace holds all of the operations that can be performed on the model of the
@@ -90,4 +91,15 @@ namespace env {
    */
   std::shared_ptr<Artifact> createFile(const std::shared_ptr<Command>& creator,
                                        mode_t mode) noexcept;
+
+  /**
+   * Create a socket artifact
+   * \param creator   The command that creates this socket
+   * \param mode      The permission bits to be set on the new socket (will be modified by umask)
+   * \param committed If true, the socket is already committed
+   * \returns a socket artifact
+   */
+  std::shared_ptr<Artifact> createSocket(const std::shared_ptr<Command>& creator,
+                                         mode_t mode) noexcept;
+
 }

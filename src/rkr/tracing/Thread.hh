@@ -361,7 +361,7 @@ class Thread {
                  int flags,
                  struct sockaddr* src_addr,
                  socklen_t* addrlen) noexcept {
-    WARN << "recvfrom(2) not yet implemented. Emulating as a read.";
+    WARN << "recvfrom(2) not yet implemented. Emulating as a read. ";
     _read(build, source, sockfd);
   }
   void _recvmsg(Build& build,
@@ -369,7 +369,7 @@ class Thread {
                 int sockfd,
                 struct msghdr* msg,
                 int flags) noexcept {
-    FAIL << "recvmsg(2) not yet implemented. Emulating as a read.";
+    FAIL << "recvmsg(2) not yet implemented. Emulating as a read. ";
     _read(build, source, sockfd);
   }
   void _sendmsg(Build& build,

@@ -1523,14 +1523,12 @@ void Thread::_socket(Build& build,
                      int domain,
                      int type,
                      int protocol) noexcept {
-  WARN << "socket(2) not yet implemented. Emulating as an anonymous file.";
-
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
     resume();
 
     if (rc >= 0) {
       auto ref = getCommand()->nextRef();
-      build.fileRef(source, getCommand(), 0600, ref);
+      build.socketRef(source, getCommand(), 0600, ref);
       bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
       _process->addFD(build, source, rc, ref, cloexec);
     }
@@ -1557,9 +1555,9 @@ void Thread::_socketpair(Build& build,
         // Are the sockets closed on exec?
         bool cloexec = (type & SOCK_CLOEXEC) == SOCK_CLOEXEC;
 
-        // Create an anonymous file to represent the socket
+        // Create a socket representation
         auto ref = getCommand()->nextRef();
-        build.fileRef(source, getCommand(), 0600, ref);
+        build.socketRef(source, getCommand(), 0600, ref);
 
         // Add the file descriptors
         _process->addFD(build, source, sock1_fd, ref, cloexec);

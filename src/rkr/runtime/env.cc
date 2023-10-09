@@ -18,6 +18,7 @@
 #include "artifacts/DirArtifact.hh"
 #include "artifacts/FileArtifact.hh"
 #include "artifacts/PipeArtifact.hh"
+#include "artifacts/SocketArtifact.hh"
 #include "artifacts/SpecialArtifact.hh"
 #include "artifacts/SymlinkArtifact.hh"
 #include "runtime/Command.hh"
@@ -65,13 +66,19 @@ namespace env {
   }
 
   // Fingerprint and cache any versions on the filesystem
-  void cacheAll() noexcept { getRootDir()->cacheAll("/"); }
+  void cacheAll() noexcept {
+    getRootDir()->cacheAll("/");
+  }
 
   // Commit all changes to the filesystem
-  void commitAll() noexcept { getRootDir()->applyFinalState("/"); }
+  void commitAll() noexcept {
+    getRootDir()->applyFinalState("/");
+  }
 
   // Get the set of all artifacts
-  const list<weak_ptr<Artifact>>& getArtifacts() noexcept { return _artifacts; }
+  const list<weak_ptr<Artifact>>& getArtifacts() noexcept {
+    return _artifacts;
+  }
 
   shared_ptr<Artifact> getStdin(const shared_ptr<Command>& c) noexcept {
     if (!_stdin) {
@@ -327,6 +334,32 @@ namespace env {
     artifact->updateContent(c, cv);
 
     // Observe output to metadata and content for the new file
+    c->addContentOutput(artifact, cv);
+
+    _artifacts.push_back(artifact);
+    stats::artifacts++;
+
+    return artifact;
+  }
+
+  shared_ptr<Artifact> createSocket(const shared_ptr<Command>& c, mode_t mode) noexcept {
+    // Create uid, gid, and mode values for this new socket
+    uid_t uid = getuid();
+    gid_t gid = getgid();
+    mode_t stat_mode = S_IFSOCK | (mode & 0777);
+
+    // Create an initial content version
+    auto cv = make_shared<FileVersion>();
+    cv->makeEmptyFingerprint();
+
+    // Create the artifact and return it
+    auto artifact = make_shared<SocketArtifact>();
+
+    // Set the metadata and content for the new socket artifact
+    artifact->updateMetadata(c, MetadataVersion(uid, gid, stat_mode));
+    artifact->updateContent(c, cv);
+
+    // Observe output to metadata and content for the new socket
     c->addContentOutput(artifact, cv);
 
     _artifacts.push_back(artifact);
