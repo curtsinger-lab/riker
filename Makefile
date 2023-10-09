@@ -93,9 +93,9 @@ release: $(RELEASE_DIR)/bin/rkr \
          $(RELEASE_DIR)/bin/rkr-launch \
          $(RELEASE_DIR)/share/rkr/rkr-inject.so \
          $(RELEASE_WRAPPERS) \
-		 $(RELEASE_DIR)/share/rkr/wrappers/ssh \
-		 $(RELEASE_DIR)/share/rkr/wrappers/scp \
-		 $(RELEASE_DIR)/share/rkr/remote-trace
+		 		 $(RELEASE_DIR)/share/rkr/wrappers/ssh \
+		 		 $(RELEASE_DIR)/share/rkr/wrappers/scp \
+		 		 $(RELEASE_DIR)/share/rkr/remote-trace
 
 install: install-debug
 
