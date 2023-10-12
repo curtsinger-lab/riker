@@ -25,6 +25,10 @@ DefaultTrace::DefaultTrace(vector<string> args) noexcept :
     _root_command(make_shared<Command>()), _args(args) {}
 
 void DefaultTrace::sendTo(IRSink& handler) noexcept {
+  sendToHelp(handler, "rkr-launch");
+}
+
+void DefaultTrace::sendToHelp(IRSink& handler, std::string passed_root_command) noexcept {
   // Send the root command
   handler.start(_root_command);
 
@@ -53,7 +57,7 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
   handler.usingRef(*this, _root_command, Ref::Exe);
 
   // Create a rkr-build command
-  auto cmd_args = vector<string>{"rkr-launch"};
+  auto cmd_args = vector<string>{passed_root_command};
   cmd_args.insert(cmd_args.end(), _args.begin(), _args.end());
   auto rkr_build_cmd = make_shared<Command>(cmd_args);
 
