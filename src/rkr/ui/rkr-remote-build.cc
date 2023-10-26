@@ -171,6 +171,13 @@ void do_remote(vector<string> args,
     LOG(phase) << "Finished post-build checks";
   }
 
+  // Print binary trace to file if requested
+  if (binary_output != "-") {
+    // const auto copyOptions = fs::copy_options::overwrite_existing;
+    std::filesystem::copy(constants::DatabaseFilename, binary_output,
+                          std::filesystem::copy_options::overwrite_existing);
+  }
+
   gather_stats(stats_log_path, stats, iteration);
   write_stats(stats_log_path, stats);
 

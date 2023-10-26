@@ -165,9 +165,11 @@ void do_build(vector<string> args,
     LOG(phase) << "Finished post-build checks";
   }
 
-  // Set up an ostream to print to if necessary
+  // Print binary trace to file if requested
   if (binary_output != "-") {
-    std::filesystem::copy(constants::DatabaseFilename, binary_output);
+    // const auto copyOptions = fs::copy_options::overwrite_existing;
+    std::filesystem::copy(constants::DatabaseFilename, binary_output,
+                          std::filesystem::copy_options::overwrite_existing);
   }
 
   gather_stats(stats_log_path, stats, iteration);
