@@ -33,6 +33,7 @@ using std::vector;
 void do_build(vector<string> args,
               optional<fs::path> stats_log_path,
               string command_output,
+              string binary_output,
               bool refresh,
               optional<string> remote_path,
               string remote_flags) noexcept {
@@ -162,6 +163,11 @@ void do_build(vector<string> args,
     input.sendTo(build);
 
     LOG(phase) << "Finished post-build checks";
+  }
+
+  // Set up an ostream to print to if necessary
+  if (binary_output != "-") {
+    std::filesystem::copy(constants::DatabaseFilename, binary_output);
   }
 
   gather_stats(stats_log_path, stats, iteration);

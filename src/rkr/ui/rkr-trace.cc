@@ -17,7 +17,7 @@ using std::vector;
  * Run the `trace` subcommand
  * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(vector<string> args, string output) noexcept {
+void do_trace(vector<string> args, string output, string trace_binary) noexcept {
   auto trace = TraceReader::load(constants::DatabaseFilename);
   FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
 

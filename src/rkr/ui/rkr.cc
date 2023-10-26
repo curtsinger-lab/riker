@@ -161,6 +161,10 @@ int main(int argc, char* argv[]) noexcept {
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
 
+  string command_binary = "-";
+  build->add_option("-b,--bin, --binary", command_binary,
+                    "Output file where binary trace should be printed (default: -)");
+
   // Flags for rkr with remote connections
 
   optional<string> remote_path;
@@ -205,6 +209,9 @@ int main(int argc, char* argv[]) noexcept {
   remote->add_option("-o,--output", command_output,
                      "Output file where commands should be printed (default: -)");
 
+  remote->add_option("-b,--bin,--binary", command_binary,
+                     "Output file where binary trace should be printed (default: -)");
+
   // Flags for rkr with remote connections
 
   remote->add_option("-r,--remote", remote_path, "Path do_remote");
@@ -219,9 +226,12 @@ int main(int argc, char* argv[]) noexcept {
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
+  string trace_binary = "-";
 
   auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
+  trace->add_option("-b, --bin, --binary", trace_binary,
+                    "Output file for the binary trace (default: -)");
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -253,17 +263,19 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback(
-      [&] { do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+  build->final_callback([&] {
+    do_build(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
+  });
   // remote subcommand
-  remote->final_callback(
-      [&] { do_remote(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+  remote->final_callback([&] {
+    do_remote(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
+  });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output); });
+  trace->final_callback([&] { do_trace(args, trace_output, trace_binary); });
   // graph subcommand
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand

@@ -33,6 +33,7 @@ using std::vector;
 void do_remote(vector<string> args,
                optional<fs::path> stats_log_path,
                string command_output,
+               string binary_output,
                bool refresh,
                optional<string> remote_path,
                string remote_flags) noexcept {
@@ -46,6 +47,12 @@ void do_remote(vector<string> args,
   unique_ptr<ostream> print_to;
   if (command_output != "-") {
     print_to = make_unique<ofstream>(command_output);
+  }
+
+  // Set up an ostream to print binary to if necessary
+  unique_ptr<ostream> binary_to;
+  if (binary_output != "-") {
+    binary_to = make_unique<ofstream>(binary_output);
   }
 
   // Build stats
