@@ -227,11 +227,13 @@ int main(int argc, char* argv[]) noexcept {
   /************* Trace Subcommand *************/
   string trace_output = "-";
   string trace_binary = "-";
+  string trace_read = "-";
 
   auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
   trace->add_option("-b, --bin, --binary", trace_binary,
                     "Output file for the binary trace (default: -)");
+  trace->add_option("--read", trace_read, "File to manually read binary trace from");
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -275,7 +277,7 @@ int main(int argc, char* argv[]) noexcept {
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output, trace_binary); });
+  trace->final_callback([&] { do_trace(args, trace_output, trace_binary, trace_read); });
   // graph subcommand
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand

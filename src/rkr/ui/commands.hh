@@ -27,7 +27,10 @@ void do_audit(std::vector<std::string> args, std::string command_output) noexcep
 
 void do_check(std::vector<std::string> args) noexcept;
 
-void do_trace(std::vector<std::string> args, std::string output, std::string trace_binary) noexcept;
+void do_trace(std::vector<std::string> args,
+              std::string output,
+              std::string trace_binary,
+              std::string trace_read) noexcept;
 
 void do_graph(std::vector<std::string> args,
               std::string output,

@@ -17,8 +17,18 @@ using std::vector;
  * Run the `trace` subcommand
  * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(vector<string> args, string output, string trace_binary) noexcept {
-  auto trace = TraceReader::load(constants::DatabaseFilename);
+void do_trace(vector<string> args, string output, string trace_binary, string trace_read) noexcept {
+  fs::path pathname;
+
+  // if (args.size() > 1 && args[2][0] != '-') {
+  if (trace_read != "-") {
+    pathname = trace_read;
+  } else {
+    pathname = constants::DatabaseFilename;
+  }
+
+  auto trace = TraceReader::load(pathname);
+
   FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";
 
   // Print binary trace to file if requested
