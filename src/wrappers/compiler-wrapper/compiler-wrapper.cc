@@ -27,6 +27,10 @@ typedef int (*execve_fn_t)(const char*, char* const*, char* const*);
 
 /// Make an untraced execve system call.
 int execv_untraced(const char* pathname, char* const* argv) {
+  if (access(pathname, R_OK | X_OK)) {
+    return -1;
+  }
+
   // Try to get the untrace execve function from the injected library
   static execve_fn_t _fn = reinterpret_cast<execve_fn_t>(dlsym(RTLD_NEXT, "execve_untraced"));
 
@@ -139,6 +143,12 @@ optional<int> compile(vector<string>& args, vector<string>& tempfiles) {
     } else if (arg == "-c") {
       // This is a compilation command, not a full linking command
       compile_flag = true;
+
+    } else if (arg == "-MT" || arg == "-MF") {
+      // Keep dependency generation arguments with file parameters intact
+      compile_args.push_back(arg);
+      arg_iter++;
+      compile_args.push_back(*arg_iter);
 
     } else if (has_prefix(arg, {"-l", "-L"}) || one_of(arg, {"-shared", "-fstandalone-debug"})) {
       // Skip linker arguments
@@ -289,6 +299,12 @@ optional<int> link(vector<string> args, vector<string>& tempfiles) {
 int main(int argc, char* argv[]) {
   // Process the PATH environment variable. Remove this wrapper from the PATH.
   init_path();
+
+  // Was the wrapper invoked via path?
+  // If so, revert to executable name so PATH resolution will find the real compiler
+  if (strchr(argv[0], '/') != NULL) {
+    argv[0] = strrchr(argv[0], '/') + 1;
+  }
 
   // Make a vector of args
   vector<string> args(argv, argv + argc);
