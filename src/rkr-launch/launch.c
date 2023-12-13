@@ -9,6 +9,26 @@
 #define ShellCommand "/bin/sh"
 
 int main(int argc, char** argv) {
+  if (argc > 1) {
+    // First, build a new argv array that starts with /bin/sh
+    char* new_argv[argc + 2];
+    new_argv[0] = ShellCommand;
+
+    // Copy the original arguments, including the NULL terminator at argv[argc]
+    for (int i = 2; i <= argc; i++) {
+      new_argv[i] = argv[i - 1];
+    }
+    new_argv[1] = "-c";
+
+    // for (int i = 0; i <= argc; i++) {
+    //   printf("Parameter %d: %s\n", i, new_argv[i]);
+    // }
+
+    execv(ShellCommand, new_argv);
+
+    return 0;
+  }
+
   // First, try to execute the root build file
   argv[0] = Buildfile;
   execv(Buildfile, argv);
