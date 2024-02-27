@@ -49,6 +49,12 @@ void do_build(vector<string> args,
     print_to = make_unique<ofstream>(command_output);
   }
 
+  // Set up an ostream to print binary to if necessary
+  unique_ptr<ostream> binary_to;
+  if (binary_output != "-") {
+    binary_to = make_unique<ofstream>(binary_output);
+  }
+
   // Build stats
   optional<string> stats;
 

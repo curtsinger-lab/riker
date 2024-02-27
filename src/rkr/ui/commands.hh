@@ -15,14 +15,6 @@ void do_build(std::vector<std::string> args,
               std::optional<std::string> remote_path,
               std::string remote_flags) noexcept;
 
-void do_remote(std::vector<std::string> args,
-               std::optional<fs::path> stats_log_path,
-               std::string command_output,
-               std::string binary_output,
-               bool refresh,
-               std::optional<std::string> remote_path,
-               std::string remote_flags) noexcept;
-
 void do_audit(std::vector<std::string> args, std::string command_output) noexcept;
 
 void do_check(std::vector<std::string> args) noexcept;

@@ -28,6 +28,7 @@ void DefaultTrace::sendTo(IRSink& handler) noexcept {
   sendToHelp(handler, "rkr-launch");
 }
 
+// Currently unused by itself, allows passing of commands other than "rkr-launch"
 void DefaultTrace::sendToHelp(IRSink& handler, string passed_root_command) noexcept {
   // Send the root command
   handler.start(_root_command);
