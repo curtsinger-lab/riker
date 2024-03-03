@@ -213,49 +213,6 @@ int main(int argc, char* argv[]) noexcept {
   run->add_option("-b,--bin, --binary", command_binary,
                   "Output file where binary trace should be printed (default: -)");
 
-  /************* Run Subcommand *************/
-  auto run = app.add_subcommand("run", "Run a set of commands given in the command line");
-
-  // TODO: Require user to use this option if they use run subcommand
-  optional<string> run_commands;
-  // Create a positional option for the program we want to run
-  run->add_option("c", run_commands, "Commands to run");
-
-  run->add_flag("--show", options::print_on_run, "Show commands as they are run");
-
-  run->add_flag_callback(
-      "--show-full",
-      [] {
-        options::print_on_run = true;
-        options::print_full = true;
-      },
-      "Show complete command lines for all commands as they run");
-
-  run->add_flag_callback(
-      "--no-inject", []() { options::inject_tracing_lib = false; },
-      "Do not inject the faster shared memory tracing library");
-
-  run->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
-
-  // Flags to turn the parallel compiler wrapper on/off
-  run->add_flag_callback(
-         "--wrapper", []() { options::parallel_wrapper = true; },
-         "Wrap C/C++ compilers for parallel separate compilation")
-      // Hide the --wrapper flag if it is enabled by default
-      ->group(options::parallel_wrapper ? "" : "Options");
-
-  run->add_flag_callback(
-         "--no-wrapper", []() { options::parallel_wrapper = false; },
-         "Do not wrap C/C++ compilers for parallel separate compilation")
-      // Hide the --no-wrapper flag if it is disabled by default
-      ->group(options::parallel_wrapper ? "Options" : "");
-
-  run->add_option("-o,--output", command_output,
-                  "Output file where commands should be printed (default: -)");
-
-  run->add_option("-b,--bin, --binary", command_binary,
-                  "Output file where binary trace should be printed (default: -)");
-
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
   audit->add_option("-o,--output", command_output,
