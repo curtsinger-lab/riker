@@ -9,8 +9,9 @@
 #define ShellCommand "/bin/sh"
 
 int main(int argc, char** argv) {
+    // If multiple arguments are passed to launch, which is the case for the "run" subcommand
   if (argc > 1) {
-    // First, build a new argv array that starts with /bin/sh
+    // First, build a new argv array for the shell command
     char* new_argv[argc + 2];
     new_argv[0] = ShellCommand;
 
@@ -19,10 +20,6 @@ int main(int argc, char** argv) {
       new_argv[i] = argv[i - 1];
     }
     new_argv[1] = "-c";
-
-    // for (int i = 0; i <= argc; i++) {
-    //   printf("Parameter %d: %s\n", i, new_argv[i]);
-    // }
 
     execv(ShellCommand, new_argv);
 

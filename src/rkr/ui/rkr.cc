@@ -217,7 +217,7 @@ int main(int argc, char* argv[]) noexcept {
   remote->add_option("-r,--remote", remote_path, "Path do_remote");
 
   /************* Run Subcommand *************/
-  auto run = app.add_subcommand("run", "Run a set of commands");
+  auto run = app.add_subcommand("run", "Run a set of commands given in the command line");
 
   // TODO: Require user to use this option if they use run subcommand
   optional<string> run_commands;

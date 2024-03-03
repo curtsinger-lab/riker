@@ -34,16 +34,15 @@ void do_run(vector<string> args,
             optional<fs::path> stats_log_path,
             string command_output,
             string binary_output,
-            optional<string> remaining_str) noexcept {
+            optional<string> run_commands) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
 
-  // remaining = {"ls -a; ls"};
-
+  // Save the commands passed for riker to run
   vector<string> remaining;
 
-  if (remaining_str.has_value()) {
-    remaining.push_back(remaining_str.value());
+  if (run_commands.has_value()) {
+    remaining.push_back(run_commands.value());
   }
 
   // Also ensure that the cache directory exists
@@ -69,10 +68,6 @@ void do_run(vector<string> args,
 
   // The input TraceReader will supply the trace to each phase except the first
   TraceReader input;
-
-  // if (!args.empty()) {
-  // std::printf("Args: %s\n", ((string)args[0]).c_str());
-  // }
 
   // Keep track of the root command
   shared_ptr<Command> root_cmd;
