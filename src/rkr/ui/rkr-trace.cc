@@ -20,7 +20,7 @@ using std::vector;
 void do_trace(vector<string> args, string output, string trace_binary, string trace_read) noexcept {
   fs::path pathname;
 
-  // if (args.size() > 1 && args[2][0] != '-') {
+  // Check if a path was passed to read from, otherwise, read from current directory.
   if (trace_read != "-") {
     pathname = trace_read;
   } else {

@@ -170,12 +170,17 @@ int main(int argc, char* argv[]) noexcept {
   optional<string> remote_path;
   build->add_option("-r,--remote", remote_path, "Path to riker on remote system");
 
-  /************* Remote Subcommand *************/
-  auto remote = app.add_subcommand("remote", "Perform a remote build (default)");
+  /************* Run Subcommand *************/
+  auto run = app.add_subcommand("run", "Run a set of commands given in the command line");
 
-  remote->add_flag("--show", options::print_on_run, "Show commands as they are run");
+  // TODO: Require user to use this option if they use run subcommand
+  optional<string> run_commands;
+  // Create a positional option for the program we want to run
+  run->add_option("c", run_commands, "Commands to run");
 
-  remote->add_flag_callback(
+  run->add_flag("--show", options::print_on_run, "Show commands as they are run");
+
+  run->add_flag_callback(
       "--show-full",
       [] {
         options::print_on_run = true;
@@ -183,38 +188,30 @@ int main(int argc, char* argv[]) noexcept {
       },
       "Show complete command lines for all commands as they run");
 
-  remote->add_flag_callback(
+  run->add_flag_callback(
       "--no-inject", []() { options::inject_tracing_lib = false; },
       "Do not inject the faster shared memory tracing library");
 
-  remote->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
-
-  remote->add_flag("--fresh", refresh, "Run full remote build");
+  run->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
 
   // Flags to turn the parallel compiler wrapper on/off
-  remote
-      ->add_flag_callback(
-          "--wrapper", []() { options::parallel_wrapper = true; },
-          "Wrap C/C++ compilers for parallel separate compilation")
+  run->add_flag_callback(
+         "--wrapper", []() { options::parallel_wrapper = true; },
+         "Wrap C/C++ compilers for parallel separate compilation")
       // Hide the --wrapper flag if it is enabled by default
       ->group(options::parallel_wrapper ? "" : "Options");
 
-  remote
-      ->add_flag_callback(
-          "--no-wrapper", []() { options::parallel_wrapper = false; },
-          "Do not wrap C/C++ compilers for parallel separate compilation")
+  run->add_flag_callback(
+         "--no-wrapper", []() { options::parallel_wrapper = false; },
+         "Do not wrap C/C++ compilers for parallel separate compilation")
       // Hide the --no-wrapper flag if it is disabled by default
       ->group(options::parallel_wrapper ? "Options" : "");
 
-  remote->add_option("-o,--output", command_output,
-                     "Output file where commands should be printed (default: -)");
+  run->add_option("-o,--output", command_output,
+                  "Output file where commands should be printed (default: -)");
 
-  remote->add_option("-b,--bin,--binary", command_binary,
-                     "Output file where binary trace should be printed (default: -)");
-
-  // Flags for rkr with remote connections
-
-  remote->add_option("-r,--remote", remote_path, "Path do_remote");
+  run->add_option("-b,--bin, --binary", command_binary,
+                  "Output file where binary trace should be printed (default: -)");
 
   /************* Run Subcommand *************/
   auto run = app.add_subcommand("run", "Run a set of commands given in the command line");
@@ -310,10 +307,6 @@ int main(int argc, char* argv[]) noexcept {
   // build subcommand
   build->final_callback([&] {
     do_build(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
-  });
-  // remote subcommand
-  remote->final_callback([&] {
-    do_remote(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
   });
   // run subcommand
   run->final_callback(
