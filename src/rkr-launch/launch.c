@@ -9,6 +9,23 @@
 #define ShellCommand "/bin/sh"
 
 int main(int argc, char** argv) {
+    // If multiple arguments are passed to launch, which is the case for the "run" subcommand
+  if (argc > 1) {
+    // First, build a new argv array for the shell command
+    char* new_argv[argc + 2];
+    new_argv[0] = ShellCommand;
+
+    // Copy the original arguments, including the NULL terminator at argv[argc]
+    for (int i = 2; i <= argc; i++) {
+      new_argv[i] = argv[i - 1];
+    }
+    new_argv[1] = "-c";
+
+    execv(ShellCommand, new_argv);
+
+    return 0;
+  }
+
   // First, try to execute the root build file
   argv[0] = Buildfile;
   execv(Buildfile, argv);
