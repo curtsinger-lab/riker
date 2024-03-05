@@ -28,17 +28,22 @@ using std::unique_ptr;
 using std::vector;
 
 /**
- * Run the `build` subcommand.
+ * Run the `run` subcommand.
  */
-void do_build(vector<string> args,
-              optional<fs::path> stats_log_path,
-              string command_output,
-              string binary_output,
-              bool refresh,
-              optional<string> remote_path,
-              string remote_flags) noexcept {
+void do_run(vector<string> args,
+            optional<fs::path> stats_log_path,
+            string command_output,
+            string binary_output,
+            optional<string> run_commands) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
+
+  // Save the commands passed for riker to run
+  vector<string> remaining;
+
+  if (run_commands.has_value()) {
+    remaining.push_back(run_commands.value());
+  }
 
   // Also ensure that the cache directory exists
   fs::create_directory(constants::CacheDir);
@@ -67,46 +72,23 @@ void do_build(vector<string> args,
   // Keep track of the root command
   shared_ptr<Command> root_cmd;
 
-  LOG(phase) << "Starting build phase 0";
+  LOG(phase) << "Starting run phase 0";
 
-  // Set the remote path variable to path specified in flag.
-  if (remote_path.has_value()) {
-    setenv("RKR_REMOTE_PATH", remote_path->c_str(), 1);
-    setenv("RKR_REMOTE_ARGS", remote_flags.c_str(), 1);
-  }
+  // No trace was loaded. Set up a default trace
+  DefaultTrace def(remaining);
 
-  // Is there a trace to load?
-  if (auto loaded = TraceReader::load(constants::DatabaseFilename); loaded && !refresh) {
-    // Yes. Remember the root command
-    root_cmd = loaded->getRootCommand();
+  // Remember the root command
+  root_cmd = def.getRootCommand();
 
-    // Create a trace writer to store the output trace
-    TraceWriter output;
+  // Create a trace writer to store the output trace
+  TraceWriter output;
 
-    // Evaluate the loaded trace
-    Build eval(output, print_to ? *print_to : std::cout);
-    loaded->sendTo(eval);
+  // Evaluate the default trace
+  Build eval(output, print_to ? *print_to : std::cout);
+  def.sendToHelp(eval, remaining[0]);
 
-    // The output now holds the next input. Save it
-    input = output.getReader();
-
-  } else {
-    // No trace was loaded. Set up a default trace
-    DefaultTrace def(args);
-
-    // Remember the root command
-    root_cmd = def.getRootCommand();
-
-    // Create a trace writer to store the output trace
-    TraceWriter output;
-
-    // Evaluate the default trace
-    Build eval(output, print_to ? *print_to : std::cout);
-    def.sendTo(eval);
-
-    // The output now holds the next input. Save it
-    input = output.getReader();
-  }
+  // The output now holds the next input. Save it
+  input = output.getReader();
 
   // Plan the next phase of the build
   root_cmd->planBuild();
@@ -128,7 +110,7 @@ void do_build(vector<string> args,
     // Revert the environment to committed state
     env::rollback();
 
-    LOGF(phase, "Starting build phase {}", iteration);
+    LOGF(phase, "Starting run phase {}", iteration);
 
     // Run the trace and send the new trace to output
     Build build(output, print_to ? *print_to : std::cout);
@@ -137,7 +119,7 @@ void do_build(vector<string> args,
     // Plan the next iteration
     root_cmd->planBuild();
 
-    LOGF(phase, "Finished build phase {}", iteration);
+    LOGF(phase, "Finished run phase {}", iteration);
 
     // Write stats out to CSV & reset counters
     gather_stats(stats_log_path, stats, iteration);
@@ -173,7 +155,6 @@ void do_build(vector<string> args,
 
   // Print binary trace to file if requested
   if (binary_output != "-") {
-    // const auto copyOptions = fs::copy_options::overwrite_existing;
     std::filesystem::copy(constants::DatabaseFilename, binary_output,
                           std::filesystem::copy_options::overwrite_existing);
   }
