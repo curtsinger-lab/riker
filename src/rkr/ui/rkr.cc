@@ -161,14 +161,60 @@ int main(int argc, char* argv[]) noexcept {
   build->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
 
+  string command_binary = "-";
+  build->add_option("-b,--bin, --binary", command_binary,
+                    "Output file where binary trace should be printed (default: -)");
+
   // Flags for rkr with remote connections
 
   optional<string> remote_path;
   build->add_option("-r,--remote", remote_path, "Path to riker on remote system");
 
+  /************* Run Subcommand *************/
+  auto run = app.add_subcommand("run", "Run a set of commands given in the command line");
+
+  // TODO: Require user to use this option if they use run subcommand
+  optional<string> run_commands;
+  // Create a positional option for the program we want to run
+  run->add_option("c", run_commands, "Commands to run");
+
+  run->add_flag("--show", options::print_on_run, "Show commands as they are run");
+
+  run->add_flag_callback(
+      "--show-full",
+      [] {
+        options::print_on_run = true;
+        options::print_full = true;
+      },
+      "Show complete command lines for all commands as they run");
+
+  run->add_flag_callback(
+      "--no-inject", []() { options::inject_tracing_lib = false; },
+      "Do not inject the faster shared memory tracing library");
+
+  run->add_flag("--syscall-stats", options::syscall_stats, "Collect system call statistics");
+
+  // Flags to turn the parallel compiler wrapper on/off
+  run->add_flag_callback(
+         "--wrapper", []() { options::parallel_wrapper = true; },
+         "Wrap C/C++ compilers for parallel separate compilation")
+      // Hide the --wrapper flag if it is enabled by default
+      ->group(options::parallel_wrapper ? "" : "Options");
+
+  run->add_flag_callback(
+         "--no-wrapper", []() { options::parallel_wrapper = false; },
+         "Do not wrap C/C++ compilers for parallel separate compilation")
+      // Hide the --no-wrapper flag if it is disabled by default
+      ->group(options::parallel_wrapper ? "Options" : "");
+
+  run->add_option("-o,--output", command_output,
+                  "Output file where commands should be printed (default: -)");
+
+  run->add_option("-b,--bin, --binary", command_binary,
+                  "Output file where binary trace should be printed (default: -)");
+
   /************* Audit Subcommand *************/
   auto audit = app.add_subcommand("audit", "Run a full build and print all commands");
-
   audit->add_option("-o,--output", command_output,
                     "Output file where commands should be printed (default: -)");
 
@@ -177,9 +223,14 @@ int main(int argc, char* argv[]) noexcept {
 
   /************* Trace Subcommand *************/
   string trace_output = "-";
+  string trace_binary = "-";
+  string trace_read = "-";
 
   auto trace = app.add_subcommand("trace", "Print a build trace in human-readable format");
   trace->add_option("-o,--output", trace_output, "Output file for the trace (default: -)");
+  trace->add_option("-b, --bin, --binary", trace_binary,
+                    "Output file for the binary trace (default: -)");
+  trace->add_option("--read", trace_read, "File to manually read binary trace from");
 
   /************* Graph Subcommand *************/
   // Leave output file and type empty for later default processing
@@ -211,14 +262,18 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback(
-      [&] { do_build(args, stats_log, command_output, refresh, remote_path, flags_for_use); });
+  build->final_callback([&] {
+    do_build(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
+  });
+  // run subcommand
+  run->final_callback(
+      [&] { do_run(args, stats_log, command_output, command_binary, run_commands); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand
   check->final_callback([&] { do_check(args); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output); });
+  trace->final_callback([&] { do_trace(args, trace_output, trace_binary, trace_read); });
   // graph subcommand
   graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
   // stats subcommand

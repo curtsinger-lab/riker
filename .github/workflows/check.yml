@@ -4,13 +4,13 @@ jobs:
   check:
     runs-on:
       - self-hosted
-      - linux
+      - Linux
       - ${{ matrix.arch }}
     strategy:
       matrix:
         mode: [debug, release]
         #arch: [x64, arm64]
-        arch: [x64]
+        arch: [X64]
     steps:
       - name: Checkout
         uses: actions/checkout@v2

@@ -38,6 +38,8 @@ int main(int argc, char* argv[]) {
   for (int i = 1; i < argc; i++) {
     // Check if commandline argument is meant for riker or for program started by user
     if (argv[i][0] == '-' && dashCount == 0) {
+      // NOTE/TODO: calling programs such as scp that use the whole channel, along with flags that
+      // print output currently will break the command. Fix is in place for next update.
       argv_for_rkr[argc_for_rkr] = strdup(argv[i]);
       argc_for_rkr++;
       if (strcmp(argv[i], "--log") == 0) {
@@ -54,7 +56,6 @@ int main(int argc, char* argv[]) {
   outdata.close();
 
   argv_for_rkr[argc_for_rkr] = (char*)NULL;
-
 
   // TODO: ensure we are in the correct directory for riker to be called.
   // TODO: Pass along arguments from local to remote side (particularly --fresh)

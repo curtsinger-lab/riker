@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -13,6 +14,7 @@
 
 #include "../wrappers/wrapper-utils.hh"
 #include "util/options.hh"
+namespace fs = std::filesystem;
 
 using std::nullopt;
 using std::optional;
@@ -58,7 +60,6 @@ int execvp_untraced(const char* pathname, char* const* argv) {
 }
 
 int main(int argc, char* argv[]) {
-  // Combine machine specific called remot
   // If remote path is not set, null will be returned
   // and remote tracing deactivated
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
@@ -88,14 +89,14 @@ int main(int argc, char* argv[]) {
   int dashCount = 0;
 
   for (; aIndex < argc; aIndex++) {
-    // if we find argument that doesn't start with -
     if (argv[aIndex][0] != '-') {
-      // add to the count
       dashCount++;
     }
     // The first two arguments without a dash (-) at the front should represent the address for the
-    // ssh and the requested command. The tracing program must thus be inserted between these, if it
-    // has been called by the -r flag.
+    // ssh and the requested remote command. The tracing program must thus be inserted between
+    // these, if it has been called by the -r flag.
+
+    // TODO: add support for ssh-session without remote command.
     if (dashCount == 2 && remote_riker_path != NULL) {
       // add argument to run remote-trace-primary
       commandp[pIndex] = strdup("-oControlMaster=yes");

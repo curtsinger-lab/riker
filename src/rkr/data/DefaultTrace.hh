@@ -20,6 +20,12 @@ class DefaultTrace : public IRSource {
   /// Send a stream of IR steps to an r-value reference handler
   void sendTo(IRSink&& handler) noexcept { sendTo(handler); }
 
+  /// Send a stream of IR steps to the given handler based on given command
+  void sendToHelp(IRSink& handler, std::string command) noexcept;
+
+  /// Send a stream of IR steps to an r-value reference handler on given command
+  void sendToHelp(IRSink&& handler, std::string command) noexcept { sendToHelp(handler, command); }
+
   /// Get the root command from this trace
   std::shared_ptr<Command> getRootCommand() const noexcept { return _root_command; }
 
