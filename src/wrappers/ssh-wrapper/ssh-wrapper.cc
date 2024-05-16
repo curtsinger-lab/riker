@@ -64,8 +64,6 @@ int main(int argc, char* argv[]) {
   // and remote tracing deactivated
   char* remote_riker_path = getenv("RKR_REMOTE_PATH");
 
-  // char* remote_riker_path = "/home/furuizhe/riker";
-  // char* remote_riker_args = "--fresh --show";
   char* remote_riker_args = getenv("RKR_REMOTE_ARGS");
 
   int fds[2];
@@ -138,29 +136,19 @@ int main(int argc, char* argv[]) {
   // end the array with null
   commandp[pIndex] = (char*)NULL;
   // execute the command
-  // printf("Command Primary: ");
-  for (int i = 0; i < pIndex; i++) {
-    // printf("%s ", commandp[i]);
-  }
   int null_space = open("/dev/null", O_WRONLY);
   dup2(null_space, STDIN_FILENO);
-  // printf("\n");
   int rc1 = fork();
   if (rc1 < 0) {
     fprintf(stderr, "fork failed\n");
   } else if (rc1 == 0) {
-    // printf("Local-Primary PID: %d\n", getpid());
-
     close(fds[0]);                // close reading end in the child
     dup2(fds[1], STDOUT_FILENO);  // send stdout to the pipe
     dup2(fds[1], STDERR_FILENO);  // send stderr to the pipe
-
-    // printf("Here1\n");
+    // dup2(fds[1], STDIN_FILENO);  // send stdin to the pipe
     close(fds[1]);  // this descriptor is no longer needed
 
-    // printf("Here2\n");
     execvp("ssh", commandp);
-    // printf("Here3\n");
   } else if (rc1 > 0) {
     close(fds[1]);  // Close writing end of second pipe
     // Read string from child, print it and close
@@ -173,6 +161,7 @@ int main(int argc, char* argv[]) {
     read(fds[0], saved_pid, atoi(strlength));
 
     saved_pid[atoi(strlength)] = '\0';
+    // Tests to see if the PID is passed correctly
     // printf("PID Length: %s\n", strlength);
     // printf("Remote Primary PID: %s\n", saved_pid);
     commands[sIndex] = strdup(saved_pid);
@@ -190,11 +179,6 @@ int main(int argc, char* argv[]) {
       sIndex++;
     }
     commands[sIndex] = (char*)NULL;
-    // printf("Command Secondary: ");
-    for (int i = 0; i < sIndex; i++) {
-      // printf("%s ", commands[i]);
-    }
-    // printf("\n");
 
     int rc2 = fork();
     if (rc2 < 0) {
@@ -207,24 +191,17 @@ int main(int argc, char* argv[]) {
       execvp("ssh", commands);
 
     } else {
-      // sleep(2);
-      //  char end_sig[10];
       char buffer[2];
       buffer[1] = '\0';
-      size_t count;
-      // printf("Reading from prim\n");
-      // while ((count = read(fds[0], buffer, sizeof(buffer) - 1)) > 0) {
-      // printf("%s", buffer);
-      //}
 
       close(fds[0]);
       wait(NULL);
       // printf("Done?\n");
     }
   }
-  close(null_space);
-  // TODO: Figure out how tf memory gonna work here. maybe this will actually work bc everyone
-  // has their own index values?
+  // close(null_space);
+  //  TODO: Figure out how memory will work here. maybe this will actually work bc everyone
+  //  has their own index values? Not current priority.
   for (int i = 0; i < pIndex; i++) {
     free(commandp[i]);
   }

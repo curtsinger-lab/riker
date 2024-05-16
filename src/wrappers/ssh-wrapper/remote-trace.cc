@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
 
   // Seperate list of arguments that will be passed to rkr
   char* argv_for_rkr[argc];
-  // TODO: Path to riker
+  // TODO: Path to riker HARDCODED
   argv_for_rkr[0] = strdup("riker/debug/bin/rkr");
   int argc_for_rkr = 1;
 
