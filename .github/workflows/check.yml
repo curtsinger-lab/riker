@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   check:
     runs-on:
-      - Linux
+      - ubuntu-latest
       - ${{ matrix.arch }}
     strategy:
       matrix:
