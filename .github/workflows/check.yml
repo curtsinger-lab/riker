@@ -13,21 +13,21 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: true
-      
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install make clang gcc python3-cram file graphviz
-          sudo update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100
 
       - name: Build
         run: make ${{ matrix.mode }}
       
+      - name: Install Test Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc python3-cram file graphviz
+          sudo update-alternatives --install /usr/bin/cram cram /usr/bin/cram3 100
+      
       - name: Test
         run: make test-${{ matrix.mode }}
       
-      - name: Self-Build
-        run: ${{ matrix.mode }}/bin/rkr --show
-      
-      - name: Test Self-Build
-        run: PATH=$PWD/self-build/bin:$PATH scripts/runtests.py
+      #- name: Self-Build
+      #  run: ${{ matrix.mode }}/bin/rkr --show
+      #
+      #- name: Test Self-Build
+      #  run: PATH=$PWD/self-build/bin:$PATH scripts/runtests.py

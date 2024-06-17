@@ -16,7 +16,7 @@ CONFIG_SRC="src/platform-config/platform-config.cc"
 BLAKE3_SRC="$BLAKE3/blake3.c $BLAKE3/blake3_dispatch.c $BLAKE3/blake3_portable.c"
 INJECT_SRC="src/inject/inject.c"
 LAUNCH_SRC="src/rkr-launch/launch.c"
-WRAPPER_SRC="src/compiler-wrapper/compiler-wrapper.cc"
+WRAPPER_SRC="src/wrappers/compiler-wrapper/compiler-wrapper.cc"
 RKR_SRC="src/rkr/*/*.cc"
 
 # Set architecture-specific source files
@@ -55,7 +55,7 @@ clang $CFLAGS -o $PREFIX/bin/rkr-launch $LAUNCH_SRC
 clang++ $CXXFLAGS -o $PREFIX/share/rkr/rkr-wrapper $WRAPPER_SRC -ldl
 
 # Compile rkr
-clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC .blake3_obj/*.o -lstdc++fs -lfmt -lpthread
+clang++ $CXXFLAGS -o $PREFIX/bin/rkr $RKR_SRC .blake3_obj/*.o -lstdc++fs -lpthread
 
 # Link wrappers
 WRAPPERS="c++ cc clang clang++ g++ gcc"
