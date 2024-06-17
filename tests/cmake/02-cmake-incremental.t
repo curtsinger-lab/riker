@@ -1,6 +1,7 @@
 Run a build with cmake under Riker tracing, then an incremental build after editing the source
 
 SKIP! This test is unreliable because some versions of cmake produce extra output during this test.
+  $ exit 80
 
 Move to test directory
   $ cd $TESTDIR
