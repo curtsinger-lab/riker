@@ -124,4 +124,7 @@ tests = passed + skipped + failed
 print("Ran {} tests, {} passed, {} skipped, {} failed.".format(tests, passed, skipped, failed))
 print("Tests completed in {:.2f}s".format(runtime))
 
+if failed > 0:
+  os.system('cat tests/*/*.t.err')
+
 exit(exitcode)
