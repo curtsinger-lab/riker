@@ -8,7 +8,7 @@ Prepare for a clean run
   $ cp versions/test-original.c test.c
 
 Run the first build
-  $ rkr > /dev/null
+  $ rkr --no-wrapper > /dev/null
 
 Check the output
   $ build/test

@@ -18,6 +18,7 @@ Run the first build
   ./creat-dir-open
 
 If the file was not created on the initial build, skip this test.
+  $ rm -f creat-dir-open
   $ test -f outcome || exit 80
 
 Check the contents of a_file

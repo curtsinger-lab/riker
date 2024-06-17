@@ -7,9 +7,9 @@ Clean up any leftover state
   $ rm -rf .rkr hello
 
 Run the build
-  $ rkr run --show "gcc -o hello hello.c"
+  $ rkr run --show-full "gcc -o hello hello.c"
   gcc -o hello hello.c gcc -o hello hello.c
-  sh -c gcc -o hello hello.c
+  [^ ]*sh -c gcc -o hello hello.c .* (re)
   gcc -o hello hello.c
   [^ ]*cc1 .* (re)
   [^ ]*as .* (re)
