@@ -3,11 +3,10 @@ on: [push, pull_request]
 jobs:
   check:
     runs-on:
-      - linux
-      - ${{ matrix.arch }}
+      - ${{ matrix.runner }}
     strategy:
       matrix:
-        arch: [x64, ARM64]
+        runner: [ubuntu-22.04-x64, ubuntu-22.04-arm64]
         mode: [debug, release]
     steps:
       - name: Checkout
