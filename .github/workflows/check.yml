@@ -6,7 +6,7 @@ jobs:
       - ${{ matrix.runner }}
     strategy:
       matrix:
-        runner: [ubuntu-22.04, ubuntu-24.04, ubuntu-22.04-arm64]
+        runner: [ubuntu-22.04, ubuntu-22.04-arm64]
         mode: [debug, release]
     steps:
       - name: Checkout
