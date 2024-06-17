@@ -1,5 +1,7 @@
 Run a build with cmake under Riker tracing, then an incremental build after editing the source
 
+SKIP! This test is unreliable because some versions of cmake produce extra output during this test.
+
 Move to test directory
   $ cd $TESTDIR
 
@@ -17,8 +19,6 @@ Check the output
 Modify test.c and rebuild
   $ cp versions/test-modified.c test.c
   $ rkr --show
-  cmake ** (glob)
-  Scanning dependencies of target test
   cc1 ** (glob)
   as ** (glob)
   ld ** (glob)
