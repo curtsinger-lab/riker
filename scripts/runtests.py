@@ -86,13 +86,16 @@ for d in testdirs:
 
 # Now launch all the tests at once
 start_time = time.time()
-p = subprocess.Popen(['cram', '--quiet'] + tests, env=testenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+p = subprocess.Popen(['cram'] + tests, env=testenv, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # Loop over each of the test directories
 for d, count in test_counts:
   # Print the test directory name
   sys.stdout.write(('{:>'+str(longest)+'} ').format(d))
   sys.stdout.flush()
+
+  # Keep track of any test failure messages
+  messages = []
 
   # Print test outcomes until we've hit `count` tests for this directory
   for i in range(0, count):
@@ -101,12 +104,22 @@ for d, count in test_counts:
       passed += 1
     elif c == 's':
       skipped += 1
+    elif c == '!':
+      failed += 1
+      message = ''
+      while p.stdout.peek(1).decode() not in ['.', '!', 's']:
+        message += p.stdout.read(1).decode()
+      messages.append(message)
     else:
+      print('Unknown output from cram')
       failed += 1
 
     sys.stdout.write(c)
     sys.stdout.flush()
   sys.stdout.write('\n')
+
+  for message in messages:
+    print(message)
   
 # Consume remaining output
 p.communicate()
