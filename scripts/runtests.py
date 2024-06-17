@@ -111,7 +111,7 @@ for d, count in test_counts:
         message += p.stdout.read(1).decode()
       messages.append(message)
     else:
-      print('Unknown output from cram')
+      c = '?'
       failed += 1
 
     sys.stdout.write(c)
@@ -119,7 +119,7 @@ for d, count in test_counts:
   sys.stdout.write('\n')
 
   for message in messages:
-    print(message)
+    sys.stdout.write(message + '\n')
   
 # Consume remaining output
 p.communicate()
