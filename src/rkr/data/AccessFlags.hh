@@ -74,8 +74,6 @@ class AccessType {
 /// This struct encodes the flags specified when making an access to a particular reference
 class AccessFlags {
  public:
-  constexpr AccessFlags() noexcept = default;
-
   union {
     struct {
       bool r : 1;          //< Does the reference require read access?
