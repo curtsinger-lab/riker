@@ -30,10 +30,7 @@ using std::vector;
 /**
  * Run the `run` subcommand.
  */
-void do_run(vector<string> args,
-            string command_output,
-            string binary_output,
-            optional<string> run_commands) noexcept {
+void do_run(string command_output, string binary_output, optional<string> run_commands) noexcept {
   // Make sure the output directory exists
   fs::create_directories(constants::OutputDir);
 

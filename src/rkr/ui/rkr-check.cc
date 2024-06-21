@@ -16,7 +16,7 @@ using std::vector;
 /**
  * Run the `check` subcommand
  */
-void do_check(vector<string> args) noexcept {
+void do_check() noexcept {
   // Load the build trace
   auto trace = TraceReader::load(constants::DatabaseFilename);
   FAIL_IF(!trace) << "A trace could not be loaded. Run a full build first.";

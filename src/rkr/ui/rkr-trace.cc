@@ -17,7 +17,7 @@ using std::vector;
  * Run the `trace` subcommand
  * \param output    The name of the output file, or "-" for stdout
  */
-void do_trace(vector<string> args, string output, string trace_binary, string trace_read) noexcept {
+void do_trace(string output, string trace_binary, string trace_read) noexcept {
   fs::path pathname;
 
   // Check if a path was passed to read from, otherwise, read from current directory.

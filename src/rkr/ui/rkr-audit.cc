@@ -27,7 +27,7 @@ using std::vector;
 /**
  * Run the `audit` subcommand.
  */
-void do_audit(vector<string> args, string command_output) noexcept {
+void do_audit(string command_output) noexcept {
   // Turn on printing, since that's the point of this mode
   options::print_on_run = true;
   options::print_full = true;
@@ -39,7 +39,7 @@ void do_audit(vector<string> args, string command_output) noexcept {
   }
 
   // Set up a default trace
-  DefaultTrace input(args);
+  DefaultTrace input;
   auto root_cmd = input.getRootCommand();
 
   // Set up an anonymous trace writer to hold the output

@@ -27,11 +27,7 @@ using std::vector;
  * \param show_all    If true, include system files in the graph
  * \param no_render   If set, generate graphviz source instead of a rendered graph
  */
-void do_graph(vector<string> args,
-              string output,
-              string type,
-              bool show_all,
-              bool no_render) noexcept {
+void do_graph(string output, string type, bool show_all, bool no_render) noexcept {
   // Turn on input/output tracking
   options::track_inputs_outputs = true;
 

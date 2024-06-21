@@ -25,7 +25,7 @@ using std::vector;
  * Run the `stats` subcommand
  * \param list_artifacts  Should the output include a list of artifacts and versions?
  */
-void do_stats(vector<string> args, bool list_artifacts) noexcept {
+void do_stats(bool list_artifacts) noexcept {
   // Turn on input/output tracking
   options::track_inputs_outputs = true;
 

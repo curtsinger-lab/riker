@@ -30,8 +30,7 @@ using std::vector;
 /**
  * Run the `build` subcommand.
  */
-void do_build(vector<string> args,
-              string command_output,
+void do_build(string command_output,
               string binary_output,
               bool refresh,
               optional<string> remote_path,
@@ -85,7 +84,7 @@ void do_build(vector<string> args,
 
   } else {
     // No trace was loaded. Set up a default trace
-    DefaultTrace def(args);
+    DefaultTrace def;
 
     // Remember the root command
     root_cmd = def.getRootCommand();

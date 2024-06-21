@@ -246,10 +246,6 @@ int main(int argc, char* argv[]) noexcept {
   auto stats = app.add_subcommand("stats", "Print build statistics");
   stats->add_flag("-a,--artifacts", list_artifacts, "Print a list of artifacts and their versions");
 
-  /************* Rikerfile Arguments ***********/
-  vector<string> args;
-  app.add_option("--args", args, "Arguments to pass to Rikerfile")->group("");  // hidden from help
-
   /************* Register Callbacks ***********/
   // these are all deferred until the end since a number
   // of them need access to the --args vector
@@ -258,19 +254,19 @@ int main(int argc, char* argv[]) noexcept {
 
   // build subcommand
   build->final_callback(
-      [&] { do_build(args, command_output, command_binary, refresh, remote_path, flags_for_use); });
+      [&] { do_build(command_output, command_binary, refresh, remote_path, flags_for_use); });
   // run subcommand
-  run->final_callback([&] { do_run(args, command_output, command_binary, run_commands); });
+  run->final_callback([&] { do_run(command_output, command_binary, run_commands); });
   // audit subcommand
-  audit->final_callback([&] { do_audit(args, command_output); });
+  audit->final_callback([&] { do_audit(command_output); });
   // check subcommand
-  check->final_callback([&] { do_check(args); });
+  check->final_callback([&] { do_check(); });
   // trace subcommand
-  trace->final_callback([&] { do_trace(args, trace_output, trace_binary, trace_read); });
+  trace->final_callback([&] { do_trace(trace_output, trace_binary, trace_read); });
   // graph subcommand
-  graph->final_callback([&] { do_graph(args, graph_output, graph_type, show_all, no_render); });
+  graph->final_callback([&] { do_graph(graph_output, graph_type, show_all, no_render); });
   // stats subcommand
-  stats->final_callback([&] { do_stats(args, list_artifacts); });
+  stats->final_callback([&] { do_stats(list_artifacts); });
 
   /************* Argument Parsing *************/
 
