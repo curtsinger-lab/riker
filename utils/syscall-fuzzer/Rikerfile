@@ -1,3 +1,0 @@
-#!/bin/sh
-
-./stress $1
