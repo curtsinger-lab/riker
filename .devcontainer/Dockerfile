@@ -1,5 +1,5 @@
 # Based on vscode development dockerfile from Microsoft
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
@@ -10,9 +10,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update
 RUN apt-get -y install --no-install-recommends apt-utils dialog software-properties-common 2>&1
-
-# Add the repo for g++-11
-RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test
 
 # Install packages
 RUN apt-get -y install --no-install-recommends \
