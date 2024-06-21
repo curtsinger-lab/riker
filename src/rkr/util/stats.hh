@@ -49,13 +49,3 @@ inline static void reset_stats() noexcept {
   stats::ptrace_stops = 0;
   stats::syscalls = 0;
 }
-
-/**
- * Write stats to CSV.
- */
-void write_stats(std::optional<fs::path> p, std::optional<std::string> stats);
-
-/**
- * Generate a stats row fragment in CSV format
- */
-void gather_stats(std::optional<fs::path> p, std::optional<std::string>& stats_opt, int phase);

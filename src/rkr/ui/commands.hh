@@ -8,7 +8,6 @@
 namespace fs = std::filesystem;
 
 void do_build(std::vector<std::string> args,
-              std::optional<fs::path> stats_log_path,
               std::string command_output,
               std::string binary_output,
               bool refresh,
@@ -16,7 +15,6 @@ void do_build(std::vector<std::string> args,
               std::string remote_flags) noexcept;
 
 void do_run(std::vector<std::string> args,
-            std::optional<fs::path> stats_log_path,
             std::string command_output,
             std::string binary_output,
             std::optional<std::string> remaining) noexcept;

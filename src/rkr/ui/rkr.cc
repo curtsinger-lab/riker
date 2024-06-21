@@ -111,11 +111,6 @@ int main(int argc, char* argv[]) noexcept {
                                   CLI::ignore_case)
               .description("{all, local, none}"));
 
-  optional<fs::path> stats_log;
-  app.add_option("--stats", stats_log,
-                 "Path to write statistics to a CSV file; appends if file already exists.")
-      ->type_name("FILE");
-
   app.add_flag_callback("--no-caching", [] { options::enable_cache = false; })
       ->description("Disable the build cache")
       ->group("Optimizations");
@@ -262,12 +257,10 @@ int main(int argc, char* argv[]) noexcept {
   // every argument in std::ref to pass values by reference.
 
   // build subcommand
-  build->final_callback([&] {
-    do_build(args, stats_log, command_output, command_binary, refresh, remote_path, flags_for_use);
-  });
+  build->final_callback(
+      [&] { do_build(args, command_output, command_binary, refresh, remote_path, flags_for_use); });
   // run subcommand
-  run->final_callback(
-      [&] { do_run(args, stats_log, command_output, command_binary, run_commands); });
+  run->final_callback([&] { do_run(args, command_output, command_binary, run_commands); });
   // audit subcommand
   audit->final_callback([&] { do_audit(args, command_output); });
   // check subcommand

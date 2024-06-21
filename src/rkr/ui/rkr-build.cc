@@ -31,7 +31,6 @@ using std::vector;
  * Run the `build` subcommand.
  */
 void do_build(vector<string> args,
-              optional<fs::path> stats_log_path,
               string command_output,
               string binary_output,
               bool refresh,
@@ -54,12 +53,6 @@ void do_build(vector<string> args,
   if (binary_output != "-") {
     binary_to = make_unique<ofstream>(binary_output);
   }
-
-  // Build stats
-  optional<string> stats;
-
-  // Reset the statistics counters
-  reset_stats();
 
   // The input TraceReader will supply the trace to each phase except the first
   TraceReader input;
@@ -113,10 +106,6 @@ void do_build(vector<string> args,
 
   LOG(phase) << "Finished build phase 0";
 
-  // Write stats out to CSV & reset counters
-  gather_stats(stats_log_path, stats, 0);
-  reset_stats();
-
   // Keep track of the build phase
   size_t iteration = 1;
 
@@ -138,10 +127,6 @@ void do_build(vector<string> args,
     root_cmd->planBuild();
 
     LOGF(phase, "Finished build phase {}", iteration);
-
-    // Write stats out to CSV & reset counters
-    gather_stats(stats_log_path, stats, iteration);
-    reset_stats();
 
     // Increment the iteration
     iteration++;
@@ -177,9 +162,6 @@ void do_build(vector<string> args,
     std::filesystem::copy(constants::DatabaseFilename, binary_output,
                           std::filesystem::copy_options::overwrite_existing);
   }
-
-  gather_stats(stats_log_path, stats, iteration);
-  write_stats(stats_log_path, stats);
 
   if (options::syscall_stats) {
     Tracer::printSyscallStats();
