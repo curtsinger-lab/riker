@@ -16,7 +16,7 @@ class AccessFlags;
 class Artifact;
 class Command;
 
-class MetadataVersion : public Version {
+class [[gnu::packed]] MetadataVersion : public Version {
  public:
   /// The type of a MetadataVersion ID
   using ID = uint32_t;

@@ -13,7 +13,7 @@ enum : int8_t { SUCCESS = 0 };
 
 enum class ArtifactType : uint8_t { File, Symlink, Dir };
 
-/// An AccessType encodes the error code (or success) outcomes for a reference depending on the typ
+/// An AccessType encodes the error code (or success) outcomes for a reference depending on the type
 /// of artifact that is reached. Any time an AccessType encodes an error code other than SUCCESS
 /// that will be the result of the access if it reaches the corresponding artifact type as the
 /// _final_ entry along the path.
@@ -72,9 +72,9 @@ class AccessType {
 };
 
 /// This struct encodes the flags specified when making an access to a particular reference
-class AccessFlags {
+class [[gnu::packed]] AccessFlags {
  public:
-  union {
+  union [[gnu::packed]] {
     struct {
       bool r : 1;          //< Does the reference require read access?
       bool w : 1;          //< Does the reference require write access?
