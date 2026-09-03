@@ -929,6 +929,15 @@ void Build::launch(const IRSource& source,
   // Add the child to the parent's list of children
   parent->addChild(child);
 
+  // A running parent launching a skippable child whose descendants must run: riker would have to
+  // start those descendants itself, with file descriptors (pipes to the live parent's other
+  // children) it cannot reproduce, and spins forever waiting for them. Run the child instead; it
+  // then launches its descendants normally.
+  if (parent->mustRun() && !child->mustRun() && !child->collectMustRun().empty()) {
+    LOG(exec) << child << " will run: a descendant must run under running parent " << parent;
+    child->setMarking(RebuildMarking::MustRun);
+  }
+
   // Is the child going to run?
   if (child->mustRun()) {
     // Yes. The child is going to run
