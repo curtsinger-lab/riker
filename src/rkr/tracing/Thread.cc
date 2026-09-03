@@ -146,6 +146,16 @@ Ref::ID Thread::makePathRef(Build& build,
                             fs::path p,
                             AccessFlags flags,
                             at_fd at) noexcept {
+  // Handle /dev/fd/ references (bash process substitution opens /dev/fd/N)
+  if (path_starts_with(p, "/dev/fd")) {
+    auto p_iter = p.begin();
+    std::advance(p_iter, 3);
+    if (p_iter != p.end()) {
+      int fd = std::stoi(*p_iter);
+      return getProcess()->getFD(fd);
+    }
+  }
+
   // Handle /proc/self/fd/ references
   if (path_starts_with(p, "/proc/self/fd")) {
     auto p_iter = p.begin();
