@@ -289,6 +289,10 @@ class Command : public std::enable_shared_from_this<Command> {
   /// Get this command's exit status
   int getExitStatus() noexcept;
 
+  /// Exit status for the current run, following exec chains: a wrapper script that exec'd its
+  /// child never exits on its own (-1); the status its parent saw is the exec'd child's.
+  int getEffectiveExitStatus() noexcept;
+
   /// Set this command's exit status, and record that it has exited
   void setExitStatus(int status) noexcept;
 

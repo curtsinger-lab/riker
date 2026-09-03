@@ -467,6 +467,13 @@ const shared_ptr<Process>& Command::getProcess() noexcept {
   return _current_run._process;
 }
 
+// Exit status following exec chains (see Command.hh)
+int Command::getEffectiveExitStatus() noexcept {
+  if (_current_run._exit_status != -1) return _current_run._exit_status;
+  if (_current_run._children.empty()) return -1;
+  return _current_run._children.back()->getEffectiveExitStatus();
+}
+
 // Get this command's exit status for the current run
 int Command::getExitStatus() noexcept {
   return _current_run._exit_status;

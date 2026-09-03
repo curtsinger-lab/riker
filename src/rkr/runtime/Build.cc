@@ -1020,9 +1020,9 @@ void Build::join(const IRSource& source,
   _output.join(source, c, child, exit_status);
 
   // If the parent is emulated, check for the expected exit status
-  if (c->canEmulate() && child->getExitStatus() != exit_status) {
+  if (c->canEmulate() && child->getEffectiveExitStatus() != exit_status) {
     LOGF(rebuild, "{} changed: child {} exited with different status (expected {}, observed {})", c,
-         child, exit_status, child->getExitStatus());
+         child, exit_status, child->getEffectiveExitStatus());
 
     // The command detects a changed exit status from its child, so it must rerun
     c->observeChange(Scenario::Both);
