@@ -1,5 +1,7 @@
 #include "FileVersion.hh"
 
+#include <cstdlib>
+
 #include <cerrno>
 #include <filesystem>
 #include <iomanip>
@@ -373,8 +375,11 @@ bool FileVersion::fingerprints_match(shared_ptr<FileVersion> other) const noexce
     return _hash.value() == other->_hash.value();
   }
 
-  // Do the mtimes match?
-  if (_mtime.has_value() && other->_mtime.has_value()) {
+  // Do the mtimes match? Skipped when RKR_NO_MTIME_MATCH is set: a tree whose files were copied in
+  // with a fixed modification time makes equal mtimes meaningless, and an edited file would be
+  // treated as unchanged.
+  static const bool no_mtime_match = std::getenv("RKR_NO_MTIME_MATCH") != nullptr;
+  if (!no_mtime_match && _mtime.has_value() && other->_mtime.has_value()) {
     auto m1 = _mtime.value();
     auto m2 = other->_mtime.value();
     if (m1.tv_sec == m2.tv_sec && m1.tv_nsec == m2.tv_nsec) {
