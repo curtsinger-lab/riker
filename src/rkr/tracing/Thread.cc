@@ -152,7 +152,7 @@ Ref::ID Thread::makePathRef(Build& build,
     std::advance(p_iter, 4);
     if (p_iter != p.end()) {
       int fd = std::stoi(*p_iter);
-      return getProcess()->getFD(fd);
+      return getProcess()->getFD(build, source, fd);
     }
   }
 
@@ -175,7 +175,7 @@ Ref::ID Thread::makePathRef(Build& build,
 
   // The path is resolved relative to some file descriptor
   auto ref = getCommand()->nextRef();
-  build.pathRef(source, getCommand(), _process->getFD(at.getFD()), p.relative_path(), flags, ref);
+  build.pathRef(source, getCommand(), _process->getFD(build, source, at.getFD()), p.relative_path(), flags, ref);
   return ref;
 }
 
@@ -588,7 +588,7 @@ void Thread::_dup(Build& build, const IRSource& source, int fd) noexcept {
 
       // Add the new entry for the duped fd. The cloexec flag is not inherited, so it's always
       // false.
-      _process->addFD(build, source, newfd, _process->getFD(fd), false);
+      _process->addFD(build, source, newfd, _process->getFD(build, source, fd), false);
     });
   } else {
     finishSyscall([=](Build& build, const IRSource& source, long rc) {
@@ -626,7 +626,7 @@ void Thread::_dup3(Build& build,
       _process->tryCloseFD(build, source, newfd);
 
       // Duplicate the file descriptor
-      _process->addFD(build, source, rc, _process->getFD(oldfd), flags.cloexec());
+      _process->addFD(build, source, rc, _process->getFD(build, source, oldfd), flags.cloexec());
     });
   } else {
     finishSyscall([=](Build& build, const IRSource& source, long rc) {
@@ -702,7 +702,7 @@ void Thread::_fstatat(Build& build,
   if (flags.empty_path()) {
     // Depend on content so the size field is accurate
     if (_process->hasFD(dirfd.getFD())) {
-      auto ref_id = _process->getFD(dirfd.getFD());
+      auto ref_id = _process->getFD(build, source, dirfd.getFD());
       auto ref = getCommand()->getRef(ref_id);
       if (ref->isResolved()) {
         ref->getArtifact()->beforeStat(build, source, getCommand(), ref_id);
@@ -715,7 +715,7 @@ void Thread::_fstatat(Build& build,
       if (rc == 0) {
         // This is essentially an fstat call
         // Record the dependency on metadata
-        build.traceMatchMetadata(source, getCommand(), _process->getFD(dirfd.getFD()));
+        build.traceMatchMetadata(source, getCommand(), _process->getFD(build, source, dirfd.getFD()));
       } else {
         WARN << "fstatat AT_EMPTY_PATH failed ¯\\_(ツ)_/¯";
         // do nothing.
@@ -723,7 +723,7 @@ void Thread::_fstatat(Build& build,
     });*/
     resume();
 
-    auto dir_ref_id = _process->getFD(dirfd.getFD());
+    auto dir_ref_id = _process->getFD(build, source, dirfd.getFD());
     auto dir_ref = getCommand()->getRef(dir_ref_id);
     ASSERT(dir_ref->isResolved()) << "Cannot match metadata for unresolved reference";
     build.matchMetadata(source, getCommand(), Scenario::Build, dir_ref_id,
@@ -791,7 +791,7 @@ void Thread::_fchown(Build& build,
   LOGF(trace, "{}: fchown({}, {}, {})", *this, fd, user, group);
 
   // Get the reference for the given file descriptor
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   auto ref = getCommand()->getRef(ref_id);
   ASSERT(ref->isResolved()) << "Cannot match metadata through an unresolved reference";
 
@@ -860,7 +860,7 @@ void Thread::_fchmod(Build& build, const IRSource& source, int fd, mode_flags mo
   LOGF(trace, "{}: fchmod({}, {})", *this, fd, mode);
 
   // Get the file descriptor entry
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
 
   // Finish the sycall and resume the process
   finishSyscall([=](Build& build, const IRSource& source, long rc) {
@@ -931,7 +931,7 @@ void Thread::_read(Build& build, const IRSource& source, int fd) noexcept {
   // but files do not.
 
   // Get a reference to the artifact being read
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   const auto& ref = getCommand()->getRef(ref_id);
 
   // Inform the artifact that we are about to read
@@ -952,7 +952,7 @@ void Thread::_write(Build& build, const IRSource& source, int fd) noexcept {
   LOGF(trace, "{}: write({})", *this, fd);
 
   // Get a reference to the artifact being written
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   const auto& ref = getCommand()->getRef(ref_id);
 
   // Inform the artifact that we are about to write
@@ -990,7 +990,7 @@ void Thread::_mmap(Build& build,
   }
 
   // Get the file descriptor being mapped
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   const auto& ref = getCommand()->getRef(ref_id);
   bool writable = (prot & PROT_WRITE) && ref->getFlags().w;
 
@@ -1078,7 +1078,7 @@ void Thread::_ftruncate(Build& build, const IRSource& source, int fd, long lengt
   LOGF(trace, "{}: ftruncate({}, {})", *this, fd, length);
 
   // Get the reference to the artifact being written
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   const auto& ref = getCommand()->getRef(ref_id);
 
   // If length is non-zero, this is a write so we depend on the previous contents
@@ -1109,10 +1109,10 @@ void Thread::_tee(Build& build, const IRSource& source, int fd_in, int fd_out) n
   // Does the process have the input FD?
   if (_process->hasFD(fd_in)) {
     // Get the descriptors
-    auto in_ref_id = _process->getFD(fd_in);
+    auto in_ref_id = _process->getFD(build, source, fd_in);
     const auto& in_ref = getCommand()->getRef(in_ref_id);
 
-    auto out_ref_id = _process->getFD(fd_out);
+    auto out_ref_id = _process->getFD(build, source, fd_out);
     const auto& out_ref = getCommand()->getRef(out_ref_id);
 
     // We are abou to read from in_ref and write to out_ref
@@ -1296,7 +1296,7 @@ void Thread::_getdents(Build& build, const IRSource& source, int fd) noexcept {
   LOGF(trace, "{}: getdents({})", *this, fd);
 
   // Get a reference to the artifact being read
-  auto ref_id = _process->getFD(fd);
+  auto ref_id = _process->getFD(build, source, fd);
   const auto& ref = getCommand()->getRef(ref_id);
 
   ref->getArtifact()->beforeRead(build, source, getCommand(), ref_id);
@@ -1616,7 +1616,7 @@ void Thread::_fchdir(Build& build, const IRSource& source, int fd) noexcept {
 
     if (rc == 0) {
       // Update the working directory
-      _process->setWorkingDir(build, source, _process->getFD(fd));
+      _process->setWorkingDir(build, source, _process->getFD(build, source, fd));
     }
   });
 }

@@ -50,6 +50,10 @@ class Process : public std::enable_shared_from_this<Process> {
   /// Get the reference used for a given file descriptor entry
   Ref::ID getFD(int fd) noexcept;
 
+  /// Get the reference for a file descriptor. A descriptor riker never saw being created (epoll,
+  /// eventfd, ... are not modeled) is bound to /dev/null with a warning instead of aborting.
+  Ref::ID getFD(Build& build, const IRSource& source, int fd) noexcept;
+
   /// Check if this process has a particular file descriptor
   bool hasFD(int fd) const noexcept { return _fds.find(fd) != _fds.end(); }
 

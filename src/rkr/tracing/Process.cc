@@ -14,6 +14,7 @@
 #include <sys/types.h>
 
 #include "artifacts/Artifact.hh"
+#include "data/AccessFlags.hh"
 #include "runtime/Build.hh"
 #include "runtime/Command.hh"
 #include "runtime/Ref.hh"
@@ -79,6 +80,20 @@ Ref::ID Process::getFD(int fd) noexcept {
   ASSERT(iter != _fds.end()) << "Attempted to access an unknown fd " << fd << " in " << this;
 
   return std::get<0>(iter->second);
+}
+
+// Get a file descriptor entry, binding unknown descriptors to /dev/null instead of failing
+Ref::ID Process::getFD(Build& build, const IRSource& source, int fd) noexcept {
+  auto iter = _fds.find(fd);
+  if (iter != _fds.end()) return std::get<0>(iter->second);
+  WARN << "Unknown fd " << fd << " in " << this << "; binding it to /dev/null (untracked source)";
+  AccessFlags flags;
+  flags.r = true;
+  flags.w = true;
+  auto ref = _command->nextRef();
+  build.pathRef(source, _command, getRoot(), fs::path("dev/null"), flags, ref);
+  addFD(build, source, fd, ref, false);
+  return ref;
 }
 
 // Add a file descriptor entry
