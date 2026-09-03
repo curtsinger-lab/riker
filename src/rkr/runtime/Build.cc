@@ -967,8 +967,18 @@ void Build::launch(const IRSource& source,
       child->setLaunched(_tracer.start(*this, child));
 
     } else {
-      // The child command is launched, and has no associated process
-      child->setLaunched();
+      // The child command is launched, and has no associated process -- unless the skipped parent
+      // is a wrapper that exec'd this child (it never recorded an exit of its own) and is holding a
+      // parked process waiting to be exited: that process now belongs to the child, exactly as
+      // Process::exec does when tracing. Otherwise nobody ever exits it and the real parent shell
+      // blocks in wait forever.
+      const auto& pproc = parent->getProcess();
+      if (pproc && parent->getPreviousExitStatus() == -1) {
+        LOG(exec) << "handing parked process of exec-style wrapper " << parent << " to " << child;
+        child->setLaunched(pproc);
+      } else {
+        child->setLaunched();
+      }
     }
   }
 

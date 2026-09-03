@@ -257,7 +257,10 @@ void Process::waitForExit(function<void(int)> handler) noexcept {
 
 // Force this process to exit instead of running an exec syscall
 void Process::forceExit(int exit_status) noexcept {
-  ASSERT(_force_exit_callback) << "Process does not have a callback to force exit";
+  if (_exited || !_force_exit_callback) {
+    WARN << "forceExit(" << exit_status << ") on " << this << " ignored: already exited or no callback";
+    return;
+  }
 
   // Mark the process as exited
   _exited = true;
